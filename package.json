@@ -2,11 +2,11 @@
     "name": "rest-client",
     "displayName": "REST Client",
     "description": "%ext.description%",
-    "version": "1.1.1",
-    "publisher": "argalla",
+    "version": "1.1.2",
+    "publisher": "vscode-restclient",
     "author": {
-        "name": "Argalla · Tecniart Galicia, S.L.",
-        "url": "https://github.com/TecniartGalicia"
+        "name": "The Visual Studio Code REST Client Team",
+        "url": "https://github.com/vscode-restclient/vscode-restclient"
     },
     "contributors": [
         {
@@ -21,12 +21,12 @@
     },
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/TecniartGalicia/httpkeeper/issues"
+        "url": "https://github.com/vscode-restclient/vscode-restclient/issues"
     },
-    "homepage": "https://github.com/TecniartGalicia/httpkeeper#readme",
+    "homepage": "https://github.com/vscode-restclient/vscode-restclient#readme",
     "repository": {
         "type": "git",
-        "url": "https://github.com/TecniartGalicia/httpkeeper.git"
+        "url": "https://github.com/vscode-restclient/vscode-restclient.git"
     },
     "engines": {
         "vscode": "^1.81.0"
