@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 
+- The original **`rest-client.*` command IDs are back** (`rest-client.request`, `rest-client.rerun-last-request`, … — all 19 of them, keybindings included): they are public API, used from keybindings.json, tasks.json and other extensions via `executeCommand`. The two commands this project added follow the same prefix (`rest-client.set-secret`, `rest-client.delete-secret`). The internal document-link command stays under a distinct prefix on purpose: sharing it is what made links open in the other extension when both were installed. If `humao.rest-client` is installed alongside, activation no longer breaks on the duplicate registrations — you get one clear warning asking to disable one of the two. The IDs are frozen by `commandIds.test.ts`, so renaming one by accident fails the suite.
 - The extension is called **REST Client** again (`displayName` and `name`), and the README is Huachao Mao's original reference, with a summary of what changed since 0.25.1 on top and one addition: AWS Cognito, supported since 0.24 but never documented. The HttpKeeper README moved to `docs/HTTPKEEPER.md` (and `docs/HTTPKEEPER.es.md`). Development now happens in the [vscode-restclient organisation](https://github.com/vscode-restclient/vscode-restclient).
 
 ## [1.1.1] - 2026-08-27

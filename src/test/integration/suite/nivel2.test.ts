@@ -36,7 +36,7 @@ async function enviarFichero(ruta: string, linea: number, marca: string, segundo
   const editor = await vscode.window.showTextDocument(doc, { preview: false });
   const pos = new vscode.Position(linea, 0);
   editor.selection = new vscode.Selection(pos, pos);
-  await vscode.commands.executeCommand('httpkeeper.request');
+  await vscode.commands.executeCommand('rest-client.request');
 
   for (let i = 0; i < segundos * 4; i++) {
     await esperar(250);
@@ -60,8 +60,8 @@ describe('HttpKeeper · formato JetBrains y secretos', () => {
 
   after(async () => {
     // Sin entorno ni secretos: que las demás suites no hereden nada.
-    await vscode.commands.executeCommand('httpkeeper.switch-environment', '');
-    await vscode.commands.executeCommand('httpkeeper.delete-secret', 'API_KEY');
+    await vscode.commands.executeCommand('rest-client.switch-environment', '');
+    await vscode.commands.executeCommand('rest-client.delete-secret', 'API_KEY');
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
@@ -70,7 +70,7 @@ describe('HttpKeeper · formato JetBrains y secretos', () => {
     escribir('http-client.private.env.json', JSON.stringify({ dev: { ruta: '/privado-manda' } }));
     const fichero = escribir('entorno.http', j('GET {{host}}{{ruta}}', ''));
 
-    await vscode.commands.executeCommand('httpkeeper.switch-environment', 'dev');
+    await vscode.commands.executeCommand('rest-client.switch-environment', 'dev');
     const t = await enviarFichero(fichero, 0, '/privado-manda');
     assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
     assert.ok(/"ruta":\s*"\/privado-manda"/.test(t), 'el privado debe mandar sobre el público');
@@ -97,7 +97,7 @@ describe('HttpKeeper · formato JetBrains y secretos', () => {
   });
 
   it('P-38 · $secret: guardado con el comando, se sustituye; el fichero no lo contiene', async () => {
-    await vscode.commands.executeCommand('httpkeeper.set-secret', 'API_KEY', 'clave-secreta-123');
+    await vscode.commands.executeCommand('rest-client.set-secret', 'API_KEY', 'clave-secreta-123');
     const fichero = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Prueba: {{$secret API_KEY}}', ''));
     assert.ok(!fs.readFileSync(fichero, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
     const t = await enviarFichero(fichero, 0, '/con-secreto');
@@ -136,7 +136,7 @@ describe('HttpKeeper · streaming', () => {
     await vscode.window.showTextDocument(doc, { preview: false });
     // El comando no resuelve hasta que la petición TERMINA: hay que sondear
     // mientras está en vuelo, no después.
-    const envio = vscode.commands.executeCommand('httpkeeper.request');
+    const envio = vscode.commands.executeCommand('rest-client.request');
     let vistoStreaming = false;
     let vistoFinal = false;
     const vistas = new Set<string>();

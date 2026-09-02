@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 | | Original | HttpKeeper |
 |---|---|---|
-| Pruebas | 0 | **52** (24 unitarias, 28 de integración contra un servidor de verdad) |
+| Pruebas | 0 | **56** (24 unitarias, 28 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas) | **0** |
 | Paquetes | 1.487 | **399** |
 | Telemetría | Application Insights | **ninguna** |

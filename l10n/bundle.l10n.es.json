@@ -49,5 +49,7 @@
     "cancelled; the events above were received before": "cancelado; los eventos de arriba llegaron antes",
     "Sending {0} from {1}": "Enviando {0} desde {1}",
     "Send HTTP request": "Enviar petición HTTP",
-    "Send **{0}** from `{1}`?": "¿Enviar **{0}** desde `{1}`?"
+    "Send **{0}** from `{1}`?": "¿Enviar **{0}** desde `{1}`?",
+    "REST Client (humao.rest-client) is also installed. Both extensions register the same rest-client.* commands, so only one of them can work — please disable one of the two.": "REST Client (humao.rest-client) también está instalada. Ambas extensiones registran los mismos comandos rest-client.*, así que solo una puede funcionar: desactiva una de las dos.",
+    "Some commands were already registered by another extension ({0}). Please disable the extension that overlaps with this one.": "Otra extensión ya había registrado algunos comandos ({0}). Desactiva la extensión que se solapa con esta."
 }
