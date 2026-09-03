@@ -240,7 +240,7 @@ for (const f of ['docs/HTTPKEEPER.md', 'docs/HTTPKEEPER.es.md']) {
     ok(`${f} promete el numero de pruebas que hay`, Number(prometido) === nPruebas, `dice ${prometido}, hay ${nPruebas}`);
 }
 ok('las unitarias que corren son las que estan escritas', Number(nUnit) === cuentaIts('src/test/unit'), `${nUnit} corriendo`);
-ok('promete 399 paquetes', leer('docs/HTTPKEEPER.md').includes('399') && readme.includes('399'));
+ok('promete 400 paquetes', leer('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
 ok('promete cero telemetría', leer('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
 
 console.log(`\n===== ${fallos} fallos`);

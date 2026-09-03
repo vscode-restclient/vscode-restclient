@@ -16,9 +16,9 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 | | Original | HttpKeeper |
 |---|---|---|
-| Tests | 0 | **52** (24 unit, 28 integration against a real server) |
+| Tests | 0 | **60** (24 unit, 28 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical) | **0** |
-| Packages | 1,487 | **399** |
+| Packages | 1,487 | **400** |
 | Telemetry | Application Insights | **none** |
 
 `aws-amplify` — the whole AWS SDK, GraphQL, DataStore, ML predictions and all — was being pulled in for a Cognito login. It is now sixty lines that talk to Cognito over HTTP: **1,088 packages gone**.
