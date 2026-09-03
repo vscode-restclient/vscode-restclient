@@ -806,6 +806,7 @@
         "webpack-cli": "^5.0.1"
     },
     "dependencies": {
+        "@faker-js/faker": "^10.6.0",
         "@xmldom/xmldom": "^0.9.12",
         "adal-node": "^0.2.4",
         "aws4": "^1.9.1",

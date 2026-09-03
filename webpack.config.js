@@ -36,10 +36,29 @@ const config = {
     },
     module: {
         rules: [{
+            // El runner se queda en commonjs: su `require.main === module`
+            // (que decide si arranca) muere con la emision ESM, y su faker
+            // va empaquetado dentro porque cli.js viaja como fichero unico.
             test: /\.ts$/,
-            exclude: /node_modules/,
+            include: /[\\/]src[\\/]cli[\\/]/,
             use: [{
                 loader: 'ts-loader',
+                options: { instance: 'cli' },
+            }]
+        }, {
+            // El resto del codigo emite ESM: con `module: commonjs` (el
+            // tsconfig que usan tsc y los tests) ts-loader convierte los
+            // import() dinamicos en require y webpack pierde el punto de
+            // corte, asi que faker acababa DENTRO de extension.js en vez
+            // de en su chunk de carga diferida.
+            test: /\.ts$/,
+            exclude: [/node_modules/, /[\\/]src[\\/]cli[\\/]/],
+            use: [{
+                loader: 'ts-loader',
+                options: {
+                    instance: 'resto',
+                    compilerOptions: { module: 'es2020', moduleResolution: 'node' },
+                },
             }]
         }]
     },

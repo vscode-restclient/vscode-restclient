@@ -10,6 +10,7 @@ import { EnvironmentController } from '../../controllers/environmentController';
 import { HttpRequest } from '../../models/httpRequest';
 import { ResolveErrorMessage, ResolveWarningMessage } from '../../models/httpVariableResolveResult';
 import { VariableType } from '../../models/variableType';
+import { fakerRegex, loadFaker, resolveFakerPath } from '../fakerShared';
 import { AadTokenCache } from '../aadTokenCache';
 import { AadV2TokenProvider } from '../aadV2TokenProvider';
 import { CALLBACK_PORT, OidcClient } from '../auth/oidcClient';
@@ -65,6 +66,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
         this.registerProcessEnvVariable();
         this.registerDotenvVariable();
         this.registerSecretVariable();
+        this.registerFakerVariable();
         this.registerJetBrainsAliases();
         this.registerAadTokenVariable();
         this.registerOidcTokenVariable();
@@ -231,6 +233,19 @@ export class SystemVariableProvider implements HttpVariableProvider {
             }
 
             return { warning: ResolveWarningMessage.IncorrectDotenvVariableFormat };
+        });
+    }
+
+    private registerFakerVariable() {
+        this.resolveFuncs.set(Constants.FakerVariableName, async name => {
+            const groups = fakerRegex.exec(name);
+            if (groups !== null) {
+                const [, path, params] = groups;
+                const faker = await loadFaker();
+                const result = resolveFakerPath(faker, path, params);
+                return 'error' in result ? { warning: result.error as any } : result;
+            }
+            return { warning: ResolveWarningMessage.IncorrectFakerVariableFormat };
         });
     }
 
