@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import * as os from 'os';
 import { Clipboard, commands, env, ExtensionContext, l10n, Uri, ViewColumn, WebviewPanel, window, workspace } from 'vscode';
+import { registerCommandSafely } from '../utils/safeCommands';
 import { SystemSettings } from '../models/configurationSettings';
 import { HttpRequest } from '../models/httpRequest';
 import { HttpResponse } from '../models/httpResponse';
@@ -60,14 +61,14 @@ export class HttpResponseWebview extends BaseWebview {
         // Init response webview map
         this.panelResponses = new Map<WebviewPanel, HttpResponse>();
 
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.fold-response', this.foldResponseBody, this));
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.unfold-response', this.unfoldResponseBody, this));
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.preview-html-response-body', this.previewResponseBody, this));
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.show-raw-response', this.showRawResponse, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.fold-response', this.foldResponseBody, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.unfold-response', this.unfoldResponseBody, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.preview-html-response-body', this.previewResponseBody, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.show-raw-response', this.showRawResponse, this));
 
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.copy-response-body', this.copyBody, this));
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.save-response', this.save, this));
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.save-response-body', this.saveBody, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.copy-response-body', this.copyBody, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.save-response', this.save, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.save-response-body', this.saveBody, this));
     }
 
     public async render(response: HttpResponse, column: ViewColumn) {

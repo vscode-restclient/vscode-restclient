@@ -13,7 +13,7 @@ export class HttpCodeLensProvider implements CodeLensProvider {
             const cmd: Command = {
                 arguments: [document, range],
                 title: l10n.t('Send Request'),
-                command: 'httpkeeper.request'
+                command: 'rest-client.request'
             };
             blocks.push(new CodeLens(range, cmd));
         }

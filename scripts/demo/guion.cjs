@@ -40,7 +40,7 @@ async function enviar(editor, texto) {
     editor.selection = new vscode.Selection(pos, pos);
     editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
     await espera(400);
-    await vscode.commands.executeCommand('httpkeeper.request');
+    await vscode.commands.executeCommand('rest-client.request');
 }
 
 exports.run = async () => {

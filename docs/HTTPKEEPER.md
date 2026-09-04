@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 | | Original | HttpKeeper |
 |---|---|---|
-| Tests | 0 | **52** (24 unit, 28 integration against a real server) |
+| Tests | 0 | **56** (24 unit, 28 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical) | **0** |
 | Packages | 1,487 | **399** |
 | Telemetry | Application Insights | **none** |
