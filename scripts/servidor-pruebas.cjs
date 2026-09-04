@@ -30,7 +30,7 @@ const s = http.createServer((q, r) => {
     if (u === '/texto') { r.writeHead(200, { 'content-type': 'text/plain', 'x-ruta': u }); return r.end('soy texto plano'); }
     if (u === '/xml') { r.writeHead(200, { 'content-type': 'application/xml', 'x-ruta': u }); return r.end('<raiz><hijo>valor</hijo></raiz>'); }
     if (u === '/auth') { return json(r, 200, { token: 'tok-123' }); }
-    if (u.startsWith('/eco')) { return json(r, 200, { ruta: u, cabecera: q.headers['x-prueba'] || null, recibido: b }); }
+    if (u.startsWith('/eco')) { return json(r, 200, { ruta: u, cabecera: q.headers['x-prueba'] || null, autorizacion: q.headers.authorization || null, recibido: b }); }
     if (u.startsWith('/facturas')) {
       const ok = q.headers.authorization === 'Bearer tok-123';
       return json(r, ok ? 200 : 401, { total: ok ? 3 : 0, autorizacion: q.headers.authorization || null });
