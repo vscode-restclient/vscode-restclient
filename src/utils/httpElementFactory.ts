@@ -89,6 +89,12 @@ export class HttpElementFactory {
 
         // add global variables
         originalElements.push(new HttpElement(
+            Constants.FakerVariableName,
+            ElementType.SystemVariable,
+            null,
+            Constants.FakerVariableDescription,
+            new SnippetString(`{{$\${name:${Constants.FakerVariableName.slice(1)}} \${1:internet.email}}}`)));
+        originalElements.push(new HttpElement(
             Constants.GuidVariableName,
             ElementType.SystemVariable,
             null,

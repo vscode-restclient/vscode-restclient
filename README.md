@@ -8,7 +8,8 @@ REST Client was created by [Huachao Mao](https://github.com/Huachao) and reached
 
 Full details in the [CHANGELOG](CHANGELOG.md); the longer story, with screenshots, in [docs/HTTPKEEPER.md](docs/HTTPKEEPER.md).
 
-- **A test suite** (52 tests, 28 of them sending real requests through the extension), **0 vulnerabilities** in production dependencies (from 75), **399 packages** (from 1,487), **telemetry removed**.
+- **Fake data**: `{{$faker internet.email}}` — any [Faker](https://fakerjs.dev) module, lazily loaded, same syntax as rest-client-next.
+- **A test suite** (60 tests, 29 of them sending real requests through the extension), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
 - **Bugs fixed**: the response not showing up in Cursor, a re-sent request with mangled headers, a JSONPath with several matches returning only the first, XPath request variables.
 - **Run a whole file in order**, with later requests using earlier responses; **assertions in the file** (`# @assert status == 200`); a **terminal runner** for CI (`npx httpkeeper-cli api.http`, `--junit`, GitHub Action).
 - **The JetBrains format, complete**: `http-client.env.json` / `http-client.private.env.json`, `import ./other.http`, `run #name`, request variables across files, `{{$secret NAME}}`, `{{$uuid}}`, `{{$isoTimestamp}}`, `{{$random.integer(min,max)}}`.

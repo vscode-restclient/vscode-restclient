@@ -10,6 +10,8 @@
  * un servidor de integración continua necesita entender.
  */
 import * as crypto from 'crypto';
+import { faker } from '@faker-js/faker/locale/en';
+import { fakerRegex, resolveFakerPath } from '../utils/fakerShared';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
@@ -148,6 +150,14 @@ export function sustituir(texto: string, variables: Record<string, string>, secr
         const argumento = resto.join(' ');
         switch (sistema.replace(/\(.*$/, '')) {
             case '$processEnv': return process.env[argumento] ?? '';
+            case '$faker': {
+                const grupos = fakerRegex.exec(clave);
+                if (!grupos) {
+                    return completo;
+                }
+                const r = resolveFakerPath(faker, grupos[1], grupos[2]);
+                return 'value' in r ? r.value : completo;
+            }
             case '$secret': return secreto(argumento, secretos);
             case '$guid':
             case '$uuid': return crypto.randomUUID();

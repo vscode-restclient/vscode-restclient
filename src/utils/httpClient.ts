@@ -49,8 +49,8 @@ const ENTORNO_EDITOR: Entorno = {
 };
 
 import { CancelableRequest, Headers, Method, OptionsOfBufferResponseBody, Response } from 'got';
-import got = require('got');
-import crypto = require('crypto');
+import got from 'got';
+import * as crypto from 'crypto';
 
 const encodeUrl = require('encodeurl');
 const CookieFileStore = require('tough-cookie-file-store').FileCookieStore;
@@ -92,7 +92,7 @@ export class HttpClient {
         let bodySize = 0;
         let headersSize = 0;
         const requestUrl = encodeUrl(httpRequest.url);
-        const request: CancelableRequest<Response<Buffer>> = got.default(requestUrl, options);
+        const request: CancelableRequest<Response<Buffer>> = got(requestUrl, options);
         httpRequest.setUnderlyingRequest(request);
         (request as any).on('response', res => {
             if (res.rawHeaders) {

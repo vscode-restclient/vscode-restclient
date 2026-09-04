@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- **`{{$faker module.property [params]}}`** — fake values in requests (`{{$faker internet.email}}`, `{{$faker string.alphanumeric 8}}`), ported from [rest-client-next](https://github.com/tutilus/vscode-restclientnext) with the same syntax. In the editor the library loads lazily: nothing is paid at activation, only the first time a file resolves a `$faker`; only the English locale ships. The terminal runner supports the same syntax (its single-file bundle carries faker inside). Upstream #1412.
+
 ### Changed
 
 - The extension is called **REST Client** again (`displayName` and `name`), and the README is Huachao Mao's original reference, with a summary of what changed since 0.25.1 on top and one addition: AWS Cognito, supported since 0.24 but never documented. The HttpKeeper README moved to `docs/HTTPKEEPER.md` (and `docs/HTTPKEEPER.es.md`). Development now happens in the [vscode-restclient organisation](https://github.com/vscode-restclient/vscode-restclient).

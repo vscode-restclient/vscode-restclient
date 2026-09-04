@@ -222,3 +222,17 @@ describe('HttpKeeper · herramientas para agentes', () => {
     );
   });
 });
+
+describe('faker en el editor (carga diferida)', () => {
+  it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
+    this.timeout(60000);
+    const fichero = escribir('faker.http', j(
+      `GET ${BASE}/eco?correo={{$faker internet.email}}`,
+      'X-Prueba: marca-faker',
+    ));
+    const texto = await enviarFichero(fichero, 0, 'marca-faker', 40);
+    const correo = /correo=([^&"\\]+)/.exec(texto)?.[1] ?? '';
+    assert.ok(/%40|@/.test(correo), `no parece un email: ${correo || texto.slice(0, 200)}`);
+    assert.ok(!correo.includes('faker'), 'la variable quedo sin resolver');
+  });
+});
