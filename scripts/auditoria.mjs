@@ -10,6 +10,9 @@ const ok = (n, c, extra = '') => {
   if (!c) fallos++;
 };
 const seccion = (t) => console.log(`\n== ${t}`);
+// Lo que depende de un servicio ajeno no puede tumbar la bateria: si no se
+// pudo comprobar se dice, pero no cuenta como fallo del proyecto.
+const aviso = (n, extra = '') => console.log(`  AVISO ${n}${extra ? ' · ' + extra : ''}`);
 const correr = (cmd, env) => {
   const opciones = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } };
   try {
@@ -19,6 +22,26 @@ const correr = (cmd, env) => {
   }
 };
 const leer = (f) => fs.readFileSync(f, 'utf8');
+
+/**
+ * `npm --json` no garantiza que la salida sea solo JSON: desde septiembre de
+ * 2026 npm intercala avisos como «npm notice This endpoint is being retired»
+ * y `JSON.parse` de la salida entera revienta. Eso tumbó la CI en las tres
+ * plataformas sin que nada del proyecto hubiera cambiado, asi que aqui se
+ * extrae el objeto en vez de confiar en que venga limpio.
+ */
+const json = (salida) => {
+  const i = salida.indexOf('{');
+  const f = salida.lastIndexOf('}');
+  if (i < 0 || f < i) {
+    return {};
+  }
+  try {
+    return JSON.parse(salida.slice(i, f + 1));
+  } catch {
+    return {};
+  }
+};
 
 seccion('identidad');
 const pkg = JSON.parse(leer('package.json'));
@@ -48,7 +71,7 @@ ok('la licencia declarada es MIT', pkg.license === 'MIT');
 // un fichero con la licencia de cada paquete de produccion.
 const avisos = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
 ok('existe el fichero de avisos de terceros', avisos.length > 0);
-const arbol = JSON.parse(correr('npm ls --omit=dev --all --json').salida || '{}');
+const arbol = json(correr('npm ls --omit=dev --all --json').salida);
 const paquetes = new Set();
 // Sin version = dependencia opcional que npm no instalo; no viaja, no cuenta.
 const recorrerArbol = (nodo) => { for (const [n, v] of Object.entries(nodo?.dependencies ?? {})) { if (v.version) { paquetes.add(`${n}@${v.version}`); recorrerArbol(v); } } };
@@ -71,9 +94,16 @@ ok('sin rastro de telemetría en el código', conTelemetria === '', conTelemetri
 ok('sin ajuste de telemetría en la ficha', !JSON.stringify(pkg.contributes.configuration).includes('Telemetry'));
 
 seccion('dependencias');
-const audit = JSON.parse(correr('npm audit --omit=dev --json').salida || '{}');
+// `npm audit` sale a la red en cada ejecucion: si el registro va lento, esta
+// caido o cambia el formato, no es un problema de este repositorio. Se le da
+// un limite de tiempo y, sin datos, queda como aviso en vez de tumbar la CI.
+const audit = json(correr('npm audit --omit=dev --json --fetch-timeout=60000').salida);
 const v = audit.metadata?.vulnerabilities ?? {};
-ok('ninguna vulnerabilidad en producción', (v.total ?? 99) === 0, `total: ${v.total ?? '?'}`);
+if (typeof v.total === 'number') {
+    ok('ninguna vulnerabilidad en produccion', v.total === 0, `total: ${v.total}`);
+} else {
+    aviso('vulnerabilidades en produccion: npm audit no devolvio datos', 'sin red o formato inesperado');
+}
 ok('aws-amplify fuera', !JSON.stringify(pkg.dependencies).includes('aws-amplify'));
 ok('xmldom sin mantenimiento fuera', pkg.dependencies.xmldom === undefined);
 
