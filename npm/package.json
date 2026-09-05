@@ -1,6 +1,6 @@
 {
   "name": "httpkeeper-cli",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Run .http files (REST Client / JetBrains HTTP Client format) from the terminal: assertions, environments, secrets, SSE, WebSocket, JUnit output and an MCP server for agents. The command is `httpkeeper`. Runner of the HttpKeeper VS Code extension.",
   "bin": {
     "httpkeeper": "cli.js"
@@ -17,11 +17,11 @@
   "author": "Argalla · Tecniart Galicia, S.L.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TecniartGalicia/httpkeeper.git"
+    "url": "https://github.com/vscode-restclient/vscode-restclient.git"
   },
-  "homepage": "https://github.com/TecniartGalicia/httpkeeper#readme",
+  "homepage": "https://github.com/vscode-restclient/vscode-restclient#readme",
   "bugs": {
-    "url": "https://github.com/TecniartGalicia/httpkeeper/issues"
+    "url": "https://github.com/vscode-restclient/vscode-restclient/issues"
   },
   "keywords": [
     "http",
