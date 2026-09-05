@@ -225,7 +225,7 @@ describe('HttpKeeper · herramientas para agentes', () => {
 
 describe('HttpKeeper · lo portado de rest-client-next', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });
