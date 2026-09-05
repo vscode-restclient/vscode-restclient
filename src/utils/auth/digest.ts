@@ -1,11 +1,11 @@
 import * as url from 'url';
 import { md5 } from '../misc';
 
-import got = require('got');
+import type { AfterResponseHook } from 'got';
 
 import { v4 as uuidv4 } from 'uuid';
 
-export function digest(user: string, pass: string): got.AfterResponseHook {
+export function digest(user: string, pass: string): AfterResponseHook {
     return (response, retryWithMergedOptions) => {
         if (response.statusCode === 401
             && response.headers['www-authenticate']

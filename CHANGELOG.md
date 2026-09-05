@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- **`{{$faker module.property [params]}}`** — fake values in requests (`{{$faker internet.email}}`, `{{$faker string.alphanumeric 8}}`), ported from [rest-client-next](https://github.com/tutilus/vscode-restclientnext) with the same syntax. In the editor the library loads lazily: nothing is paid at activation, only the first time a file resolves a `$faker`; only the English locale ships. The terminal runner supports the same syntax (its single-file bundle carries faker inside). Upstream #1412.
+
 ### Fixed
 
 - **Basic auth with `:` or spaces in the password** (upstream #1419): `Authorization: Basic admin:it's a total eclipse` used to arrive truncated, and the header is now built here instead of letting `got` put the credentials in the URL, which escaped them (`it's%20a%20total%3A%20eclipse`). Ported from rest-client-next.
