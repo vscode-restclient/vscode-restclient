@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
 
-const ID = 'argalla.rest-client';
+const ID = 'vscode-restclient.rest-client';
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 exports.run = async () => {

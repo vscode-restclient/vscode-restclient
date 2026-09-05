@@ -36,7 +36,7 @@ const ajuste = (clave: string, valor: unknown) =>
 
 describe('HttpKeeper · peticiones reales', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
@@ -175,7 +175,7 @@ describe('HttpKeeper · peticiones reales', () => {
 
 describe('HttpKeeper · resolución de localhost', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });
@@ -191,7 +191,7 @@ ${t.slice(0, 200)}`);
 
 describe('HttpKeeper · vista previa', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     await ext!.activate();
   });
 
@@ -221,7 +221,7 @@ describe('HttpKeeper · vista previa', () => {
 
 describe('HttpKeeper · variables de petición', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
     // Si la respuesta se lleva el foco, la siguiente petición se ejecutaría

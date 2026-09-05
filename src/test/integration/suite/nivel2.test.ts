@@ -51,7 +51,7 @@ async function enviarFichero(ruta: string, linea: number, marca: string, segundo
 
 describe('HttpKeeper · formato JetBrains y secretos', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
@@ -116,7 +116,7 @@ describe('HttpKeeper · formato JetBrains y secretos', () => {
 
 describe('HttpKeeper · streaming', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
     await ajuste('previewResponsePanelTakeFocus', false);
@@ -183,7 +183,7 @@ describe('HttpKeeper · streaming', () => {
 
 describe('HttpKeeper · herramientas para agentes', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });
