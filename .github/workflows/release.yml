@@ -49,7 +49,7 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
-          if npx vsce show argalla.rest-client --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
+          if npx vsce show vscode-restclient.rest-client --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
             echo "Marketplace ya tiene $VER"
           else
             npx vsce publish --no-dependencies --packagePath "rest-client-${GITHUB_REF_NAME}.vsix"
@@ -59,7 +59,7 @@ jobs:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
-          if npx ovsx get argalla.rest-client -v "$VER" --metadata >/dev/null 2>&1; then
+          if npx ovsx get vscode-restclient.rest-client -v "$VER" --metadata >/dev/null 2>&1; then
             echo "Open VSX ya tiene $VER"
           else
             npx ovsx publish "rest-client-${GITHUB_REF_NAME}.vsix" -p "$OVSX_PAT"
