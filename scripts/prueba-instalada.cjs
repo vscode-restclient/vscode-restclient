@@ -16,7 +16,7 @@ exports.run = async () => {
 
     // 1. Los comandos que anuncia la ficha estan de verdad.
     const comandos = await vscode.commands.getCommands(true);
-    for (const c of ['httpkeeper.request', 'httpkeeper.history', 'httpkeeper.switch-environment', 'httpkeeper._openDocumentLink']) {
+    for (const c of ['rest-client.request', 'rest-client.history', 'rest-client.switch-environment', 'vscode-restclient._openDocumentLink']) {
         assert.ok(comandos.includes(c), `falta el comando ${c}`);
     }
 
@@ -42,7 +42,7 @@ exports.run = async () => {
     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fichero));
     const editor = await vscode.window.showTextDocument(doc);
     editor.selection = new vscode.Selection(new vscode.Position(3, 0), new vscode.Position(3, 0));
-    await vscode.commands.executeCommand('httpkeeper.request');
+    await vscode.commands.executeCommand('rest-client.request');
 
     // La respuesta se pinta en un panel; se espera a que aparezca la pestana.
     let visto = false;

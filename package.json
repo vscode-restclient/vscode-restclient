@@ -85,37 +85,37 @@
         ],
         "commands": [
             {
-                "command": "httpkeeper.request",
+                "command": "rest-client.request",
                 "title": "%cmd.request%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.rerun-last-request",
+                "command": "rest-client.rerun-last-request",
                 "title": "%cmd.rerun-last-request%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.cancel-request",
+                "command": "rest-client.cancel-request",
                 "title": "%cmd.cancel-request%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.switch-environment",
+                "command": "rest-client.switch-environment",
                 "title": "%cmd.switch-environment%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.history",
+                "command": "rest-client.history",
                 "title": "%cmd.history%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.clear-history",
+                "command": "rest-client.clear-history",
                 "title": "%cmd.clear-history%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.save-response",
+                "command": "rest-client.save-response",
                 "title": "%cmd.save-response%",
                 "icon": {
                     "light": "./images/save.svg",
@@ -124,7 +124,7 @@
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.save-response-body",
+                "command": "rest-client.save-response-body",
                 "title": "%cmd.save-response-body%",
                 "icon": {
                     "light": "./images/save-body.svg",
@@ -133,7 +133,7 @@
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.copy-response-body",
+                "command": "rest-client.copy-response-body",
                 "title": "%cmd.copy-response-body%",
                 "icon": {
                     "light": "./images/copy.svg",
@@ -142,12 +142,12 @@
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.generate-codesnippet",
+                "command": "rest-client.generate-codesnippet",
                 "title": "%cmd.generate-codesnippet%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.copy-codesnippet",
+                "command": "rest-client.copy-codesnippet",
                 "title": "%cmd.copy-codesnippet%",
                 "icon": {
                     "light": "./images/copy.svg",
@@ -156,52 +156,52 @@
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.copy-request-as-curl",
+                "command": "rest-client.copy-request-as-curl",
                 "title": "%cmd.copy-request-as-curl%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.clear-aad-token-cache",
+                "command": "rest-client.clear-aad-token-cache",
                 "title": "%cmd.clear-aad-token-cache%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.clear-cookies",
+                "command": "rest-client.clear-cookies",
                 "title": "%cmd.clear-cookies%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.fold-response",
+                "command": "rest-client.fold-response",
                 "title": "%cmd.fold-response%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.unfold-response",
+                "command": "rest-client.unfold-response",
                 "title": "%cmd.unfold-response%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.preview-html-response-body",
+                "command": "rest-client.preview-html-response-body",
                 "title": "%cmd.preview-html-response-body%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.show-raw-response",
+                "command": "rest-client.show-raw-response",
                 "title": "%cmd.show-raw-response%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.import-swagger",
+                "command": "rest-client.import-swagger",
                 "title": "%cmd.import-swagger%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.set-secret",
+                "command": "rest-client.set-secret",
                 "title": "%cmd.set-secret%",
                 "category": "HttpKeeper"
             },
             {
-                "command": "httpkeeper.delete-secret",
+                "command": "rest-client.delete-secret",
                 "title": "%cmd.delete-secret%",
                 "category": "HttpKeeper"
             }
@@ -209,93 +209,93 @@
         "menus": {
             "commandPalette": [
                 {
-                    "command": "httpkeeper.fold-response",
+                    "command": "rest-client.fold-response",
                     "when": "httpResponsePreviewFocus"
                 },
                 {
-                    "command": "httpkeeper.unfold-response",
+                    "command": "rest-client.unfold-response",
                     "when": "httpResponsePreviewFocus"
                 },
                 {
-                    "command": "httpkeeper.preview-html-response-body",
+                    "command": "rest-client.preview-html-response-body",
                     "when": "isHTMLResponse"
                 },
                 {
-                    "command": "httpkeeper.show-raw-response",
+                    "command": "rest-client.show-raw-response",
                     "when": "isHTMLResponse"
                 },
                 {
-                    "command": "httpkeeper.save-response",
+                    "command": "rest-client.save-response",
                     "when": "httpResponsePreviewFocus"
                 },
                 {
-                    "command": "httpkeeper.save-response-body",
+                    "command": "rest-client.save-response-body",
                     "when": "httpResponsePreviewFocus"
                 },
                 {
-                    "command": "httpkeeper.copy-response-body",
+                    "command": "rest-client.copy-response-body",
                     "when": "httpResponsePreviewFocus"
                 },
                 {
-                    "command": "httpkeeper.copy-codesnippet",
+                    "command": "rest-client.copy-codesnippet",
                     "when": "codeSnippetPreviewFocus"
                 }
             ],
             "editor/title": [
                 {
                     "when": "httpResponsePreviewFocus",
-                    "command": "httpkeeper.save-response",
+                    "command": "rest-client.save-response",
                     "group": "navigation@1"
                 },
                 {
                     "when": "httpResponsePreviewFocus",
-                    "command": "httpkeeper.save-response-body",
+                    "command": "rest-client.save-response-body",
                     "group": "navigation@2"
                 },
                 {
                     "when": "httpResponsePreviewFocus",
-                    "command": "httpkeeper.copy-response-body",
+                    "command": "rest-client.copy-response-body",
                     "group": "navigation@3"
                 },
                 {
                     "when": "httpResponsePreviewFocus",
-                    "command": "httpkeeper.fold-response",
+                    "command": "rest-client.fold-response",
                     "group": "1_rest-client@1"
                 },
                 {
                     "when": "httpResponsePreviewFocus",
-                    "command": "httpkeeper.unfold-response",
+                    "command": "rest-client.unfold-response",
                     "group": "1_rest-client@2"
                 },
                 {
                     "when": "isHTMLResponse",
-                    "command": "httpkeeper.preview-html-response-body",
+                    "command": "rest-client.preview-html-response-body",
                     "group": "1_rest-client@3"
                 },
                 {
                     "when": "isHTMLResponse",
-                    "command": "httpkeeper.show-raw-response",
+                    "command": "rest-client.show-raw-response",
                     "group": "1_rest-client@4"
                 },
                 {
                     "when": "codeSnippetPreviewFocus",
-                    "command": "httpkeeper.copy-codesnippet",
+                    "command": "rest-client.copy-codesnippet",
                     "group": "navigation"
                 }
             ],
             "editor/context": [
                 {
-                    "command": "httpkeeper.request",
+                    "command": "rest-client.request",
                     "when": "editorTextFocus && editorLangId == http",
                     "group": "rest-client@1"
                 },
                 {
-                    "command": "httpkeeper.generate-codesnippet",
+                    "command": "rest-client.generate-codesnippet",
                     "when": "editorTextFocus && editorLangId == http",
                     "group": "rest-client@2"
                 },
                 {
-                    "command": "httpkeeper.copy-request-as-curl",
+                    "command": "rest-client.copy-request-as-curl",
                     "when": "editorTextFocus && editorLangId == http",
                     "group": "rest-client@3"
                 }
@@ -303,65 +303,65 @@
         },
         "keybindings": [
             {
-                "command": "httpkeeper.request",
+                "command": "rest-client.request",
                 "key": "ctrl+alt+r",
                 "mac": "cmd+alt+r",
                 "when": "editorTextFocus && editorLangId == 'http'"
             },
             {
-                "command": "httpkeeper.request",
+                "command": "rest-client.request",
                 "key": "ctrl+alt+r",
                 "mac": "cmd+alt+r",
                 "when": "editorTextFocus && editorLangId == 'plaintext'"
             },
             {
-                "command": "httpkeeper.rerun-last-request",
+                "command": "rest-client.rerun-last-request",
                 "key": "ctrl+alt+l",
                 "mac": "cmd+alt+l",
                 "when": "editorTextFocus && editorLangId == 'http'"
             },
             {
-                "command": "httpkeeper.rerun-last-request",
+                "command": "rest-client.rerun-last-request",
                 "key": "ctrl+alt+l",
                 "mac": "cmd+alt+l",
                 "when": "editorTextFocus && editorLangId == 'plaintext'"
             },
             {
-                "command": "httpkeeper.rerun-last-request",
+                "command": "rest-client.rerun-last-request",
                 "key": "ctrl+alt+l",
                 "mac": "cmd+alt+l",
                 "when": "httpResponsePreviewFocus"
             },
             {
-                "command": "httpkeeper.cancel-request",
+                "command": "rest-client.cancel-request",
                 "key": "ctrl+alt+k",
                 "mac": "cmd+alt+k",
                 "when": "editorTextFocus && editorLangId == 'http'"
             },
             {
-                "command": "httpkeeper.cancel-request",
+                "command": "rest-client.cancel-request",
                 "key": "ctrl+alt+k",
                 "mac": "cmd+alt+k",
                 "when": "editorTextFocus && editorLangId == 'plaintext'"
             },
             {
-                "command": "httpkeeper.history",
+                "command": "rest-client.history",
                 "key": "ctrl+alt+h",
                 "mac": "cmd+alt+h"
             },
             {
-                "command": "httpkeeper.switch-environment",
+                "command": "rest-client.switch-environment",
                 "key": "ctrl+alt+e",
                 "mac": "cmd+alt+e"
             },
             {
-                "command": "httpkeeper.generate-codesnippet",
+                "command": "rest-client.generate-codesnippet",
                 "key": "ctrl+alt+c",
                 "mac": "cmd+alt+c",
                 "when": "editorTextFocus && editorLangId == 'http'"
             },
             {
-                "command": "httpkeeper.generate-codesnippet",
+                "command": "rest-client.generate-codesnippet",
                 "key": "ctrl+alt+c",
                 "mac": "cmd+alt+c",
                 "when": "editorTextFocus && editorLangId == 'plaintext'"

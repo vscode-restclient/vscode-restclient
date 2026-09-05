@@ -18,7 +18,7 @@ const BR = String.fromCharCode(10);
 async function enviar(contenido: string, marca: string, segundos = 20): Promise<string> {
   const doc = await vscode.workspace.openTextDocument({ language: 'http', content: contenido });
   await vscode.window.showTextDocument(doc, { preview: false });
-  await vscode.commands.executeCommand('httpkeeper.request');
+  await vscode.commands.executeCommand('rest-client.request');
 
   for (let i = 0; i < segundos * 4; i++) {
     await esperar(250);
@@ -124,11 +124,11 @@ describe('HttpKeeper · peticiones reales', () => {
         content: `POST ${BASE}/reenvio` + BR + 'Content-Type: application/json' + BR + 'X-Prueba: original' + BR + BR + '{"n":1}' + BR
       });
       await vscode.window.showTextDocument(doc, { preview: false });
-      await vscode.commands.executeCommand('httpkeeper.request');
+      await vscode.commands.executeCommand('rest-client.request');
       await esperar(1500);
       // Se reenvía la misma petición: debe llegar idéntica.
       await vscode.window.showTextDocument(doc, { preview: false });
-      await vscode.commands.executeCommand('httpkeeper.rerun-last-request');
+      await vscode.commands.executeCommand('rest-client.rerun-last-request');
 
       let texto = '';
       for (let i = 0; i < 60 && !texto.includes('original'); i++) {
@@ -205,7 +205,7 @@ describe('HttpKeeper · vista previa', () => {
     await ajuste('previewResponseInUntitledDocument', false);
     const doc = await vscode.workspace.openTextDocument({ language: 'http', content: `GET ${BASE}/panel` + BR });
     await vscode.window.showTextDocument(doc, { preview: false });
-    await vscode.commands.executeCommand('httpkeeper.request');
+    await vscode.commands.executeCommand('rest-client.request');
 
     // El panel de respuesta es un webview: se comprueba que aparece una pestaña
     // nueva sin que el comando haya lanzado.
@@ -247,7 +247,7 @@ describe('HttpKeeper · variables de petición', () => {
     // Primera petición: el cursor sobre su línea de URL.
     const primera = lineaDe('@name');
     editor.selection = new vscode.Selection(primera + 1, 0, primera + 1, 0);
-    await vscode.commands.executeCommand('httpkeeper.request');
+    await vscode.commands.executeCommand('rest-client.request');
 
     // Se espera a la respuesta CONCRETA de esta primera petición: el documento
     // de respuesta se reutiliza y podría haber un 200 de una prueba anterior.
@@ -267,7 +267,7 @@ describe('HttpKeeper · variables de petición', () => {
     await vscode.window.showTextDocument(doc, { preview: false });
     const segunda = lineaDe('{{');
     editor.selection = new vscode.Selection(segunda, 0, segunda, 0);
-    await vscode.commands.executeCommand('httpkeeper.request');
+    await vscode.commands.executeCommand('rest-client.request');
 
     for (let i = 0; i < 80; i++) {
       await esperar(250);

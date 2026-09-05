@@ -6,7 +6,7 @@ export class EnvironmentStatusEntry {
 
     public constructor(environment: string) {
         this.environmentEntry = window.createStatusBarItem('environment', StatusBarAlignment.Right, 100);
-        this.environmentEntry.command = 'httpkeeper.switch-environment';
+        this.environmentEntry.command = 'rest-client.switch-environment';
         this.environmentEntry.text = environment;
         this.environmentEntry.tooltip = l10n.t('Switch HttpKeeper environment');
         this.environmentEntry.name = l10n.t('HttpKeeper environment');

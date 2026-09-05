@@ -50,7 +50,7 @@ export class RequestStatusEntry {
                 break;
 
             case RequestState.Pending:
-                this.showDurationEntry(`$(sync~spin) ${l10n.t('Waiting...')}`, l10n.t('Click to cancel'), 'httpkeeper.cancel-request');
+                this.showDurationEntry(`$(sync~spin) ${l10n.t('Waiting...')}`, l10n.t('Click to cancel'), 'rest-client.cancel-request');
                 break;
 
             case RequestState.Cancelled:

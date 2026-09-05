@@ -1,5 +1,6 @@
-import { Clipboard, commands, env, ExtensionContext, ViewColumn, WebviewPanel, window } from 'vscode';
+import { Clipboard, env, ExtensionContext, ViewColumn, WebviewPanel, window } from 'vscode';
 import { trace } from '../utils/decorator';
+import { registerCommandSafely } from '../utils/safeCommands';
 import { disposeAll } from '../utils/dispose';
 import { BaseWebview } from './baseWebview';
 
@@ -23,7 +24,7 @@ export class CodeSnippetWebview extends BaseWebview {
     public constructor(context: ExtensionContext) {
         super(context);
 
-        this.context.subscriptions.push(commands.registerCommand('httpkeeper.copy-codesnippet', this.copy, this));
+        this.context.subscriptions.push(registerCommandSafely('rest-client.copy-codesnippet', this.copy, this));
     }
 
     public async render(convertResult: string, title: string, lang: string) {

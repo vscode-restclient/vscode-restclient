@@ -14,12 +14,12 @@ El original no está roto: está parado. Su repositorio acumula **529 incidencia
 
 Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
-| | Original | HttpKeeper |
-|---|---|---|
-| Pruebas | 0 | **55** (24 unitarias, 31 de integración contra un servidor de verdad) |
-| Vulnerabilidades en dependencias | 75 (6 críticas) | **0** |
-| Paquetes | 1.487 | **399** |
-| Telemetría | Application Insights | **ninguna** |
+|                                  | Original             | HttpKeeper                                                            |
+| -------------------------------- | -------------------- | --------------------------------------------------------------------- |
+| Pruebas                          | 0                    | **59** (24 unitarias, 35 de integración contra un servidor de verdad) |
+| Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
+| Paquetes                         | 1.487                | **399**                                                               |
+| Telemetría                       | Application Insights | **ninguna**                                                           |
 
 `aws-amplify` —el SDK entero de AWS, con GraphQL, DataStore y predicción automática— entraba para hacer un inicio de sesión de Cognito. Ahora son sesenta líneas que hablan con Cognito por HTTP: **1.088 paquetes menos**.
 
@@ -80,7 +80,14 @@ En VS Code, `#httpkeeper` lista las peticiones de un fichero y envía una por su
 Fuera del editor, `httpkeeper mcp` es un servidor MCP por stdio para Claude Code, Cursor o cualquier otro que hable MCP: `list_requests`, `send_request`, `run_http_file`. Sólo lee ficheros bajo la raíz con la que arranca y nunca escribe en disco.
 
 ```json
-{ "mcpServers": { "httpkeeper": { "command": "npx", "args": ["httpkeeper-cli", "mcp", "--raiz", "."] } } }
+{
+  "mcpServers": {
+    "httpkeeper": {
+      "command": "npx",
+      "args": ["httpkeeper-cli", "mcp", "--raiz", "."]
+    }
+  }
+}
 ```
 
 ### El ejecutor, en todas partes (+44)

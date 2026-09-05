@@ -51,7 +51,10 @@ ok('se publica gratis', pkg.pricing === 'Free');
 // una función real. Lo inaceptable sería `*`: activarse siempre, pase lo que pase.
 ok('no se activa en todo arranque', !(pkg.activationEvents ?? []).includes('*'), `eventos: ${JSON.stringify(pkg.activationEvents)}`);
 ok('sigue aportando el lenguaje http', pkg.contributes.languages?.some((l) => l.id === 'http'));
-ok('los comandos son propios', Object.keys(pkg.contributes.commands).length > 0 && pkg.contributes.commands.every((c) => c.command.startsWith('httpkeeper.')));
+// Los comandos publicos son la API original de REST Client, restaurada a
+// peticion de la organizacion (issue #1): la lista exacta la congela
+// src/test/integration/suite/commandIds.test.ts; aqui se vigila la forma.
+ok('los comandos publicos llevan el prefijo original', pkg.contributes.commands.length === 21 && pkg.contributes.commands.every((c) => c.command.startsWith('rest-client.')), pkg.contributes.commands.map((c) => c.command).filter((c) => !c.startsWith('rest-client.')).join(', '));
 ok('el runner se publica como binario', pkg.bin?.httpkeeper !== undefined, pkg.bin?.httpkeeper);
 
 seccion('crédito al autor original (es MIT, pero se dice)');
@@ -137,7 +140,7 @@ seccion('el cambio de nombre no dejo cabos sueltos');
 const fuentes = correr('git ls-files src').salida.split(/\r?\n/).filter((f) => f.endsWith('.ts') && !f.startsWith('src/test'));
 const registrados = new Set([...leer('package.json').matchAll(/"command":\s*"([^"]+)"/g)].map((m) => m[1]));
 for (const f of fuentes) {
-    for (const m of leer(f).matchAll(/registerCommand\('([^']+)'/g)) registrados.add(m[1]);
+    for (const m of leer(f).matchAll(/registerCommand(?:Safely)?\('([^']+)'/g)) registrados.add(m[1]);
 }
 const invocados = new Set();
 for (const f of fuentes) {

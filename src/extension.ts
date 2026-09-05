@@ -1,7 +1,8 @@
 'use strict';
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { commands, ExtensionContext, l10n, languages, Range, TextDocument, Uri, window, workspace } from 'vscode';
+import { ExtensionContext, l10n, languages, Range, TextDocument, Uri, window, workspace } from 'vscode';
+import { registerCommandSafely, warnIfCommandsClash } from './utils/safeCommands';
 import { Secretos } from './utils/secretos';
 import { registrarHerramientas } from './utils/herramientasLm';
 import { CodeSnippetController } from './controllers/codeSnippetController';
@@ -41,16 +42,16 @@ export async function activate(context: ExtensionContext) {
     context.subscriptions.push(historyController);
     context.subscriptions.push(codeSnippetController);
     context.subscriptions.push(environmentController);
-    context.subscriptions.push(commands.registerCommand('httpkeeper.request', ((document: TextDocument, range: Range) => requestController.run(range))));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.rerun-last-request', () => requestController.rerun()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.cancel-request', () => requestController.cancel()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.history', () => historyController.save()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.clear-history', () => historyController.clear()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.generate-codesnippet', () => codeSnippetController.run()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.copy-request-as-curl', () => codeSnippetController.copyAsCurl()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.switch-environment', (nombre?: string) => environmentController.switchEnvironment(typeof nombre === 'string' ? nombre : undefined)));
+    context.subscriptions.push(registerCommandSafely('rest-client.request', ((document: TextDocument, range: Range) => requestController.run(range))));
+    context.subscriptions.push(registerCommandSafely('rest-client.rerun-last-request', () => requestController.rerun()));
+    context.subscriptions.push(registerCommandSafely('rest-client.cancel-request', () => requestController.cancel()));
+    context.subscriptions.push(registerCommandSafely('rest-client.history', () => historyController.save()));
+    context.subscriptions.push(registerCommandSafely('rest-client.clear-history', () => historyController.clear()));
+    context.subscriptions.push(registerCommandSafely('rest-client.generate-codesnippet', () => codeSnippetController.run()));
+    context.subscriptions.push(registerCommandSafely('rest-client.copy-request-as-curl', () => codeSnippetController.copyAsCurl()));
+    context.subscriptions.push(registerCommandSafely('rest-client.switch-environment', (nombre?: string) => environmentController.switchEnvironment(typeof nombre === 'string' ? nombre : undefined)));
     // Con argumentos no pregunta nada: lo usan las pruebas y las automatizaciones.
-    context.subscriptions.push(commands.registerCommand('httpkeeper.set-secret', async (nombre?: string, valor?: string) => {
+    context.subscriptions.push(registerCommandSafely('rest-client.set-secret', async (nombre?: string, valor?: string) => {
         if (typeof nombre !== 'string') {
             nombre = await window.showInputBox({
                 prompt: l10n.t('Secret name (use it as {{$secret NAME}})'),
@@ -69,7 +70,7 @@ export async function activate(context: ExtensionContext) {
         await Secretos.set(nombre, valor);
         window.setStatusBarMessage(l10n.t('Secret "{0}" saved', nombre), 4000);
     }));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.delete-secret', async (nombre?: string) => {
+    context.subscriptions.push(registerCommandSafely('rest-client.delete-secret', async (nombre?: string) => {
         if (typeof nombre !== 'string') {
             const nombres = Secretos.nombres();
             if (nombres.length === 0) {
@@ -84,14 +85,14 @@ export async function activate(context: ExtensionContext) {
         await Secretos.borrar(nombre);
         window.setStatusBarMessage(l10n.t('Secret "{0}" deleted', nombre), 4000);
     }));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.clear-aad-token-cache', () => AadTokenCache.clear()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.clear-cookies', () => requestController.clearCookies()));
-    context.subscriptions.push(commands.registerCommand('httpkeeper._openDocumentLink', args => {
+    context.subscriptions.push(registerCommandSafely('rest-client.clear-aad-token-cache', () => AadTokenCache.clear()));
+    context.subscriptions.push(registerCommandSafely('rest-client.clear-cookies', () => requestController.clearCookies()));
+    context.subscriptions.push(registerCommandSafely('vscode-restclient._openDocumentLink', args => {
         workspace.openTextDocument(Uri.parse(args.path)).then(window.showTextDocument, error => {
             window.showErrorMessage(error.message);
         });
     }));
-    context.subscriptions.push(commands.registerCommand('httpkeeper.import-swagger', async () => swaggerController.import()));
+    context.subscriptions.push(registerCommandSafely('rest-client.import-swagger', async () => swaggerController.import()));
 
 
     const documentSelector = [
@@ -128,6 +129,8 @@ export async function activate(context: ExtensionContext) {
     context.subscriptions.push(diagnosticsProvider);
 
     registrarHerramientas(context, requestController);
+
+    warnIfCommandsClash();
 }
 
 // this method is called when your extension is deactivated

@@ -14,12 +14,12 @@ The original is not broken; it is parked. Its repository has **529 open issues a
 
 So the first thing this fork shipped was not a feature. It was the net.
 
-| | Original | HttpKeeper |
-|---|---|---|
-| Tests | 0 | **55** (24 unit, 31 integration against a real server) |
-| Vulnerabilities in production deps | 75 (6 critical) | **0** |
-| Packages | 1,487 | **399** |
-| Telemetry | Application Insights | **none** |
+|                                    | Original             | HttpKeeper                                             |
+| ---------------------------------- | -------------------- | ------------------------------------------------------ |
+| Tests                              | 0                    | **59** (24 unit, 35 integration against a real server) |
+| Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
+| Packages                           | 1,487                | **399**                                                |
+| Telemetry                          | Application Insights | **none**                                               |
 
 `aws-amplify` — the whole AWS SDK, GraphQL, DataStore, ML predictions and all — was being pulled in for a Cognito login. It is now sixty lines that talk to Cognito over HTTP: **1,088 packages gone**.
 
@@ -80,7 +80,14 @@ In VS Code, `#httpkeeper` lists the requests of a file and sends one by name fro
 Outside the editor, `httpkeeper mcp` is an MCP server over stdio for Claude Code, Cursor or anything else that speaks MCP: `list_requests`, `send_request`, `run_http_file`. It only reads files under the root it was started with and never writes to disk.
 
 ```json
-{ "mcpServers": { "httpkeeper": { "command": "npx", "args": ["httpkeeper-cli", "mcp", "--raiz", "."] } } }
+{
+  "mcpServers": {
+    "httpkeeper": {
+      "command": "npx",
+      "args": ["httpkeeper-cli", "mcp", "--raiz", "."]
+    }
+  }
+}
 ```
 
 ### The runner, everywhere (+44)
