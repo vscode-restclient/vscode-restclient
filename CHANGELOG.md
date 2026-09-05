@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Basic auth with `:` or spaces in the password** (upstream #1419): `Authorization: Basic admin:it's a total eclipse` used to arrive truncated, and the header is now built here instead of letting `got` put the credentials in the URL, which escaped them (`it's%20a%20total%3A%20eclipse`). Ported from rest-client-next.
+- **Completion inside `{{ }}`**: picking a variable after typing `{{` produced `{{{{variable}}}}`. The proposal now replaces what is between the braces, and system variables can be filtered with or without the `$`. Ported from rest-client-next.
+
 ### Changed
 
 - The original **`rest-client.*` command IDs are back** (`rest-client.request`, `rest-client.rerun-last-request`, … — all 19 of them, keybindings included): they are public API, used from keybindings.json, tasks.json and other extensions via `executeCommand`. The two commands this project added follow the same prefix (`rest-client.set-secret`, `rest-client.delete-secret`). The internal document-link command stays under a distinct prefix on purpose: sharing it is what made links open in the other extension when both were installed. If `humao.rest-client` is installed alongside, activation no longer breaks on the duplicate registrations — you get one clear warning asking to disable one of the two. The IDs are frozen by `commandIds.test.ts`, so renaming one by accident fails the suite.

@@ -45,7 +45,7 @@ const json = (salida) => {
 
 seccion('identidad');
 const pkg = JSON.parse(leer('package.json'));
-ok('el nombre es el del original y el editor el nuestro', pkg.name === 'rest-client' && pkg.publisher === 'argalla');
+ok('el nombre es el del original y el editor el nuestro', pkg.name === 'rest-client' && pkg.publisher === 'vscode-restclient');
 ok('se publica gratis', pkg.pricing === 'Free');
 // `onLanguage:markdown` está por los bloques ```http dentro de markdown, que es
 // una función real. Lo inaceptable sería `*`: activarse siempre, pase lo que pase.

@@ -11,7 +11,7 @@ import { awsCognito } from './auth/awsCognito';
 import { awsSignature } from './auth/awsSignature';
 import { digest } from './auth/digest';
 import { MimeUtility } from './mimeUtility';
-import { getHeader, removeHeader } from './misc';
+import { base64, getHeader, removeHeader } from './misc';
 import { convertBufferToStream, convertStreamToBuffer } from './streamUtility';
 import { UserDataManager } from './userDataManager';
 import { Entorno } from '../core/entorno';
@@ -218,13 +218,32 @@ export class HttpClient {
         if (authorization) {
             const [scheme, user, ...args] = authorization.split(/\s+/);
             const normalizedScheme = scheme.toLowerCase();
-            if (args.length > 0) {
-                const pass = args.join(' ');
-                if (normalizedScheme === 'basic') {
+            if (normalizedScheme === 'basic' && user !== undefined) {
+                // `Basic usuario:contraseña` con dos puntos o espacios DENTRO de
+                // la contraseña: se parte por el PRIMER `:` de todo lo que sigue
+                // al esquema. Antes se partía por cada espacio y por cada `:`, así
+                // que «admin:it's a total eclipse» llegaba truncada (upstream
+                // #1419).
+                const resto = [user, ...args].join(' ');
+                const dosPuntos = resto.indexOf(':');
+                let credencial: string | undefined;
+                if (dosPuntos >= 0) {
+                    credencial = resto;
+                } else if (args.length > 0) {
+                    credencial = `${user}:${args.join(' ')}`;
+                }
+                // Sin `:` y sin segundo argumento, lo que hay ya es el base64 de
+                // `usuario:contraseña`: se deja intacto, como siempre.
+                if (credencial !== undefined) {
+                    // La cabecera se construye aquí en vez de dejársela a `got`
+                    // por `username`/`password`: got la mete en la URL y sale
+                    // con escapes («it's%20a%20total%3A%20eclipse»).
                     removeHeader(options.headers!, 'Authorization');
-                    options.username = user;
-                    options.password = pass;
-                } else if (normalizedScheme === 'digest') {
+                    (options.headers as Record<string, string>)['Authorization'] = `Basic ${base64(credencial)}`;
+                }
+            } else if (args.length > 0) {
+                const pass = args.join(' ');
+                if (normalizedScheme === 'digest') {
                     removeHeader(options.headers!, 'Authorization');
                     options.hooks!.afterResponse!.push(digest(user, pass));
                 } else if (normalizedScheme === 'aws') {
@@ -234,11 +253,6 @@ export class HttpClient {
                     removeHeader(options.headers!, 'Authorization');
                    options.hooks!.beforeRequest!.push(await awsCognito(authorization));
                 }
-            } else if (normalizedScheme === 'basic' && user.includes(':')) {
-                removeHeader(options.headers!, 'Authorization');
-                const [username, password] = user.split(':');
-                options.username = username;
-                options.password = password;
             }
         }
 
