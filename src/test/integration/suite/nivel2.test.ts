@@ -222,3 +222,51 @@ describe('HttpKeeper · herramientas para agentes', () => {
     );
   });
 });
+
+describe('HttpKeeper · lo portado de rest-client-next', () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension('argalla.rest-client');
+    await ext!.activate();
+    await ajuste('previewResponseInUntitledDocument', true);
+  });
+
+  after(async () => {
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+  });
+
+  it('P-47 · Basic Auth: la contraseña puede llevar dos puntos y espacios (upstream #1419)', async () => {
+    // «admin:it's a total eclipse»: antes se partía por cada espacio y por cada
+    // ':', y llegaba truncada.
+    const clave = "it's a total: eclipse";
+    const fichero = escribir('basic.http', j(`GET ${BASE}/eco/basic`, `Authorization: Basic admin:${clave}`, ''));
+    const t = await enviarFichero(fichero, 0, '/eco/basic');
+    const recibida = /"autorizacion":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
+    assert.ok(recibida, 'no llegó cabecera Authorization: ' + t.slice(0, 200));
+    assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), `admin:${clave}`);
+  });
+
+  it('P-48 · Basic Auth: la forma «usuario contraseña» separada por espacio sigue funcionando', async () => {
+    const fichero = escribir('basic2.http', j(`GET ${BASE}/eco/basic2`, 'Authorization: Basic ana secreta', ''));
+    const t = await enviarFichero(fichero, 0, '/eco/basic2');
+    const recibida = /"autorizacion":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
+    assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), 'ana:secreta');
+  });
+
+  it('P-49 · autocompletar dentro de {{ }} no duplica las llaves', async () => {
+    const fichero = escribir('completar.http', j('@host = http://ejemplo', 'GET {{host}}/x?id={{', ''));
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fichero));
+    await vscode.window.showTextDocument(doc, { preview: false });
+    const linea = 1;
+    const posicion = new vscode.Position(linea, doc.lineAt(linea).text.length);
+    const lista = (await vscode.commands.executeCommand(
+      'vscode.executeCompletionItemProvider', doc.uri, posicion)) as vscode.CompletionList;
+
+    const variables = lista.items.filter((i) => typeof i.label === 'string' && (i.label === '$guid' || i.label === 'host'));
+    assert.ok(variables.length >= 1, 'sin propuestas de variable: ' + lista.items.map((i) => i.label).slice(0, 10).join(', '));
+    for (const item of variables) {
+      const texto = typeof item.insertText === 'string' ? item.insertText : (item.insertText as vscode.SnippetString)?.value ?? '';
+      assert.ok(!texto.includes('{{'), `«${String(item.label)}» insertaría llaves otra vez: ${texto}`);
+      assert.ok(item.range, `«${String(item.label)}» no sustituye el hueco entre llaves`);
+    }
+  });
+});
