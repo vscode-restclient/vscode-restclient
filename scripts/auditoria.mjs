@@ -74,6 +74,9 @@ ok('la licencia declarada es MIT', pkg.license === 'MIT');
 // un fichero con la licencia de cada paquete de produccion.
 const avisos = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
 ok('existe el fichero de avisos de terceros', avisos.length > 0);
+// El fichero se genera con scripts/generar-notices.mjs: si alguien añade una
+// dependencia y no lo regenera, aqui se le dice, en vez de descubrirlo un abogado.
+ok('los avisos de terceros estan al dia (generar-notices --check)', correr('node scripts/generar-notices.mjs --check').codigo === 0);
 const arbol = json(correr('npm ls --omit=dev --all --json').salida);
 const paquetes = new Set();
 // Sin version = dependencia opcional que npm no instalo; no viaja, no cuenta.
