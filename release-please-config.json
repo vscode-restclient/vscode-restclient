@@ -1,0 +1,17 @@
+{
+    "release-type": "node",
+    "include-v-in-tag": true,
+    "changelog-path": "CHANGELOG.md",
+    "packages": {
+        ".": {
+            "package-name": "rest-client",
+            "extra-files": [
+                {
+                    "type": "json",
+                    "path": "npm/package.json",
+                    "jsonpath": "$.version"
+                }
+            ]
+        }
+    }
+}

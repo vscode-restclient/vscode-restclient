@@ -23,6 +23,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # La descarga de VS Code desde el CDN de Microsoft ya tumbo la CI dos
+      # veces (timeout el 4-sep, colgada 30 minutos el 9-sep): con la cache,
+      # test-electron encuentra la instalacion y no sale a la red.
+      - uses: actions/cache@v4
+        with:
+          path: .vscode-test
+          key: vscode-test-${{ runner.os }}-v1
       - run: npm ci
       - name: Build (the integration tests load dist/extension.js)
         run: npm run build
@@ -38,9 +45,11 @@ jobs:
         run: npm run test:mcp
       - name: Integration tests (Linux needs a display)
         if: runner.os == 'Linux'
+        timeout-minutes: 12
         run: xvfb-run -a npm run test:integration
       - name: Integration tests
         if: runner.os != 'Linux'
+        timeout-minutes: 12
         run: npm run test:integration
       - name: The packaged .vsix, installed and exercised
         if: runner.os == 'Linux'
