@@ -3,6 +3,32 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/vscode-restclient/vscode-restclient/compare/rest-client-v1.1.2...rest-client-v1.2.0) (2026-09-11)
+
+
+### Features
+
+* AWS Cognito support ([#1097](https://github.com/vscode-restclient/vscode-restclient/issues/1097)) ([97114a5](https://github.com/vscode-restclient/vscode-restclient/commit/97114a5b89de5b3da8ec75dd02166decc6b58dbf))
+* generate THIRD-PARTY-NOTICES from the real dependency tree ([e6cc567](https://github.com/vscode-restclient/vscode-restclient/commit/e6cc567f773ae1cd4288676f1282895d28ee114e))
+* generate THIRD-PARTY-NOTICES from the real dependency tree ([44d0fe6](https://github.com/vscode-restclient/vscode-restclient/commit/44d0fe6b5f9fcb2614a9233416afbd8d9302eb76))
+* **graphql:** forces http header value to be lowercase ([#1237](https://github.com/vscode-restclient/vscode-restclient/issues/1237)) ([0d290ef](https://github.com/vscode-restclient/vscode-restclient/commit/0d290efe9cadb0cd4bd9908a7ed7944748580644)), closes [#1236](https://github.com/vscode-restclient/vscode-restclient/issues/1236)
+* import open api / swagger files ([#1207](https://github.com/vscode-restclient/vscode-restclient/issues/1207)) ([3d82783](https://github.com/vscode-restclient/vscode-restclient/commit/3d82783d93a435999040fcd1b4770ec7e7568bb0))
+* preview response body ([#907](https://github.com/vscode-restclient/vscode-restclient/issues/907)) ([33c07c5](https://github.com/vscode-restclient/vscode-restclient/commit/33c07c57a8a4df9398bcd257669607fc05dce11e))
+
+
+### Bug Fixes
+
+* 1162 ([e17ef48](https://github.com/vscode-restclient/vscode-restclient/commit/e17ef48352adcb719b784f1fd5a68fade51b4d53))
+* 404 ([b0a893c](https://github.com/vscode-restclient/vscode-restclient/commit/b0a893ce1332a996ae0707b0f1f6281ed8cf231c))
+* Add IPv6 support for localhost connections ([4e0e0cb](https://github.com/vscode-restclient/vscode-restclient/commit/4e0e0cb175ad47207301cb87db5b21d1505f92dc)), closes [#1145](https://github.com/vscode-restclient/vscode-restclient/issues/1145)
+* handle Readable stream body and avoid mutating original headers in AWS signing ([4a2fe28](https://github.com/vscode-restclient/vscode-restclient/commit/4a2fe28096273a26ad21623db5c27dfdd416345b))
+* npm audit cannot take the CI down ([#10](https://github.com/vscode-restclient/vscode-restclient/issues/10)) ([652ab5d](https://github.com/vscode-restclient/vscode-restclient/commit/652ab5dbe65872c47532597f2e6a9a0a67c557d4))
+* **package.json:** fix command `rest-client-*` not found error ([#449](https://github.com/vscode-restclient/vscode-restclient/issues/449)) ([9ce6ea6](https://github.com/vscode-restclient/vscode-restclient/commit/9ce6ea60f596b032cf82f1adc0ca3b1eb9c7626e))
+* preserve multiple set-cookie headers ([#1278](https://github.com/vscode-restclient/vscode-restclient/issues/1278)) ([9ab5f61](https://github.com/vscode-restclient/vscode-restclient/commit/9ab5f61e39be81793023614af366cfb5c8094e45))
+* the last links still pointing at the old repo ([5f22e5d](https://github.com/vscode-restclient/vscode-restclient/commit/5f22e5df780d0caf104a4546b76f581f7650b52a))
+* the last links still pointing at the old repo ([480b06b](https://github.com/vscode-restclient/vscode-restclient/commit/480b06b81568b71bf13b8cf23be0a1f5e0d43a9d))
+* แก้ response preview ไม่แสดงเมื่อ viewColumn เป็น undefined บน Cursor ([ce7b5c1](https://github.com/vscode-restclient/vscode-restclient/commit/ce7b5c1b051f6781597e45662399b88538220ef7))
+
 ## [Unreleased]
 
 ### Added
