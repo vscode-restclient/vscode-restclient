@@ -4,7 +4,7 @@ import { resumenDePeticiones } from '../core/secuencia';
 import { RequestController } from '../controllers/requestController';
 
 /**
- * HttpKeeper como herramienta de los agentes que viven en el editor.
+ * RestClient como herramienta de los agentes que viven en el editor.
  *
  * Dos vías, las dos con guarda porque los tipos de `vscode` son los de 1.81:
  *
@@ -12,7 +12,7 @@ import { RequestController } from '../controllers/requestController';
  *   cualquier participante puede listar las peticiones de un `.http` y enviar
  *   una. Enviar pide confirmación al usuario; listar no toca la red.
  * - Definición del servidor MCP (VS Code ≥ 1.101): el modo agente descubre
- *   `httpkeeper mcp` sin que nadie configure nada, apuntando al runner que
+ *   `restclient mcp` sin que nadie configure nada, apuntando al runner que
  *   viaja dentro de la propia extensión.
  *
  * Un fichero fuera del espacio de trabajo se rechaza: el agente sólo ve el
@@ -21,7 +21,7 @@ import { RequestController } from '../controllers/requestController';
 export function registrarHerramientas(context: vscode.ExtensionContext, controller: RequestController) {
     const api = vscode as unknown as ApiLm;
     if (api.lm?.registerTool && api.LanguageModelToolResult && api.LanguageModelTextPart) {
-        context.subscriptions.push(api.lm.registerTool('httpkeeper_list_requests', {
+        context.subscriptions.push(api.lm.registerTool('rest_client_list_requests', {
             invoke: async (opciones: { input: { file?: string } }) => {
                 const uri = ficheroDelEspacio(opciones.input.file);
                 const doc = await vscode.workspace.openTextDocument(uri);
@@ -30,7 +30,7 @@ export function registrarHerramientas(context: vscode.ExtensionContext, controll
             },
         }));
 
-        context.subscriptions.push(api.lm.registerTool('httpkeeper_send_request', {
+        context.subscriptions.push(api.lm.registerTool('rest_client_send_request', {
             prepareInvocation: async (opciones: { input: { file?: string; name?: string } }) => {
                 const uri = ficheroDelEspacio(opciones.input.file);
                 const doc = await vscode.workspace.openTextDocument(uri);
@@ -64,7 +64,7 @@ export function registrarHerramientas(context: vscode.ExtensionContext, controll
 
     if (api.lm?.registerMcpServerDefinitionProvider && api.McpStdioServerDefinition) {
         const cli = context.asAbsolutePath(path.join('dist', 'cli.js'));
-        context.subscriptions.push(api.lm.registerMcpServerDefinitionProvider('httpkeeper.mcp', {
+        context.subscriptions.push(api.lm.registerMcpServerDefinitionProvider('restclient.mcp', {
             provideMcpServerDefinitions: async () => {
                 const raiz = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
                 if (!raiz) {
@@ -72,7 +72,7 @@ export function registrarHerramientas(context: vscode.ExtensionContext, controll
                 }
                 // El propio ejecutable del editor hace de Node con ELECTRON_RUN_AS_NODE:
                 // así no hace falta que haya un `node` en el PATH.
-                return [new api.McpStdioServerDefinition!('HttpKeeper', process.execPath, [cli, 'mcp', '--raiz', raiz], { ELECTRON_RUN_AS_NODE: '1' })];
+                return [new api.McpStdioServerDefinition!('RestClient', process.execPath, [cli, 'mcp', '--raiz', raiz], { ELECTRON_RUN_AS_NODE: '1' })];
             },
         }));
     }

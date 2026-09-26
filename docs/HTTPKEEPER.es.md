@@ -1,4 +1,4 @@
-# HttpKeeper — lo que añade este REST Client mantenido
+# RestClient — lo que añade este REST Client mantenido
 
 > Esta es la versión larga, con capturas. El README de la extensión es [la referencia original de Huachao Mao](../README.md), conservada íntegra.
 
@@ -14,7 +14,7 @@ El original no está roto: está parado. Su repositorio acumula **529 incidencia
 
 Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
-|                                  | Original             | HttpKeeper                                                            |
+|                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
 | Pruebas                          | 0                    | **66** (31 unitarias, 35 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
@@ -75,16 +75,16 @@ Las comprobaciones son comentarios `@`, de modo que cualquier otra herramienta q
 
 ### El cliente HTTP que usan tus agentes
 
-En VS Code, `#httpkeeper` lista las peticiones de un fichero y envía una por su nombre desde el chat de Copilot o cualquier otro participante con modelo de lenguaje; enviar te pregunta antes, y un fichero fuera del espacio de trabajo se rechaza. En VS Code 1.101 o posterior la extensión también anuncia su servidor MCP al modo agente, sin configurar nada.
+En VS Code, `#restclient` lista las peticiones de un fichero y envía una por su nombre desde el chat de Copilot o cualquier otro participante con modelo de lenguaje; enviar te pregunta antes, y un fichero fuera del espacio de trabajo se rechaza. En VS Code 1.101 o posterior la extensión también anuncia su servidor MCP al modo agente, sin configurar nada.
 
-Fuera del editor, `httpkeeper mcp` es un servidor MCP por stdio para Claude Code, Cursor o cualquier otro que hable MCP: `list_requests`, `send_request`, `run_http_file`. Sólo lee ficheros bajo la raíz con la que arranca y nunca escribe en disco.
+Fuera del editor, `restclient mcp` es un servidor MCP por stdio para Claude Code, Cursor o cualquier otro que hable MCP: `list_requests`, `send_request`, `run_http_file`. Sólo lee ficheros bajo la raíz con la que arranca y nunca escribe en disco.
 
 ```json
 {
   "mcpServers": {
-    "httpkeeper": {
+    "restclient": {
       "command": "npx",
-      "args": ["httpkeeper-cli", "mcp", "--raiz", "."]
+      "args": ["restclient", "mcp", "--raiz", "."]
     }
   }
 }
@@ -93,7 +93,7 @@ Fuera del editor, `httpkeeper mcp` es un servidor MCP por stdio para Claude Code
 ### El ejecutor, en todas partes (+44)
 
 ```console
-$ npx httpkeeper-cli api.http --env dev --secret API_KEY=… --junit informe.xml
+$ npx restclient api.http --env dev --secret API_KEY=… --junit informe.xml
   ok   login                200  184 ms
   ok   facturas             200    9 ms
 
@@ -109,7 +109,7 @@ Devuelve 0 si todas las comprobaciones pasan y 1 si falla alguna; `--json` para 
     env: staging
     junit: httpkeeper.xml
   env:
-    HTTPKEEPER_SECRET_API_KEY: ${{ secrets.API_KEY }}
+    RESTCLIENT_SECRETAPI_KEY: ${{ secrets.API_KEY }}
 ```
 
 ![El mismo fichero, ejecutado en la terminal integrada](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/04-runner.png)
@@ -120,7 +120,7 @@ Todo lo heredado de REST Client —sintaxis de las peticiones, GraphQL, cURL, au
 
 ## Venir desde REST Client
 
-No hay que hacer nada. El formato `.http` es idéntico —lo usa hasta JetBrains— y **tus ajustes `rest-client.*` se siguen leyendo**, así que ocho años de configuración siguen funcionando. Los tuyos propios de `httpkeeper.*` mandan en cuanto los pongas. El historial, las cookies y los entornos se leen de la misma carpeta `~/.rest-client`, así que también te los llevas.
+No hay que hacer nada. El formato `.http` es idéntico —lo usa hasta JetBrains— y **tus ajustes `rest-client.*` se siguen leyendo**, así que ocho años de configuración siguen funcionando. El historial, las cookies y los entornos se leen de la misma carpeta `~/.rest-client`, así que también te los llevas.
 
 La interfaz está en castellano y en inglés.
 

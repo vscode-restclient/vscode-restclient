@@ -1,4 +1,4 @@
-name: 'HttpKeeper'
+name: 'RestClient'
 description: 'Run a .http file (REST Client / JetBrains HTTP Client format) with its # @assert checks, in CI'
 author: 'Argalla · Tecniart Galicia, S.L.'
 branding:
@@ -30,11 +30,11 @@ inputs:
     required: false
     default: '30000'
   version:
-    description: 'HttpKeeper release to use (latest, or a version like 1.1.0)'
+    description: 'RestClient release to use (latest, or a version like 1.1.0)'
     required: false
     default: 'latest'
 
-# Secrets: export them as HTTPKEEPER_SECRET_<NAME> in the step's env and use
+# Secrets: export them as RESTCLIENT_SECRET<NAME> in the step's env and use
 # {{$secret NAME}} in the file. They never appear in the log.
 runs:
   using: composite
@@ -55,11 +55,11 @@ runs:
       run: |
         set -euo pipefail
         if [ "$HK_VERSION" = "latest" ]; then
-          url="https://github.com/vscode-restclient/vscode-restclient/releases/latest/download/httpkeeper-cli.js"
+          url="https://github.com/vscode-restclient/vscode-restclient/releases/latest/download/restclient.js"
         else
-          url="https://github.com/vscode-restclient/vscode-restclient/releases/download/v${HK_VERSION#v}/httpkeeper-cli.js"
+          url="https://github.com/vscode-restclient/vscode-restclient/releases/download/v${HK_VERSION#v}/restclient.js"
         fi
-        curl -fsSL "$url" -o "$RUNNER_TEMP/httpkeeper-cli.js"
+        curl -fsSL "$url" -o "$RUNNER_TEMP/restclient.js"
         args=("$HK_FILE" --timeout "$HK_TIMEOUT")
         [ -n "$HK_ENV" ] && args+=(--env "$HK_ENV")
         [ -n "$HK_JUNIT" ] && args+=(--junit "$HK_JUNIT")
@@ -67,4 +67,4 @@ runs:
         while IFS= read -r linea; do
           [ -n "$linea" ] && args+=(--var "$linea")
         done <<< "$HK_VARS"
-        node "$RUNNER_TEMP/httpkeeper-cli.js" "${args[@]}"
+        node "$RUNNER_TEMP/restclient.js" "${args[@]}"

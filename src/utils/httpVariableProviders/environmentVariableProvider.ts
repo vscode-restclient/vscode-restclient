@@ -10,7 +10,7 @@ import { HttpVariable, HttpVariableProvider } from './httpVariableProvider';
 /**
  * Variables del entorno elegido. Vienen de dos sitios que se suman:
  *
- * - los ajustes (`httpkeeper.environmentVariables`, o los heredados de la
+ * - los ajustes (`rest-client.environmentVariables`, o los heredados de la
  *   sección antigua), como siempre;
  * - los ficheros `http-client.env.json` / `http-client.private.env.json` que
  *   haya junto al `.http` o más arriba, que es el formato de JetBrains.

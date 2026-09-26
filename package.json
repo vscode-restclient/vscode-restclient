@@ -715,11 +715,11 @@
         },
         "languageModelTools": [
             {
-                "name": "httpkeeper_send_request",
+                "name": "rest_client_send_request",
                 "displayName": "Send an HTTP request from a .http file",
                 "modelDescription": "Sends one request from a .http file in the workspace (by its # @name, or the first one if no name is given) and returns status, headers and body. Variables, environments and secrets are resolved the same way as when a person presses Send Request. Use it to check what an API really returns.",
                 "userDescription": "Send a request from a .http file and read the response",
-                "toolReferenceName": "httpkeeper",
+                "toolReferenceName": "rest-client",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(arrow-swap)",
                 "inputSchema": {
@@ -740,11 +740,11 @@
                 }
             },
             {
-                "name": "httpkeeper_list_requests",
+                "name": "rest_client_list_requests",
                 "displayName": "List the requests in a .http file",
                 "modelDescription": "Lists the requests (name, method, url, line) defined in a .http file of the workspace. Nothing is sent.",
                 "userDescription": "List the requests of a .http file",
-                "toolReferenceName": "httpkeeperList",
+                "toolReferenceName": "rest-client-list",
                 "canBeReferencedInPrompt": true,
                 "icon": "$(list-unordered)",
                 "inputSchema": {
@@ -763,8 +763,8 @@
         ],
         "mcpServerDefinitionProviders": [
             {
-                "id": "httpkeeper.mcp",
-                "label": "HttpKeeper"
+                "id": "restclient.mcp",
+                "label": "Rest Client"
             }
         ]
     },
@@ -849,7 +849,7 @@
         }
     },
     "bin": {
-        "httpkeeper": "./dist/cli.js"
+        "restclient": "./dist/cli.js"
     },
     "overrides": {
         "axios": "^1.12.0",

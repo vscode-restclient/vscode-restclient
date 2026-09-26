@@ -1,7 +1,7 @@
 /**
- * httpkeeper — el mismo fichero .http, ejecutado desde la terminal.
+ * restclient — el mismo fichero .http, ejecutado desde la terminal.
  *
- *   httpkeeper peticiones.http [--env dev] [--var host=https://api] [--secret KEY=valor]
+ *   restclient peticiones.http [--env dev] [--var host=https://api] [--secret KEY=valor]
  *                              [--continuar] [--json] [--timeout ms]
  *
  * Es la petición número seis más votada del proyecto original (+44 votos desde
@@ -40,7 +40,7 @@ export interface Opciones {
     junit?: string;
 }
 
-export const USO = 'uso: httpkeeper <fichero.http> [--env nombre] [--var clave=valor] [--secret NOMBRE=valor] [--continuar] [--json] [--junit informe.xml] [--timeout ms]';
+export const USO = 'uso: restclient <fichero.http> [--env nombre] [--var clave=valor] [--secret NOMBRE=valor] [--continuar] [--json] [--junit informe.xml] [--timeout ms]';
 
 export function leerArgumentos(argv: string[]): Opciones | string {
     const variables: Record<string, string> = {};
@@ -125,11 +125,11 @@ export function variablesDeFichero(texto: string): Record<string, string> {
     return fuera;
 }
 
-/** Secretos: de la línea de órdenes, o de `HTTPKEEPER_SECRET_NOMBRE`. Faltar es un error, no un hueco. */
+/** Secretos: de la línea de órdenes, o de `RESTCLIENT_SECRETNOMBRE`. Faltar es un error, no un hueco. */
 export function secreto(nombre: string, secretos: Record<string, string>): string {
-    const valor = secretos[nombre] ?? process.env[`HTTPKEEPER_SECRET_${nombre}`];
+    const valor = secretos[nombre] ?? process.env[`RESTCLIENT_SECRET${nombre}`];
     if (valor === undefined) {
-        throw new Error(`falta el secreto "${nombre}": pásalo con --secret ${nombre}=valor o en la variable de entorno HTTPKEEPER_SECRET_${nombre}`);
+        throw new Error(`falta el secreto "${nombre}": pásalo con --secret ${nombre}=valor o en la variable de entorno RESTCLIENT_SECRET${nombre}`);
     }
     return valor;
 }

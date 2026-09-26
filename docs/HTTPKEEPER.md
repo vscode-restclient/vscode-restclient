@@ -1,4 +1,4 @@
-# HttpKeeper — what this maintained REST Client adds
+# RestClient — what this maintained REST Client adds
 
 > This is the long version, with screenshots. The extension's README is [Huachao Mao's original reference](../README.md), kept verbatim.
 
@@ -14,7 +14,7 @@ The original is not broken; it is parked. Its repository has **529 open issues a
 
 So the first thing this fork shipped was not a feature. It was the net.
 
-|                                    | Original             | HttpKeeper                                             |
+|                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
 | Tests                              | 0                    | **66** (31 unit, 35 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
@@ -75,16 +75,16 @@ Assertions are `@` comments, so any other tool that reads the format just ignore
 
 ### The HTTP client your agents can use
 
-In VS Code, `#httpkeeper` lists the requests of a file and sends one by name from Copilot Chat or any other language-model participant — sending asks you first, and files outside the workspace are refused. On VS Code 1.101+ the extension also announces its MCP server to agent mode, with nothing to configure.
+In VS Code, `#restclient` lists the requests of a file and sends one by name from Copilot Chat or any other language-model participant — sending asks you first, and files outside the workspace are refused. On VS Code 1.101+ the extension also announces its MCP server to agent mode, with nothing to configure.
 
-Outside the editor, `httpkeeper mcp` is an MCP server over stdio for Claude Code, Cursor or anything else that speaks MCP: `list_requests`, `send_request`, `run_http_file`. It only reads files under the root it was started with and never writes to disk.
+Outside the editor, `restclient mcp` is an MCP server over stdio for Claude Code, Cursor or anything else that speaks MCP: `list_requests`, `send_request`, `run_http_file`. It only reads files under the root it was started with and never writes to disk.
 
 ```json
 {
   "mcpServers": {
-    "httpkeeper": {
+    "restclient": {
       "command": "npx",
-      "args": ["httpkeeper-cli", "mcp", "--raiz", "."]
+      "args": ["restclient", "mcp", "--raiz", "."]
     }
   }
 }
@@ -93,7 +93,7 @@ Outside the editor, `httpkeeper mcp` is an MCP server over stdio for Claude Code
 ### The runner, everywhere (+44)
 
 ```console
-$ npx httpkeeper-cli api.http --env dev --secret API_KEY=… --junit report.xml
+$ npx restclient api.http --env dev --secret API_KEY=… --junit report.xml
   ok   login                200  184 ms
   ok   invoices             200    9 ms
 
@@ -109,7 +109,7 @@ Exit code 0 when every assertion passes, 1 when one fails, `--json` for machines
     env: staging
     junit: httpkeeper.xml
   env:
-    HTTPKEEPER_SECRET_API_KEY: ${{ secrets.API_KEY }}
+    RESTCLIENT_SECRETAPI_KEY: ${{ secrets.API_KEY }}
 ```
 
 ![The same file run from the integrated terminal](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/04-runner.png)
@@ -120,7 +120,7 @@ Everything inherited from REST Client — request syntax, GraphQL, cURL, authent
 
 ## Migrating from REST Client
 
-Nothing to do. The `.http` format is identical — JetBrains uses it too — and **your `rest-client.*` settings are still read**, so eight years of configuration keep working. Your own `httpkeeper.*` settings win when you set them. Your history, cookies and environments are read from the same `~/.rest-client` folder, so you keep them too.
+Nothing to do. The `.http` format is identical — JetBrains uses it too — and **your `rest-client.*` settings are still read**, so eight years of configuration keep working. Your history, cookies and environments are read from the same `~/.rest-client` folder, so you keep them too.
 
 The interface is available in English and Spanish.
 

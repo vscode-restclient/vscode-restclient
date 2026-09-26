@@ -1,4 +1,4 @@
-// Prueba del servidor MCP de punta a punta: arranca `httpkeeper mcp` con una
+// Prueba del servidor MCP de punta a punta: arranca `restclient mcp` con una
 // raíz, le habla por stdio como lo haría un agente y comprueba las respuestas.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -59,7 +59,7 @@ const ok = (n, c, extra = '') => { console.log(`${c ? '  OK  ' : '  FALLA'} ${n}
 
 console.log('== protocolo');
 const init = await llamar('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'prueba', version: '1' } });
-ok('initialize devuelve la versión del protocolo y el nombre', init.result?.protocolVersion === '2025-06-18' && init.result?.serverInfo?.name === 'httpkeeper', JSON.stringify(init).slice(0, 120));
+ok('initialize devuelve la versión del protocolo y el nombre', init.result?.protocolVersion === '2025-06-18' && init.result?.serverInfo?.name === 'restclient', JSON.stringify(init).slice(0, 120));
 notificar('notifications/initialized');
 const ping = await llamar('ping', {});
 ok('ping', ping.result !== undefined && !ping.error);

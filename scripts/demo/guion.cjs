@@ -76,7 +76,7 @@ exports.run = async () => {
 
     // --- 4. El mismo fichero, corriendo en la terminal ---------------------
     const term = vscode.window.createTerminal({
-        name: 'httpkeeper',
+        name: 'restclient',
         cwd: vscode.workspace.workspaceFolders[0].uri.fsPath,
         env: { DEMO_PUERTO: PUERTO },
     });

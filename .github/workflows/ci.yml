@@ -57,9 +57,9 @@ jobs:
       - name: Audit (identity, credit, privacy, deps, isolation)
         run: npm run audit
       - name: Package
-        run: npx vsce package --no-dependencies -o httpkeeper.vsix
+        run: npx vsce package --no-dependencies -o rest-client.vsix
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:
           name: vsix
-          path: httpkeeper.vsix
+          path: rest-client.vsix

@@ -55,7 +55,7 @@ ok('sigue aportando el lenguaje http', pkg.contributes.languages?.some((l) => l.
 // peticion de la organizacion (issue #1): la lista exacta la congela
 // src/test/integration/suite/commandIds.test.ts; aqui se vigila la forma.
 ok('los comandos publicos llevan el prefijo original', pkg.contributes.commands.length === 21 && pkg.contributes.commands.every((c) => c.command.startsWith('rest-client.')), pkg.contributes.commands.map((c) => c.command).filter((c) => !c.startsWith('rest-client.')).join(', '));
-ok('el runner se publica como binario', pkg.bin?.httpkeeper !== undefined, pkg.bin?.httpkeeper);
+ok('el runner se publica como binario', pkg.bin?.restclient !== undefined, pkg.bin?.restclient);
 
 seccion('crédito al autor original (es MIT, pero se dice)');
 const readme = leer('README.md');
@@ -181,11 +181,11 @@ const mcp = leer('src/cli/mcp.ts');
 ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('dentroDeLaRaiz') && !/fs\.write|writeFileSync/.test(mcp));
 const mcpPrueba = correr('node scripts/probar-mcp.mjs');
 ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.codigo === 0, /(\d+) fallos/.exec(mcpPrueba.salida)?.[0] ?? '');
-ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('httpkeeper-cli.js'));
-ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/release.yml').includes('httpkeeper-cli.js'));
+ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('restclient.js'));
+ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/release.yml').includes('restclient.js'));
 const npmPkg = JSON.parse(leer('npm/package.json'));
 ok('el paquete npm tiene el mismo numero de version', npmPkg.version === pkg.version, `npm ${npmPkg.version} / extension ${pkg.version}`);
-ok('el paquete npm es solo el runner', npmPkg.bin?.httpkeeper === 'cli.js' && JSON.stringify(npmPkg.files) === JSON.stringify(['cli.js', 'README.md', 'LICENSE']) && !npmPkg.dependencies);
+ok('el paquete npm es solo el runner', npmPkg.bin?.restclient === 'cli.js' && JSON.stringify(npmPkg.files) === JSON.stringify(['cli.js', 'README.md', 'LICENSE']) && !npmPkg.dependencies);
 ok('la gramatica pinta import y run', leer('syntaxes/http.tmLanguage.json').includes('http.import') && leer('syntaxes/http.tmLanguage.json').includes('http.run'));
 
 seccion('las dos lenguas estan completas');
@@ -196,7 +196,7 @@ seccion('el paquete lleva lo que promete y nada mas');
 const empaquetados = correr('npx vsce ls --no-dependencies').salida.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 const enPaquete = (f) => empaquetados.includes(f);
 ok('el bundle del runner viaja en el paquete', enPaquete('dist/cli.js'));
-ok('el binario declarado es el que viaja', enPaquete(pkg.bin.httpkeeper.replace('./', '')));
+ok('el binario declarado es el que viaja', enPaquete(pkg.bin.restclient.replace('./', '')));
 ok('los avisos de terceros viajan', enPaquete('THIRD-PARTY-NOTICES.txt') && enPaquete('LICENSE'));
 ok('los dos idiomas viajan', enPaquete('package.nls.json') && enPaquete('package.nls.es.json'));
 for (const r of recursos) {

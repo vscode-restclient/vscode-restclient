@@ -65,7 +65,7 @@ jobs:
             npx ovsx publish "rest-client-${GITHUB_REF_NAME}.vsix" -p "$OVSX_PAT"
           fi
       - name: The standalone runner, for the GitHub action and for npx without npm
-        run: cp dist/cli.js httpkeeper-cli.js
+        run: cp dist/cli.js restclient.js
       - name: npm (skipped if this version is already there)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
           node scripts/preparar-npm.mjs
-          if npm view "httpkeeper-cli@$VER" version >/dev/null 2>&1; then
+          if npm view "@vscode-restclient/cli@$VER" version >/dev/null 2>&1; then
             echo "npm already has $VER"
           else
             printf '//registry.npmjs.org/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > "$RUNNER_TEMP/npmrc"
@@ -88,5 +88,5 @@ jobs:
         with:
           files: |
             rest-client-${{ github.ref_name }}.vsix
-            httpkeeper-cli.js
+            restclient.js
           generate_release_notes: true

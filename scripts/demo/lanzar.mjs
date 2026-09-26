@@ -106,8 +106,8 @@ const AJUSTES = {
     'window.commandCenter': false,
     'workbench.layoutControl.enabled': false,
     'editor.renderWhitespace': 'none',
-    'httpkeeper.previewColumn': 'beside',
-    'httpkeeper.fontSize': 14,
+    'rest-client.previewColumn': 'beside',
+    'rest-client.fontSize': 14,
 };
 
 async function main() {

@@ -42,7 +42,7 @@ const correr = (cmd, args, opciones = {}) => {
 async function main() {
     delete process.env.ELECTRON_RUN_AS_NODE;
 
-    const vsix = path.join(os.tmpdir(), `httpkeeper-prueba-${process.pid}.vsix`);
+    const vsix = path.join(os.tmpdir(), `restclient-prueba-${process.pid}.vsix`);
     console.log('empaquetando...');
     correr('npx', ['vsce', 'package', '--no-dependencies', '-o', ruta(vsix)], { cwd: RAIZ });
     console.log(`${(fs.statSync(vsix).size / 1024 / 1024).toFixed(2)} MB`);

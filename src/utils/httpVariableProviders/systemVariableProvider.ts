@@ -45,7 +45,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
     private readonly aadRegex: RegExp = new RegExp(`\\s*\\${Constants.AzureActiveDirectoryVariableName}(\\s+(${Constants.AzureActiveDirectoryForceNewOption}))?(\\s+(ppe|public|cn|de|us))?(\\s+([^\\.]+\\.[^\\}\\s]+|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}))?(\\s+aud:([^\\.]+\\.[^\\}\\s]+|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}))?\\s*`);
     private readonly oidcRegex: RegExp = new RegExp(`\\s*(\\${Constants.OidcVariableName})(?:\\s+(${Constants.OIdcForceNewOption}))?(?:\\s*clientId:([\\w|.|:|/|_|-]+))?(?:\\s*issuer:([\\w|.|:|/]+))?(?:\\s*callbackDomain:([\\w|.|:|/|_|-]+))?(?:\\s*callbackPort:([\\w|_]+))?(?:\\s*authorizeEndpoint:([\\w|.|:|/|_|-]+))?(?:\\s*tokenEndpoint:([\\w|.|:|/|_|-]+))?(?:\\s*scopes:([\\w|.|:|/|_|-]+))?(?:\\s*audience:([\\w|.|:|/|_|-]+))?`);
 
-    private readonly innerSettingsEnvironmentVariableProvider: EnvironmentVariableProvider =  EnvironmentVariableProvider.Instance;
+    private readonly innerSettingsEnvironmentVariableProvider: EnvironmentVariableProvider = EnvironmentVariableProvider.Instance;
     private static _instance: SystemVariableProvider;
 
     public static get Instance(): SystemVariableProvider {
@@ -183,7 +183,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
     private registerProcessEnvVariable() {
         this.resolveFuncs.set(Constants.ProcessEnvVariableName, async name => {
             const groups = this.processEnvRegex.exec(name);
-            if (groups !== null && groups.length === 3 ) {
+            if (groups !== null && groups.length === 3) {
                 const [, refToggle, environmentVarName] = groups;
                 let processEnvName = environmentVarName;
                 if (refToggle !== undefined) {
@@ -203,7 +203,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
     private registerDotenvVariable() {
         this.resolveFuncs.set(Constants.DotenvVariableName, async (name, document) => {
             let folderPath = path.dirname(document.fileName);
-            const { name : environmentName } = await EnvironmentController.getCurrentEnvironment();
+            const { name: environmentName } = await EnvironmentController.getCurrentEnvironment();
 
             let pathsFound = [false, false];
 
@@ -262,7 +262,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
             // La primera vez se pide y se guarda; a partir de ahí, ni se nota.
             const valor = (await Secretos.get(nombre)) ?? (await Secretos.pedir(nombre));
             if (valor === undefined) {
-                return { warning: `Secret "${nombre}" is not set. Run "HttpKeeper: Set secret"` };
+                return { warning: `Secret "${nombre}" is not set. Run "RestClient: Set secret"` };
             }
             return { value: valor };
         });
@@ -325,7 +325,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
                     const tokenString = `${token.tokenType} ${token.accessToken}`;
                     if (copy && tokenString) {
                         // only copy the token to the clipboard if it's the first use (since we tell them we're doing it)
-                       this.clipboard.writeText(tokenString).then(() => resolve({ value: tokenString }));
+                        this.clipboard.writeText(tokenString).then(() => resolve({ value: tokenString }));
                     } else {
                         resolve({ value: tokenString });
                     }
@@ -359,7 +359,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
     private registerOidcTokenVariable() {
         this.resolveFuncs.set(Constants.OidcVariableName, async (name, document, context) => {
             const matchVar = this.oidcRegex.exec(name) ?? [];
-            const [_, _1, forceNew, clientId, _3, callbackDomain, callbackPort, authorizeEndpoint, tokenEndpoint,  scopes, audience] = matchVar;
+            const [_, _1, forceNew, clientId, _3, callbackDomain, callbackPort, authorizeEndpoint, tokenEndpoint, scopes, audience] = matchVar;
 
             const access_token = await OidcClient.getAccessToken(forceNew ? true : false, clientId, callbackDomain, parseInt(callbackPort ?? CALLBACK_PORT), authorizeEndpoint, tokenEndpoint, scopes, audience);
             await this.clipboard.writeText(access_token ?? "");
@@ -372,12 +372,12 @@ export class SystemVariableProvider implements HttpVariableProvider {
             async (name) => {
                 const aadV2TokenProvider = new AadV2TokenProvider();
                 const token = await aadV2TokenProvider.acquireToken(name);
-                return {value: token};
+                return { value: token };
             });
     }
     private async resolveSettingsEnvironmentVariable(name: string) {
         if (await this.innerSettingsEnvironmentVariableProvider.has(name)) {
-            const { value, error, warning } =  await this.innerSettingsEnvironmentVariableProvider.get(name);
+            const { value, error, warning } = await this.innerSettingsEnvironmentVariableProvider.get(name);
             if (!error && !warning) {
                 return value!.toString();
             } else {

@@ -85,5 +85,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp dist/cli.js httpkeeper-cli.js
-          gh release upload "$TAG" "rest-client-${TAG}.vsix" httpkeeper-cli.js --clobber
+          cp dist/cli.js restclient.js
+          gh release upload "$TAG" "rest-client-${TAG}.vsix" restclient.js --clobber

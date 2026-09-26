@@ -1,5 +1,5 @@
 /**
- * `httpkeeper mcp [--raiz carpeta]`: servidor MCP por stdio, sin dependencias.
+ * `restclient mcp [--raiz carpeta]`: servidor MCP por stdio, sin dependencias.
  *
  * Lo que un agente (Claude Code, Cursor, el modo agente de Copilot) necesita
  * para usar los ficheros `.http` como herramienta: listar peticiones, enviar
@@ -111,7 +111,7 @@ class ErrorRpc extends Error {
 async function atender(msg: Peticion, raiz: string): Promise<unknown> {
     switch (msg.method) {
         case 'initialize':
-            return { protocolVersion: PROTOCOLO, capabilities: { tools: {} }, serverInfo: { name: 'httpkeeper', version: version() } };
+            return { protocolVersion: PROTOCOLO, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };
         case 'ping':
             return {};
         case 'tools/list':
