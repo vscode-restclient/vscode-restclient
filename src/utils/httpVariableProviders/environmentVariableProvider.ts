@@ -3,6 +3,7 @@ import * as Constants from '../../common/constants';
 import { EnvironmentController } from '../../controllers/environmentController';
 import { SystemSettings } from '../../models/configurationSettings';
 import { ResolveErrorMessage } from '../../models/httpVariableResolveResult';
+import { UserDataManager } from '../userDataManager';
 import { VariableType } from '../../models/variableType';
 import { entornosDeFichero } from '../entornosEditor';
 import { HttpVariable, HttpVariableProvider } from './httpVariableProvider';
@@ -31,8 +32,7 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
         return this._instance;
     }
 
-    private constructor() {
-    }
+    private constructor() { }
 
     public readonly type: VariableType = VariableType.Environment;
 
@@ -62,23 +62,36 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
             environmentName = EnvironmentController.sharedEnvironmentName;
         }
         const variables = this._settings.environmentVariables;
-        // Copias: el mapeo de `{{$shared x}}` de abajo escribe sobre el objeto,
-        // y el original escribía sobre los propios ajustes.
         const currentEnvironmentVariables = { ...(variables[environmentName] ?? {}) };
-        const sharedEnvironmentVariables = { ...(variables[EnvironmentController.sharedEnvironmentName] ?? {}) };
+        const sharedEnvironmentVariables = {
+            ...(variables[EnvironmentController.sharedEnvironmentName] ?? {}),
+        };
+        const runtimeSharedVariables = await UserDataManager.getRuntimeSharedVariables();
+        const sharedWithRuntime = { ...sharedEnvironmentVariables, ...runtimeSharedVariables };
 
         // Resolve mappings from shared environment
-        this.mapEnvironmentVariables('shared', sharedEnvironmentVariables, sharedEnvironmentVariables);
-        this.mapEnvironmentVariables('shared', currentEnvironmentVariables, sharedEnvironmentVariables);
+        this.mapEnvironmentVariables('shared', sharedWithRuntime, sharedWithRuntime);
+        this.mapEnvironmentVariables('shared', currentEnvironmentVariables, sharedWithRuntime);
 
         // Resolve mappings from current environment
-        this.mapEnvironmentVariables(environmentName, currentEnvironmentVariables, currentEnvironmentVariables);
+        this.mapEnvironmentVariables(
+            environmentName,
+            currentEnvironmentVariables,
+            currentEnvironmentVariables
+        );
 
         const deFichero = sinEntorno ? {} : (entornosDeFichero(document)[environmentName] ?? {});
-        return { ...sharedEnvironmentVariables, ...currentEnvironmentVariables, ...deFichero };
+        return {
+            ...sharedWithRuntime,
+            ...currentEnvironmentVariables, ...deFichero,
+        };
     }
 
-    private mapEnvironmentVariables(environment: string, current: { [key: string]: string }, shared: { [key: string]: string }) {
+    private mapEnvironmentVariables(
+        environment: string,
+        current: { [key: string]: string },
+        shared: { [key: string]: string }
+    ) {
         for (const [key, value] of Object.entries(current)) {
             const variableRegex = new RegExp(`\\{{2}\\$${environment} (.+?)\\}{2}`);
             const match = variableRegex.exec(value);

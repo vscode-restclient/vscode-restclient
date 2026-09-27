@@ -667,6 +667,47 @@ GET {{baseUrl}}/comments/{{commentId}}/replies/{{getReplies.response.body.//repl
 
 ```
 
+#### Runtime Shared Variables
+
+Runtime shared variables allow writing response values in one `.http` file and reusing them in other `.http` files through normal `{{varName}}` syntax.
+
+1. Predeclare writable keys under `$shared` in `rest-client.environmentVariables`:
+
+```json
+"rest-client.environmentVariables": {
+    "$shared": {
+        "baseUrl": "https://api.example.com",
+        "sessionId": "",
+        "authToken": ""
+    },
+    "dev": {
+        "baseUrl": "https://dev.api.example.com"
+    }
+}
+```
+
+2. Add one or more `@set` directives before a request URL:
+
+```http
+# @name login
+# @set sessionId = response.headers.X-Session-Id
+# @set authToken = response.body.$.token
+POST {{baseUrl}}/auth/login
+```
+
+`@set` source paths support:
+
+- `response.headers.<Header-Name>` (header lookup is case-insensitive)
+- `response.body.<JSONPath|XPath|*>`
+
+Runtime values are persisted to `runtime-shared.json` in REST Client user data and merged with normal environment variables in this precedence order (highest wins):
+
+1. Selected environment variables (for example `dev`)
+2. Runtime shared overlay (values written by `@set`)
+3. Static `$shared` values
+
+Only keys that already exist in `$shared` are writable. Invalid directives, undeclared target keys, or unresolved source paths show warnings and keep the previous runtime value.
+
 ### System Variables
 
 System variables provide a pre-defined set of variables that can be used in any part of the request(Url/Headers/Body) in the format `{{$variableName}}`. Currently, we provide a few dynamic variables which you can use in your requests. The variable names are _case-sensitive_.
@@ -810,7 +851,7 @@ By default, REST Client Extension only previews the full response in preview pan
 - `rest-client.fontFamily`: Controls the font family used in the response preview. (Default is **Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback"**)
 - `rest-client.fontWeight`: Controls the font weight used in the response preview. (Default is **normal**)
 - `rest-client.environmentVariables`: Sets the environments and custom variables belongs to it (e.g., `{"production": {"host": "api.example.com"}, "sandbox":{"host":"sandbox.api.example.com"}}`). (Default is **{}**)
-- `rest-client.mimeAndFileExtensionMapping`: Sets the custom mapping of mime type and file extension of saved response body. (Default is **{}**)
+- `rest-client.mimeAndFileExtensionMapping`: Sets the custom mapping of mime type and file extension of saved response body. `$shared` variables are available to all environments, and can be overlaid by runtime shared values written via `@set`. (Default is **{}**)
 - `rest-client.previewResponseInUntitledDocument`: Preview response in untitled document if set to true, otherwise displayed in html view. (Default is **false**)
 - `rest-client.certificates`: Certificate paths for different hosts. The path can be absolute path or relative path(relative to workspace or current http file). (Default is **{}**)
 - `rest-client.suppressResponseBodyContentTypeValidationWarning`: Suppress response body content type validation. (Default is **false**)

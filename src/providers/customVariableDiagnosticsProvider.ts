@@ -5,11 +5,11 @@ import { DocumentCache } from '../models/documentCache';
 import { ResolveState } from '../models/httpVariableResolveResult';
 import { VariableType } from '../models/variableType';
 import { disposeAll } from '../utils/dispose';
-import { RequestVariableCache } from "../utils/requestVariableCache";
-import { RequestVariableCacheValueProcessor } from "../utils/requestVariableCacheValueProcessor";
+import { RequestVariableCache } from '../utils/requestVariableCache';
+import { RequestVariableCacheValueProcessor } from '../utils/requestVariableCacheValueProcessor';
 import { Selector } from '../utils/selector';
 
-import { VariableProcessor } from "../utils/variableProcessor";
+import { VariableProcessor } from '../utils/variableProcessor';
 
 interface VariableWithPosition {
     name: string;
@@ -88,7 +88,8 @@ export class CustomVariableDiagnosticsProvider {
 
             const diagnostics: Diagnostic[] = [];
 
-            const allAvailableVariables = await VariableProcessor.getAllVariablesDefinitions(document);
+            const allAvailableVariables =
+                await VariableProcessor.getAllVariablesDefinitions(document);
             const promptVariableDefinitions = this.findPromptVariableDefinitions(document);
             const variableReferences = this.findVariableReferences(document);
 
@@ -97,7 +98,13 @@ export class CustomVariableDiagnosticsProvider {
                 .filter(([name]) => !allAvailableVariables.has(name))
                 .forEach(([, variables]) => {
                     variables
-                        .filter(variable => !this.hasPromptVariableDefintion(promptVariableDefinitions, variable))
+                        .filter(
+                            variable =>
+                                !this.hasPromptVariableDefintion(
+                                    promptVariableDefinitions,
+                                    variable
+                                )
+                        )
                         .forEach(({ name, begin, end }) => {
                             diagnostics.push(
                                 new Diagnostic(new Range(begin, end), l10n.t('{0} is not found', name), DiagnosticSeverity.Error));
@@ -107,10 +114,12 @@ export class CustomVariableDiagnosticsProvider {
 
             // Request variable not active
             [...variableReferences.entries()]
-                .filter(([name]) =>
-                    allAvailableVariables.has(name)
-                    && allAvailableVariables.get(name)![0] === VariableType.Request
-                    && !RequestVariableCache.has(document, name))
+                .filter(
+                    ([name]) =>
+                        allAvailableVariables.has(name) &&
+                        allAvailableVariables.get(name)![0] === VariableType.Request &&
+                        !RequestVariableCache.has(document, name)
+                )
                 .forEach(([, variables]) => {
                     variables.forEach(({ name, begin, end }) => {
                         diagnostics.push(
@@ -120,27 +129,99 @@ export class CustomVariableDiagnosticsProvider {
 
             // Request variable resolve with warning or error
             [...variableReferences.entries()]
-                .filter(([name]) =>
-                    allAvailableVariables.has(name)
-                    && allAvailableVariables.get(name)![0] === VariableType.Request
-                    && RequestVariableCache.has(document, name))
+                .filter(
+                    ([name]) =>
+                        allAvailableVariables.has(name) &&
+                        allAvailableVariables.get(name)![0] === VariableType.Request &&
+                        RequestVariableCache.has(document, name)
+                )
                 .forEach(([name, variables]) => {
                     const value = RequestVariableCache.get(document, name);
                     variables.forEach(({ path, begin, end }) => {
                         path = path.replace(/^\{{2}\s*/, '').replace(/\s*\}{2}$/, '');
-                        const result = RequestVariableCacheValueProcessor.resolveRequestVariable(value, path);
+                        const result = RequestVariableCacheValueProcessor.resolveRequestVariable(
+                            value,
+                            path
+                        );
                         if (result.state !== ResolveState.Success) {
                             diagnostics.push(
                                 new Diagnostic(
                                     new Range(begin, end),
                                     result.message,
-                                    result.state === ResolveState.Error ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning));
+                                    result.state === ResolveState.Error
+                                        ? DiagnosticSeverity.Error
+                                        : DiagnosticSeverity.Warning
+                                )
+                            );
                         }
                     });
                 });
 
+            diagnostics.push(...this.findSetDiagnostics(document));
+
             this.httpDiagnosticCollection.set(document.uri, diagnostics);
         }
+    }
+
+    private findSetDiagnostics(document: TextDocument): Diagnostic[] {
+        const diagnostics: Diagnostic[] = [];
+        const restClientConfig = workspace.getConfiguration('rest-client', document.uri);
+        const environmentVariables =
+            restClientConfig.get<Record<string, Record<string, unknown>>>('environmentVariables') ??
+            {};
+        const sharedVariables =
+            environmentVariables[EnvironmentController.sharedEnvironmentName] ?? {};
+        const lines = document.getText().split(Constants.LineSplitterRegex);
+        const pattern = /^\s*(?:#|\/{2})\s*@set\s+(.*?)\s*$/i;
+
+        lines.forEach((line, lineNumber) => {
+            const matched = line.match(pattern);
+            if (!matched) {
+                return;
+            }
+
+            const directiveText = matched[1].trim();
+            const assignment = Selector.parseSetAssignment(directiveText);
+            if (!assignment) {
+                const directiveStart = line.search(/@set\s+/i);
+                const range = new Range(
+                    new Position(lineNumber, directiveStart >= 0 ? directiveStart : 0),
+                    new Position(lineNumber, line.length)
+                );
+                diagnostics.push(
+                    new Diagnostic(
+                        range,
+                        'Malformed @set directive. Expected syntax: @set <targetName> = <response.headers.*|response.body.*>',
+                        DiagnosticSeverity.Error
+                    )
+                );
+                return;
+            }
+
+            const { targetName } = assignment;
+            if (Object.prototype.hasOwnProperty.call(sharedVariables, targetName)) {
+                return;
+            }
+
+            const targetStart = line.indexOf(targetName);
+            const range =
+                targetStart >= 0
+                    ? new Range(
+                        new Position(lineNumber, targetStart),
+                        new Position(lineNumber, targetStart + targetName.length)
+                    )
+                    : new Range(new Position(lineNumber, 0), new Position(lineNumber, line.length));
+
+            diagnostics.push(
+                new Diagnostic(
+                    range,
+                    `@set target "${targetName}" is not defined in rest-client.environmentVariables.$shared`,
+                    DiagnosticSeverity.Error
+                )
+            );
+        });
+
+        return diagnostics;
     }
 
     private findVariableReferences(document: TextDocument): Map<string, VariableWithPosition[]> {
@@ -157,7 +238,7 @@ export class CustomVariableDiagnosticsProvider {
             }
 
             let match: RegExpExecArray | null;
-            while (match = pattern.exec(line)) {
+            while ((match = pattern.exec(line))) {
                 const [path] = match;
                 let [, name] = match;
                 // For request variable, only keep the first part before dot for name
@@ -173,7 +254,7 @@ export class CustomVariableDiagnosticsProvider {
                     name,
                     path,
                     begin: new Position(lineNumber, match.index),
-                    end: new Position(lineNumber, match.index + path.length)
+                    end: new Position(lineNumber, match.index + path.length),
                 };
                 if (vars.has(name)) {
                     vars.get(name)!.push(variable);
@@ -188,7 +269,9 @@ export class CustomVariableDiagnosticsProvider {
         return vars;
     }
 
-    private findPromptVariableDefinitions(document: TextDocument): Map<string, PromptVariableDefinitionWithRange[]> {
+    private findPromptVariableDefinitions(
+        document: TextDocument
+    ): Map<string, PromptVariableDefinitionWithRange[]> {
         const defs = new Map<string, PromptVariableDefinitionWithRange[]>();
         const rawLines = document.getText().split(Constants.LineSplitterRegex);
         const requestRanges = Selector.getRequestRanges(rawLines, { ignoreCommentLine: false });
@@ -208,12 +291,15 @@ export class CustomVariableDiagnosticsProvider {
         }
         return defs;
     }
-    private hasPromptVariableDefintion(defs: Map<string, PromptVariableDefinitionWithRange[]>, variable: VariableWithPosition): boolean {
+    private hasPromptVariableDefintion(
+        defs: Map<string, PromptVariableDefinitionWithRange[]>,
+        variable: VariableWithPosition
+    ): boolean {
         const { name, begin, end } = variable;
-        return defs.get(name)?.some(({ name, range: [rangeStart, rangeEnd] }) => {
-            return name === name
-                && rangeStart <= begin.line
-                && end.line <= rangeEnd;
-        }) || false;
+        return (
+            defs.get(name)?.some(({ name: defName, range: [rangeStart, rangeEnd] }) => {
+                return defName === name && rangeStart <= begin.line && end.line <= rangeEnd;
+            }) || false
+        );
     }
 }

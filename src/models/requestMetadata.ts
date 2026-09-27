@@ -23,6 +23,11 @@ export enum RequestMetadata {
     Prompt = 'prompt',
 
     /**
+     * Used to write extracted response values to runtime shared variables
+     */
+    Set = 'set',
+
+    /**
      * Tiempo máximo en milisegundos para esta petición; en un WebSocket, lo
      * que se escucha antes de cerrar.
      */
@@ -31,6 +36,8 @@ export enum RequestMetadata {
 
 export function fromString(value: string): RequestMetadata | undefined {
     value = value.toLowerCase();
-    const enumName = (Object.keys(RequestMetadata) as Array<keyof typeof RequestMetadata>).find(k => RequestMetadata[k] === value);
+    const enumName = (Object.keys(RequestMetadata) as Array<keyof typeof RequestMetadata>).find(
+        k => RequestMetadata[k] === value
+    );
     return enumName ? RequestMetadata[enumName] : undefined;
 }

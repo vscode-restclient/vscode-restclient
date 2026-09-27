@@ -2,18 +2,26 @@ import { ExtensionContext, l10n, Range, TextDocument, Uri, ViewColumn, window, w
 import { bloqueLlamado, cerrarImportaciones } from '../core/importaciones';
 import { esPeticion, trocear } from '../core/secuencia';
 import Logger from '../logger';
-import { IRestClientSettings, RequestSettings, RestClientSettings } from '../models/configurationSettings';
+import {
+    IRestClientSettings,
+    RequestSettings,
+    RestClientSettings,
+    SystemSettings,
+} from '../models/configurationSettings';
 import { HistoricalHttpRequest, HttpRequest } from '../models/httpRequest';
+import { HttpResponse } from '../models/httpResponse';
+import { ResolveState } from '../models/httpVariableResolveResult';
 import { RequestMetadata } from '../models/requestMetadata';
 import { RequestParserFactory } from '../models/requestParserFactory';
-import { trace } from "../utils/decorator";
+import { EnvironmentController } from './environmentController';
+import { trace } from '../utils/decorator';
 import { AlRecibir, HttpClient } from '../utils/httpClient';
 import { esEventStream } from '../core/sse';
 import { hablar, mensajesDelCuerpo, MS_ESCUCHA_POR_DEFECTO } from '../core/websocket';
-import { HttpResponse } from '../models/httpResponse';
 import { getHeader } from '../utils/misc';
 import { RequestState, RequestStatusEntry } from '../utils/requestStatusBarEntry';
-import { RequestVariableCache } from "../utils/requestVariableCache";
+import { RequestVariableCache } from '../utils/requestVariableCache';
+import { RequestVariableCacheValueProcessor } from '../utils/requestVariableCacheValueProcessor';
 import { Selector } from '../utils/selector';
 import { UserDataManager } from '../utils/userDataManager';
 import { getCurrentTextDocument } from '../utils/workspaceUtility';
@@ -25,14 +33,16 @@ export class RequestController {
     private _httpClient: HttpClient;
     private _webview: HttpResponseWebview;
     private _textDocumentView: HttpResponseTextDocumentView;
-    private _lastRequestSettingTuple: [HttpRequest, IRestClientSettings];
+    private _lastRequestSettingTuple?: [HttpRequest, IRestClientSettings];
     private _lastPendingRequest?: HttpRequest;
 
     public constructor(context: ExtensionContext) {
         this._requestStatusEntry = new RequestStatusEntry();
         this._httpClient = new HttpClient();
         this._webview = new HttpResponseWebview(context);
-        this._webview.onDidCloseAllWebviewPanels(() => this._requestStatusEntry.update({ state: RequestState.Closed }));
+        this._webview.onDidCloseAllWebviewPanels(() =>
+            this._requestStatusEntry.update({ state: RequestState.Closed })
+        );
         this._textDocumentView = new HttpResponseTextDocumentView();
     }
 
@@ -74,7 +84,7 @@ export class RequestController {
             return;
         }
 
-        await this.runCore(httpRequest, settings, document);
+        await this.runCore(httpRequest, settings, document, metadatas);
     }
 
     /**
@@ -145,7 +155,12 @@ export class RequestController {
         }
     }
 
-    private async runCore(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument): Promise<HttpResponse | undefined> {
+    private async runCore(
+        httpRequest: HttpRequest,
+        settings: IRestClientSettings,
+        document?: TextDocument,
+        metadatas?: Map<RequestMetadata, string | undefined>
+    ): Promise<HttpResponse | undefined> {
         // clear status bar
         this._requestStatusEntry.update({ state: RequestState.Pending });
 
@@ -188,6 +203,10 @@ export class RequestController {
 
             if (httpRequest.name && document) {
                 RequestVariableCache.add(document, httpRequest.name, response);
+            }
+
+            if (metadatas) {
+                await this.applySetMetadata(metadatas, response);
             }
 
             try {
@@ -294,5 +313,66 @@ export class RequestController {
     public dispose() {
         this._requestStatusEntry.dispose();
         this._webview.dispose();
+    }
+
+    private async applySetMetadata(
+        metadatas: Map<RequestMetadata, string | undefined>,
+        response: HttpResponse
+    ): Promise<void> {
+        const directives = Selector.parseSetMetadataForRawDirectives(
+            metadatas.get(RequestMetadata.Set)
+        );
+        if (directives.length === 0) {
+            return;
+        }
+
+        const sharedVariables =
+            SystemSettings.Instance.environmentVariables[
+            EnvironmentController.sharedEnvironmentName
+            ] ?? {};
+        const updates: { [key: string]: string } = {};
+
+        for (const directive of directives) {
+            const assignment = Selector.parseSetAssignment(directive);
+            if (!assignment) {
+                this.warnSet(
+                    `Invalid @set directive "${directive}". Expected format: @set <targetName> = <response.headers.*|response.body.*>`
+                );
+                continue;
+            }
+
+            const { targetName, sourcePath } = assignment;
+            if (!Object.prototype.hasOwnProperty.call(sharedVariables, targetName)) {
+                this.warnSet(
+                    `@set target "${targetName}" is not predeclared in $shared and will be ignored.`
+                );
+                continue;
+            }
+
+            const resolveResult = RequestVariableCacheValueProcessor.resolveResponseVariable(
+                response,
+                sourcePath
+            );
+            if (resolveResult.state !== ResolveState.Success) {
+                this.warnSet(
+                    `@set source "${sourcePath}" couldn't be resolved for "${targetName}": ${resolveResult.message}`
+                );
+                continue;
+            }
+
+            updates[targetName] = String(resolveResult.value ?? '');
+        }
+
+        if (Object.keys(updates).length > 0) {
+            await UserDataManager.updateRuntimeSharedVariables(variables => ({
+                ...variables,
+                ...updates,
+            }));
+        }
+    }
+
+    private warnSet(message: string) {
+        Logger.warn(message);
+        window.showWarningMessage(message);
     }
 }
