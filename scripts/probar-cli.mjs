@@ -131,9 +131,9 @@ ok('--env lee el entorno de http-client.env.json y el privado manda', r7.codigo 
 ok('run #login ejecuta la petición importada con su nombre', d7?.pasos?.[0]?.nombre === 'login' && d7?.pasos?.[0]?.estado === 200);
 ok('la respuesta del importado encadena en el fichero que importa', d7?.pasos?.[2]?.estado === 200);
 const r8 = await correr([jet, '--env', 'dev']);
-ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.codigo === 1 && r8.salida.includes('falta el secreto "API_KEY"') && r8.salida.includes('RESTCLIENT_SECRETAPI_KEY'), r8.salida.split(BR).find(l => l.includes('secreto')) ?? '');
+ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.codigo === 1 && r8.salida.includes('falta el secreto "API_KEY"') && r8.salida.includes('RESTCLIENT_SECRET_API_KEY'), r8.salida.split(BR).find(l => l.includes('secreto')) ?? '');
 const r9 = await new Promise((res) => {
-  const p2 = spawn(process.execPath, [RUNNER, jet, '--env', 'dev', '--continuar'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, RESTCLIENT_SECRETAPI_KEY: 'clave-123' } });
+  const p2 = spawn(process.execPath, [RUNNER, jet, '--env', 'dev', '--continuar'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, RESTCLIENT_SECRET_API_KEY: 'clave-123' } });
   let salida = ''; p2.stdout.on('data', d => salida += d); p2.on('close', codigo => res({ codigo, salida }));
 });
 ok('el secreto también llega por RESTCLIENT_SECRET*', r9.codigo === 0, r9.salida.split(BR)[1] ?? '');

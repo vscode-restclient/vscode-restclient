@@ -33,6 +33,9 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # crear la release y subirle los ficheros
+      id-token: write   # npm trusted publishing (OIDC), ver el paso de npm
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
     steps:
@@ -81,9 +84,39 @@ jobs:
           else
             npx ovsx publish "rest-client-${TAG}.vsix" -p "$OVSX_PAT"
           fi
-      - name: The standalone runner, attached to the release
+      - name: The standalone runner, for the GitHub action and for npx without npm
+        run: cp dist/cli.js restclient.js
+      # Two things about this step.
+      #
+      # NPM_TOKEN is deliberately absent from the guard above: the runner on npm
+      # is a convenience, and a missing token there should not mark a release
+      # that did reach both extension stores as failed. It warns instead.
+      #
+      # npm is upgraded because trusted publishing (OIDC) needs npm >= 11.5.1 and
+      # Node 22 ships 10.x. With `id-token: write` granted and a trusted publisher
+      # configured for the package on npmjs.com, `npm publish` authenticates with
+      # the GitHub identity and NODE_AUTH_TOKEN is never used. That is the endgame:
+      # npm is removing direct publishing with bypass-2FA tokens in January 2027.
+      # Until the publisher is configured the token below is what actually runs.
+      - name: npm (skipped if this version is already there)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VER="${TAG#v}"
+          npm install -g npm@latest
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::No NPM_TOKEN: @vscode-restclient/cli $VER is not going to npm. The rest of the release is unaffected."
+            exit 0
+          fi
+          node scripts/preparar-npm.mjs
+          if npm view "@vscode-restclient/cli@$VER" version >/dev/null 2>&1; then
+            echo "npm already has $VER"
+          else
+            printf '//registry.npmjs.org/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > "$RUNNER_TEMP/npmrc"
+            (cd npm && npm publish --access public --userconfig "$RUNNER_TEMP/npmrc")
+            rm -f "$RUNNER_TEMP/npmrc"
+          fi
+      - name: The runner and the .vsix, attached to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          cp dist/cli.js restclient.js
-          gh release upload "$TAG" "rest-client-${TAG}.vsix" restclient.js --clobber
+        run: gh release upload "$TAG" "rest-client-${TAG}.vsix" restclient.js --clobber

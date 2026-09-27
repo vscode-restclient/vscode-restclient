@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write   # npm trusted publishing (OIDC), ver el paso de npm
 
 jobs:
   release:
@@ -71,8 +72,9 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
+          npm install -g npm@latest   # trusted publishing (OIDC) pide npm >= 11.5.1
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "No NPM_TOKEN: skipping npm (the org package is still undecided, see #4)"
+            echo "::warning::No NPM_TOKEN: @vscode-restclient/cli $VER is not going to npm. The rest of the release is unaffected."
             exit 0
           fi
           node scripts/preparar-npm.mjs

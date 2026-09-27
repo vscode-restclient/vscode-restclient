@@ -125,11 +125,11 @@ export function variablesDeFichero(texto: string): Record<string, string> {
     return fuera;
 }
 
-/** Secretos: de la línea de órdenes, o de `RESTCLIENT_SECRETNOMBRE`. Faltar es un error, no un hueco. */
+/** Secretos: de la línea de órdenes, o de `RESTCLIENT_SECRET_NOMBRE`. Faltar es un error, no un hueco. */
 export function secreto(nombre: string, secretos: Record<string, string>): string {
-    const valor = secretos[nombre] ?? process.env[`RESTCLIENT_SECRET${nombre}`];
+    const valor = secretos[nombre] ?? process.env[`RESTCLIENT_SECRET_${nombre}`];
     if (valor === undefined) {
-        throw new Error(`falta el secreto "${nombre}": pásalo con --secret ${nombre}=valor o en la variable de entorno RESTCLIENT_SECRET${nombre}`);
+        throw new Error(`falta el secreto "${nombre}": pásalo con --secret ${nombre}=valor o en la variable de entorno RESTCLIENT_SECRET_${nombre}`);
     }
     return valor;
 }

@@ -11,7 +11,7 @@ Full details in the [CHANGELOG](CHANGELOG.md); the longer story, with screenshot
 - **Fake data**: `{{$faker internet.email}}` — any [Faker](https://fakerjs.dev) module, lazily loaded, same syntax as rest-client-next.
 - **A test suite** (69 tests, 37 of them sending real requests through the extension), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
 - **Bugs fixed**: the response not showing up in Cursor, a re-sent request with mangled headers, a JSONPath with several matches returning only the first, XPath request variables.
-- **Run a whole file in order**, with later requests using earlier responses; **assertions in the file** (`# @assert status == 200`); a **terminal runner** for CI (`npx restclient api.http`, `--junit`, GitHub Action).
+- **Run a whole file in order**, with later requests using earlier responses; **assertions in the file** (`# @assert status == 200`); a **terminal runner** for CI (`npx @vscode-restclient/cli api.http`, `--junit`, GitHub Action).
 - **The JetBrains format, complete**: `http-client.env.json` / `http-client.private.env.json`, `import ./other.http`, `run #name`, request variables across files, `{{$secret NAME}}`, `{{$uuid}}`, `{{$isoTimestamp}}`, `{{$random.integer(min,max)}}`.
 - **Streaming**: `text/event-stream` painted as it arrives; `WEBSOCKET` requests.
 - **The `QUERY` method** ([draft-ietf-httpbis-safe-method-w-body](https://www.ietf.org/archive/id/draft-ietf-httpbis-safe-method-w-body-05.html)): safe and idempotent like `GET`, but with a request body — highlighting, completion, snippet and terminal runner included.

@@ -25,7 +25,7 @@ export abstract class BaseWebview {
     protected constructor(protected readonly context: ExtensionContext) {
         this.baseFilePath = Uri.file(this.context.asAbsolutePath(path.join('styles', 'reset.css')));
         this.vscodeStyleFilePath = Uri.file(this.context.asAbsolutePath(path.join('styles', 'vscode.css')));
-        this.customStyleFilePath = Uri.file(this.context.asAbsolutePath(path.join('styles', 'httpkeeper.css')));
+        this.customStyleFilePath = Uri.file(this.context.asAbsolutePath(path.join('styles', 'rest-client.css')));
         this.scriptFilePath = Uri.file(this.context.asAbsolutePath(path.join('webview', 'main.js')));
         this.iconFilePath = Uri.file(this.context.asAbsolutePath(path.join('images', 'icon.png')));
     }

@@ -21,7 +21,7 @@ exports.run = async () => {
     }
 
     // 2. Los recursos del paquete existen dentro de lo instalado.
-    for (const r of ['styles/httpkeeper.css', 'styles/reset.css', 'styles/vscode.css', 'webview/main.js', 'images/icon.png', 'dist/cli.js', 'l10n/bundle.l10n.es.json']) {
+    for (const r of ['styles/rest-client.css', 'styles/reset.css', 'styles/vscode.css', 'webview/main.js', 'images/icon.png', 'dist/cli.js', 'l10n/bundle.l10n.es.json']) {
         assert.ok(fs.existsSync(path.join(ext.extensionPath, r)), `falta en el paquete: ${r}`);
     }
 

@@ -93,7 +93,7 @@ Fuera del editor, `restclient mcp` es un servidor MCP por stdio para Claude Code
 ### El ejecutor, en todas partes (+44)
 
 ```console
-$ npx restclient api.http --env dev --secret API_KEY=… --junit informe.xml
+$ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit informe.xml
   ok   login                200  184 ms
   ok   facturas             200    9 ms
 
@@ -109,7 +109,7 @@ Devuelve 0 si todas las comprobaciones pasan y 1 si falla alguna; `--json` para 
     env: staging
     junit: httpkeeper.xml
   env:
-    RESTCLIENT_SECRETAPI_KEY: ${{ secrets.API_KEY }}
+    RESTCLIENT_SECRET_API_KEY: ${{ secrets.API_KEY }}
 ```
 
 ![El mismo fichero, ejecutado en la terminal integrada](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/04-runner.png)

@@ -4,13 +4,12 @@ import * as path from 'path';
 import { HistoricalHttpRequest } from '../models/httpRequest';
 import { JsonFileUtility } from './jsonFileUtility';
 
-// La carpeta se llama como la de REST Client aposta: quien viene de alli se
-// encuentra su historial, sus cookies y su entorno tal y como los dejo. Se
-// respeta ademas la variable de entorno de aquella extension, y manda la
-// propia si alguien quiere separar los datos de las dos.
+// The folder keeps REST Client's name on purpose: whoever comes from there
+// finds their history, their cookies and their environments where they left
+// them. VSC_REST_CLIENT_HOME, the variable that extension documented, is
+// honoured for the same reason.
 const restClientDir = 'rest-client';
-const rootPath = process.env.HTTPKEEPER_HOME
-    ?? process.env.VSC_REST_CLIENT_HOME
+const rootPath = process.env.VSC_REST_CLIENT_HOME
     ?? path.join(os.homedir(), `.${restClientDir}`);
 
 function getCachePath(): string {
