@@ -66,7 +66,7 @@
                     ".http",
                     ".rest"
                 ],
-                "firstLine": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|LOCK|UNLOCK|PROPFIND|PROPPATCH|COPY|MOVE|MKCOL|MKCALENDAR|ACL|SEARCH)\\s+(.*?)HTTP/[0-9\\.]+$",
+                "firstLine": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE|LOCK|UNLOCK|PROPFIND|PROPPATCH|COPY|MOVE|MKCOL|MKCALENDAR|ACL|SEARCH|QUERY)\\s+(.*?)HTTP/[0-9\\.]+$",
                 "configuration": "./language-configuration.json"
             }
         ],

@@ -146,6 +146,19 @@ describe('runner en todas partes', () => {
         assert.ok(xml.trimEnd().endsWith('</testsuite>'));
     });
 
+    it('P-65 · QUERY: el runner lo reconoce como metodo y conserva el cuerpo', () => {
+        const p = parsear(j(
+            'QUERY http://api/buscar',
+            'Content-Type: application/json',
+            '',
+            '{"filtro": "activo"}',
+        ), '.');
+        assert.strictEqual(p.metodo, 'QUERY');
+        assert.strictEqual(p.url, 'http://api/buscar');
+        assert.strictEqual(p.cabeceras['Content-Type'], 'application/json');
+        assert.strictEqual(String(p.cuerpo), '{"filtro": "activo"}');
+    });
+
     it('P-46 · cURL pegado: metodo, cabeceras, datos, usuario y continuaciones', () => {
         const p = parsear(j(
             "curl -X POST 'http://api/x?a=1' \\",

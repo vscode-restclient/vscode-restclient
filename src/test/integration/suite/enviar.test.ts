@@ -72,14 +72,17 @@ describe('Rest Client · peticiones reales', () => {
   });
 
   describe('respuestas que no son 200', () => {
+    // Las marcas llevan la ruta entera a proposito: «404» o «500» a secas
+    // casan con la duracion o el tamano de una respuesta anterior (el panel
+    // se reutiliza), y el test se queda con el documento equivocado.
     it('P-05 · un 404 se muestra, no se traga', async () => {
-      const t = await enviar(`GET ${BASE}/estado/404\n`, '404');
+      const t = await enviar(`GET ${BASE}/estado/404\n`, '/estado/404');
       assert.ok(t.includes('HTTP/1.1 404'), `sin 404 en:\n${t.slice(0, 200)}`);
     });
 
     it('P-05 · un 500 se muestra con su cuerpo', async () => {
-      const t = await enviar(`GET ${BASE}/estado/500\n`, '500');
-      assert.ok(t.includes('HTTP/1.1 500'));
+      const t = await enviar(`GET ${BASE}/estado/500\n`, '/estado/500');
+      assert.ok(t.includes('HTTP/1.1 500'), `sin 500 en:\n${t.slice(0, 200)}`);
       assert.ok(t.includes('vaya'), 'debe verse el cuerpo del error');
     });
   });

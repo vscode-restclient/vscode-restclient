@@ -101,5 +101,15 @@
             "# @note"
         ],
         "description": "Add sending request confirmation"
+    },
+    "Query request block": {
+        "prefix": "query",
+        "body": [
+            "QUERY ${1:url} HTTP/1.1",
+            "Content-Type: ${2:application/json}",
+            "",
+            "${3:{ }}"
+        ],
+        "description": "QUERY Request (safe, idempotent, with a body)"
     }
 }

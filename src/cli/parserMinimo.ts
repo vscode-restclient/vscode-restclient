@@ -20,7 +20,7 @@ export interface PeticionMinima {
     cuerpo?: string | Buffer;
 }
 
-const METODOS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE', 'CONNECT', 'WEBSOCKET'];
+const METODOS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE', 'CONNECT', 'QUERY', 'WEBSOCKET'];
 const SALTOS = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
 const FICHERO_EN_CUERPO = /^<(@)?\s+(.+?)\s*$/;
 

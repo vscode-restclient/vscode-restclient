@@ -271,6 +271,33 @@ describe('RestClient · lo portado de rest-client-next', () => {
   });
 });
 
+describe('metodo QUERY (portado de upstream #1438)', () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    await ext!.activate();
+    await ajuste('previewResponseInUntitledDocument', true);
+  });
+
+  after(async () => {
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+  });
+
+  it('P-66 · QUERY llega como QUERY y con su cuerpo', async function () {
+    this.timeout(60000);
+    const fichero = escribir('query.http', j(
+      `QUERY ${BASE}/buscar`,
+      'Content-Type: application/json',
+      '',
+      '{"filtro":"activo"}',
+      '',
+    ));
+    const t = await enviarFichero(fichero, 0, '"/buscar"', 40);
+    assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
+    assert.ok(/"metodo":\s*"QUERY"/.test(t), 'el servidor debe recibir el metodo QUERY: ' + t.slice(0, 250));
+    assert.ok(/"recibido":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'el cuerpo debe viajar con la peticion: ' + t.slice(0, 250));
+  });
+});
+
 describe('faker en el editor (carga diferida)', () => {
   it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
     this.timeout(60000);
