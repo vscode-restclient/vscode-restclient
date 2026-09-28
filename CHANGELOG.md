@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/vscode-restclient/vscode-restclient/compare/v1.2.0...v1.3.0) (2026-09-28)
+
+
+### Features
+
+* support the HTTP QUERY method ([5459652](https://github.com/vscode-restclient/vscode-restclient/commit/5459652e8d0845e05bd38c96895d83dce123132f))
+* support the HTTP QUERY method ([7f66b32](https://github.com/vscode-restclient/vscode-restclient/commit/7f66b32c5e51f5cba7d5ecb8f51d4c267a863bf1))
+
 ## [1.2.0] - 2026-09-14
 
 First release of the community continuation, published as `vscode-restclient.rest-client`.
