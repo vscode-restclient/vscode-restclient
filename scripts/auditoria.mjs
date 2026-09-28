@@ -162,6 +162,42 @@ ok('todo comando invocado por enlace existe', huerfanos.length === 0, huerfanos.
 const idDeclarado = /ExtensionId: string = ['"]([^'"]+)['"]/.exec(leer('src/common/constants.ts'))?.[1];
 ok('el id del código es publisher.name del manifiesto', idDeclarado === `${pkg.publisher}.${pkg.name}`, `${idDeclarado} vs ${pkg.publisher}.${pkg.name}`);
 
+// El Marketplace puede negarse a CREAR una extension cuyo `name` ya use otro
+// publisher, aunque el identificador completo publisher.name sea libre. Paso el
+// 28-09-2026: la 1.2.0 supero la bateria entera en CI y murio en el paso de
+// publicacion con «The extension 'rest-client' already exists in the
+// Marketplace». Once minutos para averiguar algo que se pregunta en un segundo.
+// Que existan duplicados no prueba nada: los que hay son heredados (humao 2016,
+// s-kainet 2018) y no encontre ninguno cuyo miembro mas nuevo sea de 2022 o
+// posterior. Mientras no estemos publicados, que otro tenga el nombre es un
+// fallo; una vez publicados, aparecemos en la lista y la comprobacion pasa.
+const consultarGaleria = async (texto) => {
+    const r = await fetch('https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json;api-version=7.2-preview.1' },
+        body: JSON.stringify({ filters: [{ criteria: [{ filterType: 10, value: texto }], pageSize: 200 }], flags: 914 }),
+        signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) { throw new Error('HTTP ' + r.status); }
+    return (await r.json())?.results?.[0]?.extensions ?? [];
+};
+try {
+    const homonimas = (await consultarGaleria(pkg.name)).filter((e) => e.extensionName === pkg.name);
+    const nuestra = homonimas.find((e) => e.publisher?.publisherName?.toLowerCase() === pkg.publisher.toLowerCase());
+    const ajenas = homonimas.filter((e) => e !== nuestra);
+    if (nuestra) {
+        ok(`el Marketplace ya conoce ${pkg.publisher}.${pkg.name}`, true, `publicada, v${nuestra.versions?.[0]?.version ?? '?'}`);
+    } else {
+        ok(
+            `el nombre "${pkg.name}" esta libre para crear la extension`,
+            ajenas.length === 0,
+            ajenas.length ? `lo usan ${ajenas.map((e) => `${e.publisher.publisherName} (${String(e.publishedDate).slice(0, 7)})`).join(', ')} — publicar fallaria con "already exists"` : 'ningun otro publisher lo usa'
+        );
+    }
+} catch (e) {
+    aviso('no pude consultar el Marketplace por el nombre', e.message);
+}
+
 seccion('nivel 2: formato JetBrains, streaming, agentes y runner');
 const cliFuente = leer('src/cli/index.ts');
 ok('el runner entiende --env, --secret, --junit y --timeout', ['--env', '--secret', '--junit', '--timeout'].every((o) => cliFuente.includes(`'${o}'`)));
