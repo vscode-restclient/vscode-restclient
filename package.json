@@ -1,5 +1,5 @@
 {
-    "name": "rest-client",
+    "name": "restclient",
     "displayName": "REST Client",
     "description": "%ext.description%",
     "version": "1.2.0",

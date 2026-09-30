@@ -36,7 +36,7 @@ const ajuste = (clave: string, valor: unknown) =>
 
 describe('Rest Client · peticiones reales', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
@@ -171,7 +171,7 @@ describe('Rest Client · peticiones reales', () => {
 
 describe('Rest Client · resolución de localhost', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });
@@ -187,7 +187,7 @@ ${t.slice(0, 200)}`);
 
 describe('Rest Client · vista previa', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
   });
 
@@ -217,7 +217,7 @@ describe('Rest Client · vista previa', () => {
 
 describe('Rest Client · variables de petición', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
     // Si la respuesta se lleva el foco, la siguiente petición se ejecutaría

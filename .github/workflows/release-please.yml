@@ -61,7 +61,17 @@ jobs:
             echo "::error::Missing repository secrets:$missing — the release exists but cannot be published. Add them in Settings > Secrets and variables > Actions."
             exit 1
           fi
-      - run: npx vsce package --no-dependencies -o "rest-client-${TAG}.vsix"
+      - run: npx vsce package --no-dependencies -o "restclient-${TAG}.vsix"
+      # Adjuntar antes de publicar en tiendas, a proposito: el 28-09 la 1.2.0 murio
+      # en el paso del Marketplace y se llevo por delante todo lo que venia
+      # detras. Aqui la release ya existe (la crea release-please), asi que lo
+      # que no debe depender de las tiendas es que lleve sus ficheros adjuntos.
+      - name: The standalone runner, for the GitHub action and for npx without npm
+        run: cp dist/cli.js restclient.js
+      - name: The runner and the .vsix, attached to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "restclient-${TAG}.vsix" restclient.js --clobber
       - name: Marketplace (skipped if this version is already there)
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
@@ -71,7 +81,7 @@ jobs:
           if npx vsce show "$ID" --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
             echo "Marketplace already has $VER"
           else
-            npx vsce publish --no-dependencies --packagePath "rest-client-${TAG}.vsix"
+            npx vsce publish --no-dependencies --packagePath "restclient-${TAG}.vsix"
           fi
       - name: Open VSX (skipped if this version is already there)
         env:
@@ -82,10 +92,8 @@ jobs:
           if npx ovsx get "$ID" -v "$VER" --metadata >/dev/null 2>&1; then
             echo "Open VSX already has $VER"
           else
-            npx ovsx publish "rest-client-${TAG}.vsix" -p "$OVSX_PAT"
+            npx ovsx publish "restclient-${TAG}.vsix" -p "$OVSX_PAT"
           fi
-      - name: The standalone runner, for the GitHub action and for npx without npm
-        run: cp dist/cli.js restclient.js
       # Two things about this step.
       #
       # NPM_TOKEN is deliberately absent from the guard above: the runner on npm
@@ -116,7 +124,3 @@ jobs:
             (cd npm && npm publish --access public --userconfig "$RUNNER_TEMP/npmrc")
             rm -f "$RUNNER_TEMP/npmrc"
           fi
-      - name: The runner and the .vsix, attached to the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "rest-client-${TAG}.vsix" restclient.js --clobber

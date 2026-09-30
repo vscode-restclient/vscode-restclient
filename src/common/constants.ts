@@ -1,5 +1,5 @@
 
-export const ExtensionId: string = 'vscode-restclient.rest-client';
+export const ExtensionId: string = 'vscode-restclient.restclient';
 
 export const NoEnvironmentSelectedName: string = 'c0cfe680-4fcd-4b71-a4ba-8cfaee57680a';
 

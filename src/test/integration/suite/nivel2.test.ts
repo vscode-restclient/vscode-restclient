@@ -51,7 +51,7 @@ async function enviarFichero(ruta: string, linea: number, marca: string, segundo
 
 describe('Rest Client · formato JetBrains y secretos', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
@@ -116,7 +116,7 @@ describe('Rest Client · formato JetBrains y secretos', () => {
 
 describe('Rest Client · streaming', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
     await ajuste('previewResponsePanelTakeFocus', false);
@@ -183,7 +183,7 @@ describe('Rest Client · streaming', () => {
 
 describe('Rest Client · herramientas para agentes', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });
@@ -225,7 +225,7 @@ describe('Rest Client · herramientas para agentes', () => {
 
 describe('RestClient · lo portado de rest-client-next', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });
@@ -273,7 +273,7 @@ describe('RestClient · lo portado de rest-client-next', () => {
 
 describe('metodo QUERY (portado de upstream #1438)', () => {
   before(async () => {
-    const ext = vscode.extensions.getExtension('vscode-restclient.rest-client');
+    const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
     await ajuste('previewResponseInUntitledDocument', true);
   });

@@ -44,29 +44,40 @@ jobs:
       - run: xvfb-run -a npm run test:integration
       - run: xvfb-run -a npm run test:vsix
       - run: npm run audit
-      - run: npx vsce package --no-dependencies -o "rest-client-${GITHUB_REF_NAME}.vsix"
+      - run: npx vsce package --no-dependencies -o "restclient-${GITHUB_REF_NAME}.vsix"
+      # El paquete y la release van antes que las tiendas a proposito. El 28-09 la
+      # 1.2.0 murio en el paso del Marketplace y se llevo por delante los pasos
+      # siguientes: no hubo release ni runner adjunto. Que una tienda falle no
+      # debe impedir que exista la release, que es de donde los baja la accion.
+      - name: The standalone runner, for the GitHub action and for npx without npm
+        run: cp dist/cli.js restclient.js
+      - name: GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            restclient-${{ github.ref_name }}.vsix
+            restclient.js
+          generate_release_notes: true
       - name: Marketplace (skipped if this version is already there)
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
-          if npx vsce show vscode-restclient.rest-client --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
+          if npx vsce show vscode-restclient.restclient --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
             echo "Marketplace already has $VER"
           else
-            npx vsce publish --no-dependencies --packagePath "rest-client-${GITHUB_REF_NAME}.vsix"
+            npx vsce publish --no-dependencies --packagePath "restclient-${GITHUB_REF_NAME}.vsix"
           fi
       - name: Open VSX (skipped if this version is already there)
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
           VER="${GITHUB_REF_NAME#v}"
-          if npx ovsx get vscode-restclient.rest-client -v "$VER" --metadata >/dev/null 2>&1; then
+          if npx ovsx get vscode-restclient.restclient -v "$VER" --metadata >/dev/null 2>&1; then
             echo "Open VSX already has $VER"
           else
-            npx ovsx publish "rest-client-${GITHUB_REF_NAME}.vsix" -p "$OVSX_PAT"
+            npx ovsx publish "restclient-${GITHUB_REF_NAME}.vsix" -p "$OVSX_PAT"
           fi
-      - name: The standalone runner, for the GitHub action and for npx without npm
-        run: cp dist/cli.js restclient.js
       - name: npm (skipped if this version is already there)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -85,10 +96,3 @@ jobs:
             (cd npm && npm publish --access public --userconfig "$RUNNER_TEMP/npmrc")
             rm -f "$RUNNER_TEMP/npmrc"
           fi
-      - name: GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            rest-client-${{ github.ref_name }}.vsix
-            restclient.js
-          generate_release_notes: true
