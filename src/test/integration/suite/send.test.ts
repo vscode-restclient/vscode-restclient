@@ -260,9 +260,12 @@ describe('Rest Client · variables de petición', () => {
     assert.ok(lista, 'la primera petición no llegó a responder');
 
     // Segunda: se recupera el foco del .http y se pone el cursor en su línea.
-    await vscode.window.showTextDocument(doc, { preview: false });
+    // Hay que quedarse con el editor que DEVUELVE showTextDocument: el de
+    // arriba pudo dejar de ser el activo, y `rest-client.request` actua sobre
+    // el activo. Con pocos documentos abiertos coincidian; con muchos, no.
+    const editor2 = await vscode.window.showTextDocument(doc, { preview: false });
     const segunda = lineaDe('{{');
-    editor.selection = new vscode.Selection(segunda, 0, segunda, 0);
+    editor2.selection = new vscode.Selection(segunda, 0, segunda, 0);
     await vscode.commands.executeCommand('rest-client.request');
 
     for (let i = 0; i < 80; i++) {
