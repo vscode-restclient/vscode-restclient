@@ -26,9 +26,9 @@ exports.run = async () => {
     }
 
     // 3. Una peticion de verdad, de punta a punta, con la extension instalada.
-    const carpeta = vscode.workspace.workspaceFolders[0].uri.fsPath;
-    const fichero = path.join(carpeta, 'prueba.http');
-    fs.writeFileSync(fichero, [
+    const folder = vscode.workspace.workspaceFolders[0].uri.fsPath;
+    const file = path.join(folder, 'prueba.http');
+    fs.writeFileSync(file, [
         `@host = http://127.0.0.1:${process.env.VSIX_PUERTO}`,
         '',
         '# @name entrar',
@@ -39,7 +39,7 @@ exports.run = async () => {
         '',
     ].join('\n'));
 
-    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fichero));
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
     const editor = await vscode.window.showTextDocument(doc);
     editor.selection = new vscode.Selection(new vscode.Position(3, 0), new vscode.Position(3, 0));
     await vscode.commands.executeCommand('rest-client.request');

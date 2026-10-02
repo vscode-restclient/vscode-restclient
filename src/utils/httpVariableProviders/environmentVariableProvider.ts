@@ -4,7 +4,7 @@ import { EnvironmentController } from '../../controllers/environmentController';
 import { SystemSettings } from '../../models/configurationSettings';
 import { ResolveErrorMessage } from '../../models/httpVariableResolveResult';
 import { VariableType } from '../../models/variableType';
-import { entornosDeFichero } from '../entornosEditor';
+import { fileEnvironments } from '../editorEnvironments';
 import { HttpVariable, HttpVariableProvider } from './httpVariableProvider';
 
 /**
@@ -74,7 +74,7 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
         // Resolve mappings from current environment
         this.mapEnvironmentVariables(environmentName, currentEnvironmentVariables, currentEnvironmentVariables);
 
-        const deFichero = sinEntorno ? {} : (entornosDeFichero(document)[environmentName] ?? {});
+        const deFichero = sinEntorno ? {} : (fileEnvironments(document)[environmentName] ?? {});
         return { ...sharedEnvironmentVariables, ...currentEnvironmentVariables, ...deFichero };
     }
 

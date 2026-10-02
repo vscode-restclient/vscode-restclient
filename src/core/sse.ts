@@ -7,44 +7,44 @@
  * línea. Las líneas que empiezan por `:` son comentarios (latidos, casi
  * siempre). Sin `vscode`: lo usan el editor, las aserciones y el runner.
  */
-export interface EventoSse {
-    evento?: string;
-    datos: string;
+export interface SseEvent {
+    event?: string;
+    data: string;
     id?: string;
 }
 
-export function leerEventos(texto: string): EventoSse[] {
-    const fuera: EventoSse[] = [];
-    let actual: { evento?: string; datos: string[]; id?: string } = { datos: [] };
+export function readEvents(text: string): SseEvent[] {
+    const fuera: SseEvent[] = [];
+    let actual: { event?: string; data: string[]; id?: string } = { data: [] };
     const cerrar = () => {
-        if (actual.datos.length > 0) {
-            fuera.push({ evento: actual.evento, datos: actual.datos.join('\n'), id: actual.id });
+        if (actual.data.length > 0) {
+            fuera.push({ event: actual.event, data: actual.data.join('\n'), id: actual.id });
         }
-        actual = { datos: [] };
+        actual = { data: [] };
     };
-    for (const linea of texto.split(/\r?\n/)) {
-        if (linea === '') {
+    for (const line of text.split(/\r?\n/)) {
+        if (line === '') {
             cerrar();
             continue;
         }
-        if (linea.startsWith(':')) {
+        if (line.startsWith(':')) {
             continue;
         }
-        const corte = linea.indexOf(':');
-        const campo = corte < 0 ? linea : linea.slice(0, corte);
-        const valor = corte < 0 ? '' : linea.slice(corte + 1).replace(/^ /, '');
+        const corte = line.indexOf(':');
+        const campo = corte < 0 ? line : line.slice(0, corte);
+        const value = corte < 0 ? '' : line.slice(corte + 1).replace(/^ /, '');
         if (campo === 'data') {
-            actual.datos.push(valor);
+            actual.data.push(value);
         } else if (campo === 'event') {
-            actual.evento = valor;
+            actual.event = value;
         } else if (campo === 'id') {
-            actual.id = valor;
+            actual.id = value;
         }
     }
     cerrar();
     return fuera;
 }
 
-export function esEventStream(contentType: string | undefined): boolean {
+export function isEventStream(contentType: string | undefined): boolean {
     return /^\s*text\/event-stream/i.test(contentType ?? '');
 }

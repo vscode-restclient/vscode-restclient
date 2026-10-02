@@ -1,15 +1,15 @@
 import { ExtensionContext, l10n, Range, TextDocument, Uri, ViewColumn, window, workspace } from 'vscode';
-import { bloqueLlamado, cerrarImportaciones } from '../core/importaciones';
-import { esPeticion, trocear } from '../core/secuencia';
+import { namedBlock, closeImports } from '../core/imports';
+import { isRequest, splitBlocks } from '../core/sequence';
 import Logger from '../logger';
 import { IRestClientSettings, RequestSettings, RestClientSettings } from '../models/configurationSettings';
 import { HistoricalHttpRequest, HttpRequest } from '../models/httpRequest';
 import { RequestMetadata } from '../models/requestMetadata';
 import { RequestParserFactory } from '../models/requestParserFactory';
 import { trace } from "../utils/decorator";
-import { AlRecibir, HttpClient } from '../utils/httpClient';
-import { esEventStream } from '../core/sse';
-import { hablar, mensajesDelCuerpo, MS_ESCUCHA_POR_DEFECTO } from '../core/websocket';
+import { OnReceive, HttpClient } from '../utils/httpClient';
+import { isEventStream } from '../core/sse';
+import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { HttpResponse } from '../models/httpResponse';
 import { getHeader } from '../utils/misc';
 import { RequestState, RequestStatusEntry } from '../utils/requestStatusBarEntry';
@@ -83,26 +83,26 @@ export class RequestController {
      * mismo camino que «Send Request», así que variables, entornos, secretos y
      * el panel se comportan igual que si lo hiciera una persona.
      */
-    public async enviarDesdeFichero(uri: Uri, nombre?: string): Promise<HttpResponse> {
+    public async sendFromFile(uri: Uri, requestName?: string): Promise<HttpResponse> {
         const document = await workspace.openTextDocument(uri);
-        const texto = document.getText();
-        const bloques = trocear(texto).filter(esPeticion);
-        let bloque = nombre ? bloques.find(b => b.nombre === nombre) : bloques[0];
-        if (!bloque && nombre && document.uri.scheme === 'file') {
+        const documentText = document.getText();
+        const blocks = splitBlocks(documentText).filter(isRequest);
+        let block = requestName ? blocks.find(b => b.name === requestName) : blocks[0];
+        if (!block && requestName && document.uri.scheme === 'file') {
             // Puede estar en un fichero importado: se ejecuta como `run #nombre`.
-            const { importados } = cerrarImportaciones(document.fileName, texto);
-            if (bloqueLlamado(nombre, texto, importados)) {
-                bloque = { texto: `run #${nombre}`, linea: bloques[0]?.linea ?? 0 };
+            const { imported } = closeImports(document.fileName, documentText);
+            if (namedBlock(requestName, documentText, imported)) {
+                block = { text: `run #${requestName}`, line: blocks[0]?.line ?? 0 };
             }
         }
-        if (!bloque) {
-            throw new Error(nombre ? `there is no request named "${nombre}" in ${document.fileName}` : `there are no requests in ${document.fileName}`);
+        if (!block) {
+            throw new Error(requestName ? `there is no request named "${requestName}" in ${document.fileName}` : `there are no requests in ${document.fileName}`);
         }
         const editor = await window.showTextDocument(document, { preview: false, preserveFocus: true });
-        const linea = new Range(bloque.linea, 0, bloque.linea, 0);
-        const selectedRequest = bloque.texto.startsWith('run #')
-            ? await Selector.getRequestFromText(editor.document, bloque.texto)
-            : await Selector.getRequest(editor, linea);
+        const line = new Range(block.line, 0, block.line, 0);
+        const selectedRequest = block.text.startsWith('run #')
+            ? await Selector.getRequestFromText(editor.document, block.text)
+            : await Selector.getRequest(editor, line);
         if (!selectedRequest) {
             throw new Error('the request could not be read');
         }
@@ -157,8 +157,8 @@ export class RequestController {
         // primer trozo y va creciendo. Al terminar se renderiza entero como
         // cualquier otra respuesta, así que historial y variables no cambian.
         let enStreaming = false;
-        const alRecibir: AlRecibir = (trozo, meta) => {
-            if (settings.previewResponseInUntitledDocument || !esEventStream(getHeader(meta.cabeceras, 'content-type') as string | undefined)) {
+        const alRecibir: OnReceive = (chunk, meta) => {
+            if (settings.previewResponseInUntitledDocument || !isEventStream(getHeader(meta.headers, 'content-type') as string | undefined)) {
                 return;
             }
             // Un fallo al pintar el stream no puede tumbar la petición: se
@@ -166,9 +166,9 @@ export class RequestController {
             try {
                 if (!enStreaming) {
                     enStreaming = true;
-                    this._webview.iniciarStreaming(httpRequest, meta, this.resolvePreviewColumn(settings, document));
+                    this._webview.startStreaming(httpRequest, meta, this.resolvePreviewColumn(settings, document));
                 }
-                this._webview.anadirTrozo(trozo.toString('utf8'));
+                this._webview.appendChunk(chunk.toString('utf8'));
             } catch (e) {
                 Logger.error('Streaming panel failed:', e);
                 console.error('[rest-client] streaming panel failed:', e);
@@ -245,17 +245,17 @@ export class RequestController {
         this._lastRequestSettingTuple = [httpRequest, settings];
         const t0 = Date.now();
         try {
-            const ms = settings.timeoutInMilliseconds > 0 ? settings.timeoutInMilliseconds : MS_ESCUCHA_POR_DEFECTO;
-            const r = await hablar(httpRequest.url, httpRequest.headers as Record<string, string>, mensajesDelCuerpo(httpRequest.rawBody), ms);
+            const ms = settings.timeoutInMilliseconds > 0 ? settings.timeoutInMilliseconds : DEFAULT_LISTEN_MS;
+            const r = await talk(httpRequest.url, httpRequest.headers as Record<string, string>, bodyMessages(httpRequest.rawBody), ms);
             if (r.cerradoPor === 'error' && r.recibidos.length === 0) {
                 throw new Error(r.detalle ?? 'WebSocket error');
             }
-            const cuerpo = Buffer.from(r.transcripcion, 'utf8');
+            const body = Buffer.from(r.transcript, 'utf8');
             const total = Date.now() - t0;
             const response = new HttpResponse(
                 101, 'Switching Protocols', '1.1',
                 { 'Content-Type': 'text/plain; charset=utf-8', 'X-Closed-By': r.cerradoPor },
-                r.transcripcion, cuerpo.length, 0, cuerpo,
+                r.transcript, body.length, 0, body,
                 { total } as HttpResponse['timingPhases'],
                 httpRequest);
             this._requestStatusEntry.update({ state: RequestState.Received, response });

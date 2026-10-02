@@ -29,9 +29,9 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
                         ? CompletionItemKind.Property
                         : CompletionItemKind.Field;
 
-            const texto = typeof e.text === 'string' ? e.text : (e.text?.value ?? '');
-            if (interior && texto.startsWith('{{') && texto.endsWith('}}')) {
-                const dentro = texto.slice(2, -2).trim();
+            const text = typeof e.text === 'string' ? e.text : (e.text?.value ?? '');
+            if (interior && text.startsWith('{{') && text.endsWith('}}')) {
+                const dentro = text.slice(2, -2).trim();
                 item.range = interior;
                 item.insertText = typeof e.text === 'string' ? dentro : new SnippetString(dentro);
                 // Con el cursor en `{{$ti`, VS Code filtra por lo tecleado: sin
@@ -46,15 +46,15 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
 
     /** El hueco entre `{{` y `}}` si el cursor está dentro; `undefined` si no. */
     private static rangoDentroDeLlaves(document: TextDocument, position: Position): Range | undefined {
-        const linea = document.lineAt(position.line).text;
-        const antes = linea.substring(0, position.character);
+        const line = document.lineAt(position.line).text;
+        const antes = line.substring(0, position.character);
         const abre = antes.lastIndexOf('{{');
         if (abre < 0 || abre < antes.lastIndexOf('}}')) {
             return undefined;
         }
-        const cierra = linea.indexOf('}}', position.character);
+        const cierra = line.indexOf('}}', position.character);
         return new Range(
             new Position(position.line, abre + 2),
-            new Position(position.line, cierra === -1 ? linea.length : cierra));
+            new Position(position.line, cierra === -1 ? line.length : cierra));
     }
 }

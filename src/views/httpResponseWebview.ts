@@ -10,7 +10,7 @@ import { trace } from '../utils/decorator';
 import { disposeAll } from '../utils/dispose';
 import { MimeUtility } from '../utils/mimeUtility';
 import { base64, formatHeaders, getHeader, isJSONString } from '../utils/misc';
-import { MetaRespuesta } from '../utils/httpClient';
+import { ResponseMeta } from '../utils/httpClient';
 import { ResponseFormatUtility } from '../utils/responseFormatUtility';
 import { UserDataManager } from '../utils/userDataManager';
 import { BaseWebview } from './baseWebview';
@@ -72,7 +72,7 @@ export class HttpResponseWebview extends BaseWebview {
     }
 
     public async render(response: HttpResponse, column: ViewColumn) {
-        const panel = this.obtenerPanel(column, this.getTitle(response));
+        const panel = this.getPanel(column, this.getTitle(response));
         this.panelStreaming = undefined;
 
         panel.webview.html = this.getHtmlForWebview(panel, response);
@@ -90,10 +90,10 @@ export class HttpResponseWebview extends BaseWebview {
     private panelStreaming: WebviewPanel | undefined;
 
     /** Abre (o reutiliza) el panel con la línea de estado y las cabeceras; el cuerpo llega por trozos. */
-    public iniciarStreaming(request: HttpRequest, meta: MetaRespuesta, column: ViewColumn) {
-        const prefijo = (this.settings.requestNameAsResponseTabTitle && request.name) || 'Response';
-        const panel = this.obtenerPanel(column, `${prefijo} (streaming…)`);
-        const cabecera = hljs.highlight('http', `HTTP/${meta.version} ${meta.estado} ${meta.mensaje}\n${formatHeaders(meta.cabeceras)}`).value;
+    public startStreaming(request: HttpRequest, meta: ResponseMeta, column: ViewColumn) {
+        const prefix = (this.settings.requestNameAsResponseTabTitle && request.name) || 'Response';
+        const panel = this.getPanel(column, `${prefix} (streaming…)`);
+        const header = hljs.highlight('http', `HTTP/${meta.version} ${meta.status} ${meta.message}\n${formatHeaders(meta.headers)}`).value;
         const nonce = new Date().getTime() + '' + new Date().getMilliseconds();
         panel.webview.html = `
     <head>
@@ -105,7 +105,7 @@ export class HttpResponseWebview extends BaseWebview {
     </head>
     <body>
         <div>
-            <pre><code>${cabecera}</code></pre>
+            <pre><code>${header}</code></pre>
             <pre id="stream" class="stream"></pre>
         </div>
         <script type="text/javascript" src="${panel.webview.asWebviewUri(this.scriptFilePath)}" nonce="${nonce}" charset="UTF-8"></script>
@@ -115,8 +115,8 @@ export class HttpResponseWebview extends BaseWebview {
         this.activePanel = panel;
     }
 
-    public anadirTrozo(texto: string) {
-        this.panelStreaming?.webview.postMessage({ command: 'trozo', texto });
+    public appendChunk(text: string) {
+        this.panelStreaming?.webview.postMessage({ command: 'trozo', text });
     }
 
     public terminarStreaming(nota: string) {
@@ -124,7 +124,7 @@ export class HttpResponseWebview extends BaseWebview {
         this.panelStreaming = undefined;
     }
 
-    private obtenerPanel(column: ViewColumn, titulo: string): WebviewPanel {
+    private getPanel(column: ViewColumn, titulo: string): WebviewPanel {
         let panel: WebviewPanel;
         if (this.settings.showResponseInDifferentTab || this.panels.length === 0) {
             panel = window.createWebviewPanel(

@@ -8,37 +8,37 @@
  * `WebSocket` global de Node ≥ 22: sin dependencias, y sin él se dice claro.
  * Sin `vscode`: lo usan el editor y el runner.
  */
-export interface ResultadoWs {
-    transcripcion: string;
+export interface WsResult {
+    transcript: string;
     enviados: string[];
     recibidos: string[];
     cerradoPor: 'tiempo' | 'servidor' | 'error';
     detalle?: string;
 }
 
-export const MS_ESCUCHA_POR_DEFECTO = 3000;
+export const DEFAULT_LISTEN_MS = 3000;
 
 /** Los mensajes del cuerpo: separados por líneas `===`; los vacíos no se envían. */
-export function mensajesDelCuerpo(cuerpo: string | undefined): string[] {
-    if (!cuerpo) {
+export function bodyMessages(body: string | undefined): string[] {
+    if (!body) {
         return [];
     }
-    return cuerpo.split(/^\s*===\s*$/m).map(m => m.trim()).filter(m => m.length > 0);
+    return body.split(/^\s*===\s*$/m).map(m => m.trim()).filter(m => m.length > 0);
 }
 
-export function hablar(url: string, cabeceras: Record<string, string>, mensajes: string[], ms: number = MS_ESCUCHA_POR_DEFECTO): Promise<ResultadoWs> {
-    const Ws = (globalThis as { WebSocket?: new (url: string, opciones?: unknown) => WebSocketMinimo }).WebSocket;
+export function talk(url: string, headers: Record<string, string>, messages: string[], ms: number = DEFAULT_LISTEN_MS): Promise<WsResult> {
+    const Ws = (globalThis as { WebSocket?: new (url: string, options?: unknown) => WebSocketMinimo }).WebSocket;
     if (!Ws) {
         return Promise.reject(new Error('WebSocket needs Node 22 or newer (no WebSocket global in this runtime)'));
     }
     return new Promise(resolver => {
         const enviados: string[] = [];
         const recibidos: string[] = [];
-        const lineas: string[] = [];
+        const lines: string[] = [];
         let terminado = false;
         let socket: WebSocketMinimo;
 
-        const cerrar = (cerradoPor: ResultadoWs['cerradoPor'], detalle?: string) => {
+        const cerrar = (cerradoPor: WsResult['cerradoPor'], detalle?: string) => {
             if (terminado) {
                 return;
             }
@@ -48,31 +48,31 @@ export function hablar(url: string, cabeceras: Record<string, string>, mensajes:
                 socket.close();
             } catch { /* ya cerrado */ }
             if (detalle) {
-                lineas.push(`-- ${detalle}`);
+                lines.push(`-- ${detalle}`);
             }
-            resolver({ transcripcion: lineas.join('\n'), enviados, recibidos, cerradoPor, detalle });
+            resolver({ transcript: lines.join('\n'), enviados, recibidos, cerradoPor, detalle });
         };
         const temporizador = setTimeout(() => cerrar('tiempo', `closed after ${ms} ms`), ms);
 
         try {
             // undici admite cabeceras propias como extensión de la API estándar.
-            socket = new Ws(url, { headers: cabeceras });
+            socket = new Ws(url, { headers: headers });
         } catch (e) {
             clearTimeout(temporizador);
-            resolver({ transcripcion: `-- ${mensajeDe(e)}`, enviados, recibidos, cerradoPor: 'error', detalle: mensajeDe(e) });
+            resolver({ transcript: `-- ${mensajeDe(e)}`, enviados, recibidos, cerradoPor: 'error', detalle: mensajeDe(e) });
             return;
         }
         socket.addEventListener('open', () => {
-            for (const m of mensajes) {
+            for (const m of messages) {
                 socket.send(m);
                 enviados.push(m);
-                lineas.push(`>> ${m}`);
+                lines.push(`>> ${m}`);
             }
         });
         socket.addEventListener('message', (ev: { data: unknown }) => {
-            const texto = typeof ev.data === 'string' ? ev.data : `[binary ${(ev.data as { byteLength?: number })?.byteLength ?? '?'} bytes]`;
-            recibidos.push(texto);
-            lineas.push(`<< ${texto}`);
+            const text = typeof ev.data === 'string' ? ev.data : `[binary ${(ev.data as { byteLength?: number })?.byteLength ?? '?'} bytes]`;
+            recibidos.push(text);
+            lines.push(`<< ${text}`);
         });
         socket.addEventListener('close', (ev: { code?: number; reason?: string }) => cerrar('servidor', `server closed (${ev.code ?? ''}${ev.reason ? ' ' + ev.reason : ''})`));
         socket.addEventListener('error', (ev: { message?: string; error?: unknown }) => cerrar('error', ev.message ?? mensajeDe(ev.error) ?? 'connection error'));
@@ -80,10 +80,10 @@ export function hablar(url: string, cabeceras: Record<string, string>, mensajes:
 }
 
 /** Lo que las aserciones necesitan de una transcripción: cuántos mensajes llegaron y cuál fue el último. */
-export function leerTranscripcion(texto: string): { recibidos: string[]; enviados: string[] } {
+export function readTranscript(text: string): { recibidos: string[]; enviados: string[] } {
     const recibidos: string[] = [];
     const enviados: string[] = [];
-    for (const l of texto.split(/\r?\n/)) {
+    for (const l of text.split(/\r?\n/)) {
         if (l.startsWith('<< ')) {
             recibidos.push(l.slice(3));
         } else if (l.startsWith('>> ')) {
@@ -96,7 +96,7 @@ export function leerTranscripcion(texto: string): { recibidos: string[]; enviado
 const mensajeDe = (e: unknown) => (e instanceof Error ? e.message : e === undefined ? undefined : String(e));
 
 interface WebSocketMinimo {
-    send(datos: string): void;
+    send(data: string): void;
     close(): void;
     addEventListener(tipo: string, escucha: (ev: never) => void): void;
 }

@@ -17,8 +17,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { resumenDePeticiones } from '../core/secuencia';
-import { ejecutar, Opciones } from './index';
+import { requestSummaries } from '../core/sequence';
+import { execute, Options } from './index';
 
 const PROTOCOLO = '2025-06-18';
 
@@ -69,29 +69,29 @@ const HERRAMIENTAS = [
     },
 ];
 
-export function servirMcp(raiz: string, entrada: NodeJS.ReadableStream = process.stdin, salida: NodeJS.WritableStream = process.stdout): void {
-    const raizAbs = path.resolve(raiz);
+export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): void {
+    const raizAbs = path.resolve(root);
     const rl = readline.createInterface({ input: entrada, crlfDelay: Infinity });
-    const responder = (id: Peticion['id'], cuerpo: { result?: unknown; error?: { code: number; message: string } }) => {
-        salida.write(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...cuerpo }) + '\n');
+    const responder = (id: Peticion['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
+        output.write(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...body }) + '\n');
     };
 
-    rl.on('line', async linea => {
-        if (linea.trim() === '') {
+    rl.on('line', async line => {
+        if (line.trim() === '') {
             return;
         }
         let msg: Peticion;
         try {
-            msg = JSON.parse(linea);
+            msg = JSON.parse(line);
         } catch {
             responder(null, { error: { code: -32700, message: 'Parse error' } });
             return;
         }
         const esNotificacion = msg.id === undefined;
         try {
-            const resultado = await atender(msg, raizAbs);
+            const result = await atender(msg, raizAbs);
             if (!esNotificacion) {
-                responder(msg.id, { result: resultado });
+                responder(msg.id, { result: result });
             }
         } catch (e) {
             if (!esNotificacion) {
@@ -108,7 +108,7 @@ class ErrorRpc extends Error {
     }
 }
 
-async function atender(msg: Peticion, raiz: string): Promise<unknown> {
+async function atender(msg: Peticion, root: string): Promise<unknown> {
     switch (msg.method) {
         case 'initialize':
             return { protocolVersion: PROTOCOLO, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };
@@ -117,7 +117,7 @@ async function atender(msg: Peticion, raiz: string): Promise<unknown> {
         case 'tools/list':
             return { tools: HERRAMIENTAS };
         case 'tools/call':
-            return llamar(msg.params ?? {}, raiz);
+            return llamar(msg.params ?? {}, root);
         default:
             if (msg.method?.startsWith('notifications/')) {
                 return undefined;
@@ -127,61 +127,61 @@ async function atender(msg: Peticion, raiz: string): Promise<unknown> {
 }
 
 /** El resultado de una herramienta va como texto; un error de uso va con isError, no como error de protocolo. */
-async function llamar(params: Record<string, unknown>, raiz: string): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
-    const nombre = params.name as string;
+async function llamar(params: Record<string, unknown>, root: string): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
+    const name = params.name as string;
     const args = (params.arguments ?? {}) as Record<string, unknown>;
-    const texto = (t: unknown, isError = false) => ({ content: [{ type: 'text' as const, text: typeof t === 'string' ? t : JSON.stringify(t, null, 2) }], ...(isError ? { isError: true } : {}) });
-    if (!HERRAMIENTAS.some(h => h.name === nombre)) {
-        throw new ErrorRpc(-32602, `Unknown tool: ${nombre}`);
+    const text = (t: unknown, isError = false) => ({ content: [{ type: 'text' as const, text: typeof t === 'string' ? t : JSON.stringify(t, null, 2) }], ...(isError ? { isError: true } : {}) });
+    if (!HERRAMIENTAS.some(h => h.name === name)) {
+        throw new ErrorRpc(-32602, `Unknown tool: ${name}`);
     }
     try {
-        const fichero = dentroDeLaRaiz(String(args.file ?? ''), raiz);
-        switch (nombre) {
+        const file = insideRoot(String(args.file ?? ''), root);
+        switch (name) {
             case 'list_requests':
-                return texto({ file: path.relative(raiz, fichero), requests: resumenDePeticiones(fs.readFileSync(fichero, 'utf8')) });
+                return text({ file: path.relative(root, file), requests: requestSummaries(fs.readFileSync(file, 'utf8')) });
             case 'send_request':
             case 'run_http_file': {
-                if (nombre === 'send_request' && typeof args.name !== 'string') {
+                if (name === 'send_request' && typeof args.name !== 'string') {
                     throw new Error('send_request needs the request name');
                 }
-                const opciones: Opciones = {
-                    fichero,
+                const options: Options = {
+                    file,
                     variables: aTexto(args.vars),
-                    secretos: aTexto(args.secrets),
-                    entorno: typeof args.env === 'string' ? args.env : undefined,
+                    secrets: aTexto(args.secrets),
+                    environment: typeof args.env === 'string' ? args.env : undefined,
                     continuar: args.continueOnFailure === true,
                     json: true,
                     timeoutMs: typeof args.timeoutMs === 'number' && args.timeoutMs > 0 ? args.timeoutMs : 30_000,
-                    solo: nombre === 'send_request' ? String(args.name) : undefined,
+                    solo: name === 'send_request' ? String(args.name) : undefined,
                 };
                 let json = '';
-                const codigo = await ejecutar(opciones, l => { json += l; });
-                const datos = JSON.parse(json);
-                return texto({ ok: codigo === 0, ...datos }, codigo !== 0);
+                const exitCode = await execute(options, l => { json += l; });
+                const data = JSON.parse(json);
+                return text({ ok: exitCode === 0, ...data }, exitCode !== 0);
             }
             default:
-                throw new ErrorRpc(-32602, `Unknown tool: ${nombre}`);
+                throw new ErrorRpc(-32602, `Unknown tool: ${name}`);
         }
     } catch (e) {
         if (e instanceof ErrorRpc) {
             throw e;
         }
-        return texto(e instanceof Error ? e.message : String(e), true);
+        return text(e instanceof Error ? e.message : String(e), true);
     }
 }
 
 /** Una ruta fuera de la raíz se rechaza: el agente sólo ve el proyecto que le han abierto. */
-export function dentroDeLaRaiz(fichero: string, raiz: string): string {
-    if (!fichero) {
+export function insideRoot(file: string, root: string): string {
+    if (!file) {
         throw new Error('file is required');
     }
-    const abs = path.resolve(raiz, fichero);
-    const rel = path.relative(raiz, abs);
+    const abs = path.resolve(root, file);
+    const rel = path.relative(root, abs);
     if (rel.startsWith('..') || path.isAbsolute(rel)) {
-        throw new Error(`${fichero} is outside the allowed root (${raiz})`);
+        throw new Error(`${file} is outside the allowed root (${root})`);
     }
     if (!fs.existsSync(abs)) {
-        throw new Error(`${fichero} does not exist`);
+        throw new Error(`${file} does not exist`);
     }
     return abs;
 }

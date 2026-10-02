@@ -14,7 +14,7 @@ import { MimeUtility } from './mimeUtility';
 import { base64, getHeader, removeHeader } from './misc';
 import { convertBufferToStream, convertStreamToBuffer } from './streamUtility';
 import { UserDataManager } from './userDataManager';
-import { Entorno } from '../core/entorno';
+import { EnvironmentData } from '../core/environment';
 
 function ajustesDelEditor(): IRestClientSettings {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -26,21 +26,21 @@ function ajustesDelEditor(): IRestClientSettings {
  * conoce VS Code, y se carga en diferido para que el runner de terminal nunca
  * llegue a importarlo.
  */
-const ENTORNO_EDITOR: Entorno = {
-    avisar: (mensaje: string) => {
+const ENTORNO_EDITOR: EnvironmentData = {
+    warn: (message: string) => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { window } = require('vscode');
-        window.showWarningMessage(mensaje);
+        window.showWarningMessage(message);
     },
-    raiz: () => {
+    root: () => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const raiz = require('./workspaceUtility').getWorkspaceRootPath();
-        if (!raiz) {
+        const root = require('./workspaceUtility').getWorkspaceRootPath();
+        if (!root) {
             return undefined;
         }
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { Uri } = require('vscode');
-        return Uri.parse(raiz).fsPath as string;
+        return Uri.parse(root).fsPath as string;
     },
     ficheroActual: () => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -56,15 +56,15 @@ const encodeUrl = require('encodeurl');
 const CookieFileStore = require('tough-cookie-file-store').FileCookieStore;
 
 /** Meta de la respuesta en cuanto llegan las cabeceras, antes del cuerpo. */
-export interface MetaRespuesta {
-    estado: number;
-    mensaje: string;
+export interface ResponseMeta {
+    status: number;
+    message: string;
     version: string;
-    cabeceras: ResponseHeaders;
+    headers: ResponseHeaders;
 }
 
 /** Se llama por cada trozo del cuerpo según llega: es lo que permite pintar un stream en vivo. */
-export type AlRecibir = (trozo: Buffer, meta: MetaRespuesta) => void;
+export type OnReceive = (chunk: Buffer, meta: ResponseMeta) => void;
 
 type Certificate = {
     cert?: Buffer;
@@ -76,12 +76,12 @@ type Certificate = {
 export class HttpClient {
     private cookieStore: Store;
 
-    public constructor(private readonly _entorno?: Entorno) {
+    public constructor(private readonly _entorno?: EnvironmentData) {
         const cookieFilePath = UserDataManager.cookieFilePath;
         this.cookieStore = new CookieFileStore(cookieFilePath) as Store;
     }
 
-    public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, alRecibir?: AlRecibir): Promise<HttpResponse> {
+    public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, alRecibir?: OnReceive): Promise<HttpResponse> {
         // Los ajustes del editor se cargan en diferido: quien llame desde la
         // terminal pasa los suyos y nunca entra aquí, que es lo que mantiene
         // este fichero libre de VS Code.
@@ -99,11 +99,11 @@ export class HttpClient {
                 headersSize += res.rawHeaders.map(h => h.length).reduce((a, b) => a + b, 0);
                 headersSize += (res.rawHeaders.length) / 2;
             }
-            const meta: MetaRespuesta = {
-                estado: res.statusCode ?? 0,
-                mensaje: res.statusMessage ?? '',
+            const meta: ResponseMeta = {
+                status: res.statusCode ?? 0,
+                message: res.statusMessage ?? '',
                 version: res.httpVersion ?? '1.1',
-                cabeceras: HttpClient.normalizeHeaderNames(res.headers, res.rawHeaders ?? [])
+                headers: HttpClient.normalizeHeaderNames(res.headers, res.rawHeaders ?? [])
             };
             res.on('data', chunk => {
                 bodySize += chunk.length;
@@ -334,7 +334,7 @@ export class HttpClient {
      * Avisos y raíz de rutas. Inyectarlos es lo único que separaba a este
      * cliente de poder ejecutarse fuera de VS Code.
      */
-    private get entorno(): Entorno {
+    private get environment(): EnvironmentData {
         return this._entorno ?? ENTORNO_EDITOR;
     }
 
@@ -345,7 +345,7 @@ export class HttpClient {
 
         if (path.isAbsolute(absoluteOrRelativePath)) {
             if (!fs.existsSync(absoluteOrRelativePath)) {
-                this.entorno.avisar(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+                this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
                 return undefined;
             } else {
                 return fs.readFileSync(absoluteOrRelativePath);
@@ -353,19 +353,19 @@ export class HttpClient {
         }
 
         // the path should be relative path
-        const rootPath = this.entorno.raiz();
+        const rootPath = this.environment.root();
         let absolutePath = '';
         if (rootPath) {
             absolutePath = path.join(rootPath, absoluteOrRelativePath);
             if (fs.existsSync(absolutePath)) {
                 return fs.readFileSync(absolutePath);
             } else {
-                this.entorno.avisar(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+                this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
                 return undefined;
             }
         }
 
-        const currentFilePath = this.entorno.ficheroActual();
+        const currentFilePath = this.environment.ficheroActual();
         if (!currentFilePath) {
             return undefined;
         }
@@ -374,7 +374,7 @@ export class HttpClient {
         if (fs.existsSync(absolutePath)) {
             return fs.readFileSync(absolutePath);
         } else {
-            this.entorno.avisar(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+            this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
             return undefined;
         }
     }

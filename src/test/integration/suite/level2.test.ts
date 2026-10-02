@@ -9,21 +9,21 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const BR = String.fromCharCode(10);
 const j = (...l: string[]) => l.join(BR);
 
-const ajuste = (clave: string, valor: unknown) =>
-  vscode.workspace.getConfiguration('rest-client').update(clave, valor, vscode.ConfigurationTarget.Global);
+const ajuste = (key: string, value: unknown) =>
+  vscode.workspace.getConfiguration('rest-client').update(key, value, vscode.ConfigurationTarget.Global);
 
 /** Carpeta del espacio de trabajo de la prueba: ahí van los ficheros de verdad. */
-function carpeta(): string {
+function folder(): string {
   const c = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   assert.ok(c, 'la prueba necesita un espacio de trabajo abierto');
   return c!;
 }
 
-function escribir(nombre: string, contenido: string): string {
-  const ruta = path.join(carpeta(), nombre);
-  fs.mkdirSync(path.dirname(ruta), { recursive: true });
-  fs.writeFileSync(ruta, contenido);
-  return ruta;
+function escribir(name: string, contenido: string): string {
+  const filePath = path.join(folder(), name);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, contenido);
+  return filePath;
 }
 
 /**
@@ -31,22 +31,22 @@ function escribir(nombre: string, contenido: string): string {
  * espera la respuesta que lleve la marca. La extensión reutiliza el documento
  * de respuesta, así que se busca la marca y no «un documento nuevo».
  */
-async function enviarFichero(ruta: string, linea: number, marca: string, segundos = 20): Promise<string> {
-  const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(ruta));
+async function sendFile(filePath: string, line: number, mark: string, segundos = 20): Promise<string> {
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
   const editor = await vscode.window.showTextDocument(doc, { preview: false });
-  const pos = new vscode.Position(linea, 0);
+  const pos = new vscode.Position(line, 0);
   editor.selection = new vscode.Selection(pos, pos);
   await vscode.commands.executeCommand('rest-client.request');
 
   for (let i = 0; i < segundos * 4; i++) {
     await esperar(250);
-    const respuesta = vscode.workspace.textDocuments.find(
-      (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(marca),
+    const response = vscode.workspace.textDocuments.find(
+      (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(mark),
     );
-    if (respuesta) return respuesta.getText();
+    if (response) return response.getText();
   }
   const abiertos = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 60)}`).join(' | ');
-  throw new Error(`sin respuesta con "${marca}" en ${segundos} s. Documentos: ${abiertos}`);
+  throw new Error(`sin respuesta con "${mark}" en ${segundos} s. Documentos: ${abiertos}`);
 }
 
 describe('Rest Client · formato JetBrains y secretos', () => {
@@ -66,19 +66,19 @@ describe('Rest Client · formato JetBrains y secretos', () => {
   });
 
   it('P-36 · http-client.env.json junto al fichero: el entorno elegido resuelve, y el privado manda', async () => {
-    escribir('http-client.env.json', JSON.stringify({ dev: { host: BASE, ruta: '/publico' }, prod: { host: 'http://no-se-usa' } }));
-    escribir('http-client.private.env.json', JSON.stringify({ dev: { ruta: '/privado-manda' } }));
-    const fichero = escribir('entorno.http', j('GET {{host}}{{ruta}}', ''));
+    escribir('http-client.env.json', JSON.stringify({ dev: { host: BASE, filePath: '/publico' }, prod: { host: 'http://no-se-usa' } }));
+    escribir('http-client.private.env.json', JSON.stringify({ dev: { filePath: '/privado-manda' } }));
+    const file = escribir('entorno.http', j('GET {{host}}{{ruta}}', ''));
 
     await vscode.commands.executeCommand('rest-client.switch-environment', 'dev');
-    const t = await enviarFichero(fichero, 0, '/privado-manda');
+    const t = await sendFile(file, 0, '/privado-manda');
     assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
     assert.ok(/"ruta":\s*"\/privado-manda"/.test(t), 'el privado debe mandar sobre el público');
   });
 
   it('P-37 · import + run #nombre: se envía la petición importada y su respuesta resuelve en el fichero que importa', async () => {
     escribir(path.join('lib', 'auth.http'), j(`@host = ${BASE}`, '', '# @name login', 'GET {{host}}/eco/login', ''));
-    const fichero = escribir('api.http', j(
+    const file = escribir('api.http', j(
       'import ./lib/auth.http',
       '',
       'run #login',
@@ -89,28 +89,28 @@ describe('Rest Client · formato JetBrains y secretos', () => {
       '',
     ));
 
-    const primera = await enviarFichero(fichero, 2, '"ruta": "/eco/login"');
+    const primera = await sendFile(file, 2, '"ruta": "/eco/login"');
     assert.ok(primera.includes('HTTP/1.1 200'), 'run #login debe enviar la petición importada');
 
-    const segunda = await enviarFichero(fichero, 6, '/eco/facturas?desde=');
+    const segunda = await sendFile(file, 6, '/eco/facturas?desde=');
     assert.ok(/"ruta":\s*"\/eco\/facturas\?desde=\/eco\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
   });
 
   it('P-38 · $secret: guardado con el comando, se sustituye; el fichero no lo contiene', async () => {
     await vscode.commands.executeCommand('rest-client.set-secret', 'API_KEY', 'clave-secreta-123');
-    const fichero = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Prueba: {{$secret API_KEY}}', ''));
-    assert.ok(!fs.readFileSync(fichero, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
-    const t = await enviarFichero(fichero, 0, '/con-secreto');
+    const file = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Prueba: {{$secret API_KEY}}', ''));
+    assert.ok(!fs.readFileSync(file, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
+    const t = await sendFile(file, 0, '/con-secreto');
     assert.ok(/"cabecera":\s*"clave-secreta-123"/.test(t), 'el secreto debe llegar en la cabecera: ' + t.slice(0, 200));
   });
 
   it('P-39 · alias de JetBrains: $uuid, $isoTimestamp y $random.integer(min,max)', async () => {
-    const fichero = escribir('alias.http', j(`GET ${BASE}/alias?u={{$uuid}}&t={{$isoTimestamp}}&r={{$random.integer(5,6)}}`, ''));
-    const t = await enviarFichero(fichero, 0, '/alias?u=');
-    const ruta = /"ruta":\s*"([^"]+)"/.exec(t)?.[1] ?? '';
-    assert.ok(/u=[0-9a-f-]{36}&/.test(ruta), `sin uuid en ${ruta}`);
-    assert.ok(/t=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(ruta), `sin fecha ISO en ${ruta}`);
-    assert.ok(/r=5$/.test(ruta), `random.integer(5,6) solo puede dar 5: ${ruta}`);
+    const file = escribir('alias.http', j(`GET ${BASE}/alias?u={{$uuid}}&t={{$isoTimestamp}}&r={{$random.integer(5,6)}}`, ''));
+    const t = await sendFile(file, 0, '/alias?u=');
+    const filePath = /"ruta":\s*"([^"]+)"/.exec(t)?.[1] ?? '';
+    assert.ok(/u=[0-9a-f-]{36}&/.test(filePath), `sin uuid en ${filePath}`);
+    assert.ok(/t=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(filePath), `sin fecha ISO en ${filePath}`);
+    assert.ok(/r=5$/.test(filePath), `random.integer(5,6) solo puede dar 5: ${filePath}`);
   });
 });
 
@@ -156,14 +156,14 @@ describe('Rest Client · streaming', () => {
     }
 
     // Y en modo documento, el cuerpo final trae los tres eventos.
-    const fichero = escribir('sse.http', j(`GET ${BASE}/sse`, ''));
-    const t = await enviarFichero(fichero, 0, '[DONE]');
+    const file = escribir('sse.http', j(`GET ${BASE}/sse`, ''));
+    const t = await sendFile(file, 0, '[DONE]');
     assert.ok(t.includes('content-type: text/event-stream'), 'la cabecera del stream');
     assert.ok(t.includes('data: {"delta":"Hola"}') && t.includes('data: {"delta":" mundo"}'), 'los tres eventos llegan enteros');
   });
 
   it('P-43 · WEBSOCKET: saludo del servidor, eco de dos mensajes y estado 101', async () => {
-    const fichero = escribir('socket.http', j(
+    const file = escribir('socket.http', j(
       '# @timeout 800',
       `WEBSOCKET ws://[::1]:${PUERTO}/socket`,
       'X-Prueba: ana',
@@ -173,7 +173,7 @@ describe('Rest Client · streaming', () => {
       'segundo',
       '',
     ));
-    const t = await enviarFichero(fichero, 1, 'eco: segundo');
+    const t = await sendFile(file, 1, 'eco: segundo');
     assert.ok(t.includes('HTTP/1.1 101'), `sin 101 en ${t.slice(0, 120)}`);
     assert.ok(t.includes('<< hola ana'), 'el saludo del servidor lleva la cabecera enviada');
     assert.ok(t.includes('>> {"a":1}') && t.includes('<< eco: {"a":1}'), 'el primer mensaje y su eco');
@@ -198,20 +198,20 @@ describe('Rest Client · herramientas para agentes', () => {
       this.skip();
       return;
     }
-    const fichero = escribir('agente.http', j('# @name saludo', `GET ${BASE}/eco/agente`, 'X-Prueba: desde-agente', '', '###', '', `GET ${BASE}/otra`, ''));
-    assert.ok(fs.existsSync(fichero));
+    const file = escribir('agente.http', j('# @name saludo', `GET ${BASE}/eco/agente`, 'X-Prueba: desde-agente', '', '###', '', `GET ${BASE}/otra`, ''));
+    assert.ok(fs.existsSync(file));
     const token = new vscode.CancellationTokenSource().token;
-    const texto = (r: { content: { value?: string }[] }) => r.content.map((p) => p.value ?? '').join('');
+    const text = (r: { content: { value?: string }[] }) => r.content.map((p) => p.value ?? '').join('');
 
     const lista = await lm.invokeTool('rest_client_list_requests', { input: { file: 'agente.http' }, toolInvocationToken: undefined }, token);
-    const datos = JSON.parse(texto(lista));
-    assert.strictEqual(datos.requests.length, 2, JSON.stringify(datos));
-    assert.strictEqual(datos.requests[0].name, 'saludo');
-    assert.strictEqual(datos.requests[0].method, 'GET');
-    assert.strictEqual(datos.requests[1].name, undefined);
+    const data = JSON.parse(text(lista));
+    assert.strictEqual(data.requests.length, 2, JSON.stringify(data));
+    assert.strictEqual(data.requests[0].name, 'saludo');
+    assert.strictEqual(data.requests[0].method, 'GET');
+    assert.strictEqual(data.requests[1].name, undefined);
 
     const envio = await lm.invokeTool('rest_client_send_request', { input: { file: 'agente.http', name: 'saludo' }, toolInvocationToken: undefined }, token);
-    const r = JSON.parse(texto(envio));
+    const r = JSON.parse(text(envio));
     assert.strictEqual(r.status, 200, JSON.stringify(r).slice(0, 200));
     assert.ok(r.body.includes('desde-agente'), 'la cabecera llegó al servidor: ' + r.body.slice(0, 120));
     assert.ok(typeof r.ms === 'number');
@@ -237,35 +237,35 @@ describe('RestClient · lo portado de rest-client-next', () => {
   it('P-47 · Basic Auth: la contraseña puede llevar dos puntos y espacios (upstream #1419)', async () => {
     // «admin:it's a total eclipse»: antes se partía por cada espacio y por cada
     // ':', y llegaba truncada.
-    const clave = "it's a total: eclipse";
-    const fichero = escribir('basic.http', j(`GET ${BASE}/eco/basic`, `Authorization: Basic admin:${clave}`, ''));
-    const t = await enviarFichero(fichero, 0, '/eco/basic');
+    const key = "it's a total: eclipse";
+    const file = escribir('basic.http', j(`GET ${BASE}/eco/basic`, `Authorization: Basic admin:${key}`, ''));
+    const t = await sendFile(file, 0, '/eco/basic');
     const recibida = /"autorizacion":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.ok(recibida, 'no llegó cabecera Authorization: ' + t.slice(0, 200));
-    assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), `admin:${clave}`);
+    assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), `admin:${key}`);
   });
 
   it('P-48 · Basic Auth: la forma «usuario contraseña» separada por espacio sigue funcionando', async () => {
-    const fichero = escribir('basic2.http', j(`GET ${BASE}/eco/basic2`, 'Authorization: Basic ana secreta', ''));
-    const t = await enviarFichero(fichero, 0, '/eco/basic2');
+    const file = escribir('basic2.http', j(`GET ${BASE}/eco/basic2`, 'Authorization: Basic ana secreta', ''));
+    const t = await sendFile(file, 0, '/eco/basic2');
     const recibida = /"autorizacion":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), 'ana:secreta');
   });
 
   it('P-49 · autocompletar dentro de {{ }} no duplica las llaves', async () => {
-    const fichero = escribir('completar.http', j('@host = http://ejemplo', 'GET {{host}}/x?id={{', ''));
-    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fichero));
+    const file = escribir('completar.http', j('@host = http://ejemplo', 'GET {{host}}/x?id={{', ''));
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
     await vscode.window.showTextDocument(doc, { preview: false });
-    const linea = 1;
-    const posicion = new vscode.Position(linea, doc.lineAt(linea).text.length);
+    const line = 1;
+    const posicion = new vscode.Position(line, doc.lineAt(line).text.length);
     const lista = (await vscode.commands.executeCommand(
       'vscode.executeCompletionItemProvider', doc.uri, posicion)) as vscode.CompletionList;
 
     const variables = lista.items.filter((i) => typeof i.label === 'string' && (i.label === '$guid' || i.label === 'host'));
     assert.ok(variables.length >= 1, 'sin propuestas de variable: ' + lista.items.map((i) => i.label).slice(0, 10).join(', '));
     for (const item of variables) {
-      const texto = typeof item.insertText === 'string' ? item.insertText : (item.insertText as vscode.SnippetString)?.value ?? '';
-      assert.ok(!texto.includes('{{'), `«${String(item.label)}» insertaría llaves otra vez: ${texto}`);
+      const text = typeof item.insertText === 'string' ? item.insertText : (item.insertText as vscode.SnippetString)?.value ?? '';
+      assert.ok(!text.includes('{{'), `«${String(item.label)}» insertaría llaves otra vez: ${text}`);
       assert.ok(item.range, `«${String(item.label)}» no sustituye el hueco entre llaves`);
     }
   });
@@ -284,14 +284,14 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
 
   it('P-66 · QUERY llega como QUERY y con su cuerpo', async function () {
     this.timeout(60000);
-    const fichero = escribir('query.http', j(
+    const file = escribir('query.http', j(
       `QUERY ${BASE}/buscar`,
       'Content-Type: application/json',
       '',
       '{"filtro":"activo"}',
       '',
     ));
-    const t = await enviarFichero(fichero, 0, '"/buscar"', 40);
+    const t = await sendFile(file, 0, '"/buscar"', 40);
     assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
     assert.ok(/"metodo":\s*"QUERY"/.test(t), 'el servidor debe recibir el metodo QUERY: ' + t.slice(0, 250));
     assert.ok(/"recibido":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'el cuerpo debe viajar con la peticion: ' + t.slice(0, 250));
@@ -301,13 +301,13 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
 describe('faker en el editor (carga diferida)', () => {
   it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
     this.timeout(60000);
-    const fichero = escribir('faker.http', j(
+    const file = escribir('faker.http', j(
       `GET ${BASE}/eco?correo={{$faker internet.email}}`,
       'X-Prueba: marca-faker',
     ));
-    const texto = await enviarFichero(fichero, 0, 'marca-faker', 40);
-    const correo = /correo=([^&"\\]+)/.exec(texto)?.[1] ?? '';
-    assert.ok(/%40|@/.test(correo), `no parece un email: ${correo || texto.slice(0, 200)}`);
-    assert.ok(!correo.includes('faker'), 'la variable quedo sin resolver');
+    const text = await sendFile(file, 0, 'marca-faker', 40);
+    const email = /email=([^&"\\]+)/.exec(text)?.[1] ?? '';
+    assert.ok(/%40|@/.test(email), `no parece un email: ${email || text.slice(0, 200)}`);
+    assert.ok(!email.includes('faker'), 'la variable quedo sin resolver');
   });
 });

@@ -2,7 +2,7 @@ import { EventEmitter, l10n, QuickPickItem, window } from 'vscode';
 import * as Constants from '../common/constants';
 import { SystemSettings } from '../models/configurationSettings';
 import { trace } from "../utils/decorator";
-import { entornosDeFichero } from '../utils/entornosEditor';
+import { fileEnvironments } from '../utils/editorEnvironments';
 import { EnvironmentStatusEntry } from '../utils/environmentStatusBarEntry';
 import { UserDataManager } from '../utils/userDataManager';
 
@@ -37,13 +37,13 @@ export class EnvironmentController {
      * pruebas y cualquier automatización). `''` vuelve a «sin entorno».
      */
     @trace('Switch Environment')
-    public async switchEnvironment(nombre?: string) {
+    public async switchEnvironment(name?: string) {
         const deAjustes = Object.keys(this.settings.environmentVariables)
             .filter(name => name !== EnvironmentController.sharedEnvironmentName);
-        const deFichero = Object.keys(entornosDeFichero());
-        const nombres = [...new Set([...deAjustes, ...deFichero])];
+        const deFichero = Object.keys(fileEnvironments());
+        const names = [...new Set([...deAjustes, ...deFichero])];
 
-        const userEnvironments: EnvironmentPickItem[] = nombres.map(name => ({
+        const userEnvironments: EnvironmentPickItem[] = names.map(name => ({
             name,
             label: name,
             description: [
@@ -55,10 +55,10 @@ export class EnvironmentController {
         const itemPickList: EnvironmentPickItem[] = [EnvironmentController.noEnvironmentPickItem, ...userEnvironments];
 
         let item: EnvironmentPickItem | undefined;
-        if (nombre !== undefined) {
-            item = nombre === '' ? EnvironmentController.noEnvironmentPickItem : userEnvironments.find(e => e.name === nombre);
+        if (name !== undefined) {
+            item = name === '' ? EnvironmentController.noEnvironmentPickItem : userEnvironments.find(e => e.name === name);
             if (!item) {
-                window.showWarningMessage(l10n.t('There is no environment named "{0}"', nombre));
+                window.showWarningMessage(l10n.t('There is no environment named "{0}"', name));
                 return;
             }
         } else {

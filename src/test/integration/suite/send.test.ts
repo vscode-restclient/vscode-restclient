@@ -15,24 +15,24 @@ const BR = String.fromCharCode(10);
  * vale buscar «un documento nuevo»: se espera a que aparezca la marca única de
  * esta petición concreta.
  */
-async function enviar(contenido: string, marca: string, segundos = 20): Promise<string> {
+async function enviar(contenido: string, mark: string, segundos = 20): Promise<string> {
   const doc = await vscode.workspace.openTextDocument({ language: 'http', content: contenido });
   await vscode.window.showTextDocument(doc, { preview: false });
   await vscode.commands.executeCommand('rest-client.request');
 
   for (let i = 0; i < segundos * 4; i++) {
     await esperar(250);
-    const respuesta = vscode.workspace.textDocuments.find(
-      (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(marca),
+    const response = vscode.workspace.textDocuments.find(
+      (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(mark),
     );
-    if (respuesta) return respuesta.getText();
+    if (response) return response.getText();
   }
   const abiertos = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 50)}`).join(' | ');
-  throw new Error(`sin respuesta con "${marca}" en ${segundos} s. Documentos: ${abiertos}`);
+  throw new Error(`sin respuesta con "${mark}" en ${segundos} s. Documentos: ${abiertos}`);
 }
 
-const ajuste = (clave: string, valor: unknown) =>
-  vscode.workspace.getConfiguration('rest-client').update(clave, valor, vscode.ConfigurationTarget.Global);
+const ajuste = (key: string, value: unknown) =>
+  vscode.workspace.getConfiguration('rest-client').update(key, value, vscode.ConfigurationTarget.Global);
 
 describe('Rest Client · peticiones reales', () => {
   before(async () => {
@@ -133,15 +133,15 @@ describe('Rest Client · peticiones reales', () => {
       await vscode.window.showTextDocument(doc, { preview: false });
       await vscode.commands.executeCommand('rest-client.rerun-last-request');
 
-      let texto = '';
-      for (let i = 0; i < 60 && !texto.includes('original'); i++) {
+      let text = '';
+      for (let i = 0; i < 60 && !text.includes('original'); i++) {
         await esperar(250);
-        texto = vscode.workspace.textDocuments
+        text = vscode.workspace.textDocuments
           .filter(d => d.uri.toString() !== doc.uri.toString())
           .map(d => d.getText()).find(t => t.includes('/reenvio')) ?? '';
       }
-      assert.ok(texto.includes('original'), `el reenvío perdió la cabecera:` + BR + texto.slice(0, 250));
-      assert.ok(texto.includes('HTTP/1.1 200'));
+      assert.ok(text.includes('original'), `el reenvío perdió la cabecera:` + BR + text.slice(0, 250));
+      assert.ok(text.includes('HTTP/1.1 200'));
     });
   });
 
@@ -230,12 +230,12 @@ describe('Rest Client · variables de petición', () => {
    * primera. Las variables de petición son de ámbito de fichero, así que tienen
    * que convivir; lo que cambia entre una y otra es dónde está el cursor.
    */
-  async function encadenar(contenido: string, marca: string): Promise<string> {
+  async function encadenar(contenido: string, mark: string): Promise<string> {
     const doc = await vscode.workspace.openTextDocument({ language: 'http', content: contenido });
     const editor = await vscode.window.showTextDocument(doc, { preview: false });
-    const lineas = doc.getText().split(String.fromCharCode(10));
+    const lines = doc.getText().split(String.fromCharCode(10));
     const lineaDe = (aguja: string) => {
-      const i = lineas.findIndex((l) => l.includes(aguja));
+      const i = lines.findIndex((l) => l.includes(aguja));
       if (i < 0) throw new Error(`no encuentro la línea con "${aguja}"`);
       return i;
     };
@@ -249,12 +249,12 @@ describe('Rest Client · variables de petición', () => {
     // de respuesta se reutiliza y podría haber un 200 de una prueba anterior.
     // El servidor marca cada respuesta con `x-ruta`, así que se espera a la de
     // ESTA petición y no a un 200 que dejó una prueba anterior.
-    const ruta = '/' + lineas[primera + 1].split('/').pop()!;
+    const filePath = '/' + lines[primera + 1].split('/').pop()!;
     let lista = false;
     for (let i = 0; i < 60 && !lista; i++) {
       await esperar(250);
       lista = vscode.workspace.textDocuments.some(
-        (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes('HTTP/1.1 200') && d.getText().includes('x-ruta: ' + ruta),
+        (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes('HTTP/1.1 200') && d.getText().includes('x-ruta: ' + filePath),
       );
     }
     assert.ok(lista, 'la primera petición no llegó a responder');
@@ -268,7 +268,7 @@ describe('Rest Client · variables de petición', () => {
     for (let i = 0; i < 80; i++) {
       await esperar(250);
       const r = vscode.workspace.textDocuments.find(
-        (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(marca),
+        (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(mark),
       );
       if (r) return r.getText();
     }
@@ -276,7 +276,7 @@ describe('Rest Client · variables de petición', () => {
       .filter((d) => d.uri.toString() !== doc.uri.toString())
       .map((d) => d.getText().replace(/\s+/g, ' ').slice(0, 200))
       .join('  ||  ');
-    throw new Error(`sin respuesta con "${marca}". Lo que hay: ${abiertos}`);
+    throw new Error(`sin respuesta con "${mark}". Lo que hay: ${abiertos}`);
   }
 
   it('P-12 · JSONPath extrae un valor de la respuesta anterior', async () => {

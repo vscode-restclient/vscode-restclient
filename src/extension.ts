@@ -3,8 +3,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import { ExtensionContext, l10n, languages, Range, TextDocument, Uri, window, workspace } from 'vscode';
 import { registerCommandSafely, warnIfCommandsClash } from './utils/safeCommands';
-import { Secretos } from './utils/secretos';
-import { registrarHerramientas } from './utils/herramientasLm';
+import { SecretStore } from './utils/secrets';
+import { registerTools } from './utils/lmTools';
 import { CodeSnippetController } from './controllers/codeSnippetController';
 import { EnvironmentController } from './controllers/environmentController';
 import { HistoryController } from './controllers/historyController';
@@ -31,7 +31,7 @@ import { UserDataManager } from './utils/userDataManager';
 // your extension is activated the very first time the command is executed
 export async function activate(context: ExtensionContext) {
     await UserDataManager.initialize();
-    Secretos.inicializar(context.secrets, context.globalState);
+    SecretStore.inicializar(context.secrets, context.globalState);
 
     const requestController = new RequestController(context);
     const historyController = new HistoryController();
@@ -49,41 +49,41 @@ export async function activate(context: ExtensionContext) {
     context.subscriptions.push(registerCommandSafely('rest-client.clear-history', () => historyController.clear()));
     context.subscriptions.push(registerCommandSafely('rest-client.generate-codesnippet', () => codeSnippetController.run()));
     context.subscriptions.push(registerCommandSafely('rest-client.copy-request-as-curl', () => codeSnippetController.copyAsCurl()));
-    context.subscriptions.push(registerCommandSafely('rest-client.switch-environment', (nombre?: string) => environmentController.switchEnvironment(typeof nombre === 'string' ? nombre : undefined)));
+    context.subscriptions.push(registerCommandSafely('rest-client.switch-environment', (name?: string) => environmentController.switchEnvironment(typeof name === 'string' ? name : undefined)));
     // Con argumentos no pregunta nada: lo usan las pruebas y las automatizaciones.
-    context.subscriptions.push(registerCommandSafely('rest-client.set-secret', async (nombre?: string, valor?: string) => {
-        if (typeof nombre !== 'string') {
-            nombre = await window.showInputBox({
+    context.subscriptions.push(registerCommandSafely('rest-client.set-secret', async (name?: string, value?: string) => {
+        if (typeof name !== 'string') {
+            name = await window.showInputBox({
                 prompt: l10n.t('Secret name (use it as {{$secret NAME}})'),
-                validateInput: v => (Secretos.nombreValido(v) ? undefined : l10n.t('Letters, digits, dots, dashes and underscores only')),
+                validateInput: v => (SecretStore.nombreValido(v) ? undefined : l10n.t('Letters, digits, dots, dashes and underscores only')),
             });
         }
-        if (!nombre || !Secretos.nombreValido(nombre)) {
+        if (!name || !SecretStore.nombreValido(name)) {
             return;
         }
-        if (typeof valor !== 'string') {
-            valor = await window.showInputBox({ prompt: l10n.t('Value for secret "{0}" (stored encrypted, never written to the file)', nombre), password: true, ignoreFocusOut: true });
+        if (typeof value !== 'string') {
+            value = await window.showInputBox({ prompt: l10n.t('Value for secret "{0}" (stored encrypted, never written to the file)', name), password: true, ignoreFocusOut: true });
         }
-        if (valor === undefined || valor === '') {
+        if (value === undefined || value === '') {
             return;
         }
-        await Secretos.set(nombre, valor);
-        window.setStatusBarMessage(l10n.t('Secret "{0}" saved', nombre), 4000);
+        await SecretStore.set(name, value);
+        window.setStatusBarMessage(l10n.t('Secret "{0}" saved', name), 4000);
     }));
-    context.subscriptions.push(registerCommandSafely('rest-client.delete-secret', async (nombre?: string) => {
-        if (typeof nombre !== 'string') {
-            const nombres = Secretos.nombres();
-            if (nombres.length === 0) {
+    context.subscriptions.push(registerCommandSafely('rest-client.delete-secret', async (name?: string) => {
+        if (typeof name !== 'string') {
+            const names = SecretStore.names();
+            if (names.length === 0) {
                 window.showInformationMessage(l10n.t('There are no secrets stored'));
                 return;
             }
-            nombre = await window.showQuickPick(nombres, { placeHolder: l10n.t('Secret to delete') });
+            name = await window.showQuickPick(names, { placeHolder: l10n.t('Secret to delete') });
         }
-        if (!nombre) {
+        if (!name) {
             return;
         }
-        await Secretos.borrar(nombre);
-        window.setStatusBarMessage(l10n.t('Secret "{0}" deleted', nombre), 4000);
+        await SecretStore.borrar(name);
+        window.setStatusBarMessage(l10n.t('Secret "{0}" deleted', name), 4000);
     }));
     context.subscriptions.push(registerCommandSafely('rest-client.clear-aad-token-cache', () => AadTokenCache.clear()));
     context.subscriptions.push(registerCommandSafely('rest-client.clear-cookies', () => requestController.clearCookies()));
@@ -128,7 +128,7 @@ export async function activate(context: ExtensionContext) {
     const diagnosticsProvider = new CustomVariableDiagnosticsProvider();
     context.subscriptions.push(diagnosticsProvider);
 
-    registrarHerramientas(context, requestController);
+    registerTools(context, requestController);
 
     warnIfCommandsClash();
 }

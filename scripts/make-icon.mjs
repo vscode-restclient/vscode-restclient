@@ -101,14 +101,14 @@ fs.mkdirSync(path.dirname(OUT_PNG), { recursive: true });
 fs.writeFileSync(OUT_PNG, png);
 
 const hex = ([r, g, b]) => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-const linea = (p, color) => `  <polyline points="${p.map(q => q.join(',')).join(' ')}" fill="none" stroke="${color}" stroke-width="${GROSOR}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const line = (p, color) => `  <polyline points="${p.map(q => q.join(',')).join(' ')}" fill="none" stroke="${color}" stroke-width="${GROSOR}" stroke-linecap="round" stroke-linejoin="round"/>`;
 fs.writeFileSync(OUT_SVG, [
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${UNIT} ${UNIT}" width="${SIZE}" height="${SIZE}">`,
   `  <rect width="${UNIT}" height="${UNIT}" rx="${RADIO}" fill="${hex(NAVY)}"/>`,
-  linea([IDA.a, IDA.b], hex(TURQ)),
-  linea(IDA_P, hex(TURQ)),
-  linea([VUELTA.a, VUELTA.b], hex(AZUL)),
-  linea(VUELTA_P, hex(AZUL)),
+  line([IDA.a, IDA.b], hex(TURQ)),
+  line(IDA_P, hex(TURQ)),
+  line([VUELTA.a, VUELTA.b], hex(AZUL)),
+  line(VUELTA_P, hex(AZUL)),
   '</svg>', ''
 ].join('\n'));
 console.log(`icono escrito: ${OUT_PNG} (${png.length} bytes)`);

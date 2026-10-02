@@ -8,11 +8,11 @@
  */
 
 /** Un bloque de fichero: su texto y dónde empieza, para poder situar errores. */
-export interface Bloque {
-    texto: string;
+export interface Block {
+    text: string;
     /** Línea (base 0) donde empieza el bloque dentro del fichero. */
-    linea: number;
-    nombre?: string;
+    line: number;
+    name?: string;
 }
 
 const SALTOS = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
@@ -32,52 +32,52 @@ const NOMBRE = /^\s*(?:#|\/\/)\s*@name\s+(\S+)/m;
  * línea —un Markdown dentro de un JSON, por ejemplo— se parte en dos. La salida
  * es indentar esa línea o usar un fichero externo con `< cuerpo.json`.
  */
-export function trocear(texto: string): Bloque[] {
-    const lineas = texto.split(SALTOS);
-    const bloques: Bloque[] = [];
+export function splitBlocks(text: string): Block[] {
+    const lines = text.split(SALTOS);
+    const blocks: Block[] = [];
     let actual: string[] = [];
     let inicio = 0;
 
     const cerrar = () => {
         const t = actual.join(String.fromCharCode(10));
         if (t.trim().length > 0) {
-            bloques.push({ texto: t, linea: inicio, nombre: NOMBRE.exec(t)?.[1] });
+            blocks.push({ text: t, line: inicio, name: NOMBRE.exec(t)?.[1] });
         }
         actual = [];
     };
 
-    for (let i = 0; i < lineas.length; i++) {
-        if (SEPARADOR.test(lineas[i])) {
+    for (let i = 0; i < lines.length; i++) {
+        if (SEPARADOR.test(lines[i])) {
             cerrar();
             inicio = i + 1;
             continue;
         }
-        actual.push(lineas[i]);
+        actual.push(lines[i]);
     }
     cerrar();
-    return bloques;
+    return blocks;
 }
 
-export interface PasoEjecutado {
-    nombre: string;
-    linea: number;
-    estado?: number;
+export interface ExecutedStep {
+    name: string;
+    line: number;
+    status?: number;
     ms: number;
     error?: string;
     /** Cuerpo de la respuesta, para las aserciones y el informe. */
-    cuerpo?: string;
-    cabeceras?: Record<string, string | undefined>;
+    body?: string;
+    headers?: Record<string, string | undefined>;
 }
 
-export interface OpcionesSecuencia {
+export interface SequenceOptions {
     /** Envía un bloque ya resuelto y devuelve la respuesta. */
-    enviar(bloque: Bloque): Promise<{ estado: number; cuerpo: string; cabeceras: Record<string, string | undefined> }>;
+    enviar(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined> }>;
     /** Sustituye variables usando lo que ya han devuelto las peticiones previas. */
-    resolver?(bloque: Bloque): Promise<Bloque>;
+    resolver?(block: Block): Promise<Block>;
     /** Por defecto, un fallo detiene la secuencia. */
-    continuarTrasFallo?: boolean;
+    continueOnFailure?: boolean;
     /** Se llama al terminar cada paso, para poder ir informando. */
-    alTerminarPaso?(paso: PasoEjecutado): void;
+    alTerminarPaso?(step: ExecutedStep): void;
 }
 
 /**
@@ -88,25 +88,25 @@ export interface OpcionesSecuencia {
  * Un fallo detiene la secuencia salvo que se pida lo contrario: encadenar sobre
  * una respuesta que nunca llegó produce errores que no se entienden.
  */
-export async function ejecutarSecuencia(bloques: Bloque[], opciones: OpcionesSecuencia): Promise<PasoEjecutado[]> {
-    const hechos: PasoEjecutado[] = [];
+export async function runSequence(blocks: Block[], options: SequenceOptions): Promise<ExecutedStep[]> {
+    const hechos: ExecutedStep[] = [];
 
-    for (const bloque of bloques) {
+    for (const block of blocks) {
         const t0 = Date.now();
         // El nombre se toma del bloque ya resuelto: un `run #login` se llama login.
-        let nombre = bloque.nombre ?? `#${hechos.length + 1}`;
-        let paso: PasoEjecutado;
+        let name = block.name ?? `#${hechos.length + 1}`;
+        let step: ExecutedStep;
         try {
-            const listo = opciones.resolver ? await opciones.resolver(bloque) : bloque;
-            nombre = listo.nombre ?? nombre;
-            const r = await opciones.enviar(listo);
-            paso = { nombre, linea: bloque.linea, estado: r.estado, cuerpo: r.cuerpo, cabeceras: r.cabeceras, ms: Date.now() - t0 };
+            const ready = options.resolver ? await options.resolver(block) : block;
+            name = ready.name ?? name;
+            const r = await options.enviar(ready);
+            step = { name, line: block.line, status: r.status, body: r.body, headers: r.headers, ms: Date.now() - t0 };
         } catch (e) {
-            paso = { nombre, linea: bloque.linea, error: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
+            step = { name, line: block.line, error: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
         }
-        hechos.push(paso);
-        opciones.alTerminarPaso?.(paso);
-        if (paso.error && !opciones.continuarTrasFallo) {
+        hechos.push(step);
+        options.alTerminarPaso?.(step);
+        if (step.error && !options.continueOnFailure) {
             break;
         }
     }
@@ -116,30 +116,30 @@ export async function ejecutarSecuencia(bloques: Bloque[], opciones: OpcionesSec
 const LINEA_DECLARACION = /^\s*(?:(?:#|\/\/).*|@[\w.-]+\s*=.*|import\s+\S.*)?$/;
 
 /** Un bloque que sólo tiene `import`, `@variables` y comentarios no es una petición. */
-export function esPeticion(bloque: Bloque): boolean {
-    return bloque.texto.split(SALTOS).some(l => !LINEA_DECLARACION.test(l));
+export function isRequest(block: Block): boolean {
+    return block.text.split(SALTOS).some(l => !LINEA_DECLARACION.test(l));
 }
 
-export interface ResumenPeticion {
-    nombre?: string;
-    metodo: string;
+export interface RequestSummary {
+    name?: string;
+    method: string;
     url: string;
     /** Línea (base 0) del bloque en el fichero. */
-    linea: number;
+    line: number;
 }
 
 /**
  * Qué peticiones hay en un fichero, sin resolver variables ni enviar nada:
  * lo que un agente necesita para decidir cuál lanzar.
  */
-export function resumenDePeticiones(texto: string): ResumenPeticion[] {
-    return trocear(texto).filter(esPeticion).map(b => {
-        const primera = b.texto.split(SALTOS).find(l => !LINEA_DECLARACION.test(l))!.trim();
+export function requestSummaries(text: string): RequestSummary[] {
+    return splitBlocks(text).filter(isRequest).map(b => {
+        const primera = b.text.split(SALTOS).find(l => !LINEA_DECLARACION.test(l))!.trim();
         const m = /^([A-Z]+)\s+(\S.*)$/.exec(primera);
         const run = /^run\s+#(\S+)/.exec(primera);
         if (run) {
-            return { nombre: b.nombre, metodo: 'RUN', url: `#${run[1]}`, linea: b.linea };
+            return { name: b.name, method: 'RUN', url: `#${run[1]}`, line: b.line };
         }
-        return { nombre: b.nombre, metodo: m ? m[1] : 'GET', url: (m ? m[2] : primera).replace(/\s+HTTP\/.*$/i, ''), linea: b.linea };
+        return { name: b.name, method: m ? m[1] : 'GET', url: (m ? m[2] : primera).replace(/\s+HTTP\/.*$/i, ''), line: b.line };
     });
 }

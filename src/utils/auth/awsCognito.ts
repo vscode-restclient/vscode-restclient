@@ -31,9 +31,9 @@ async function login(
   _userPoolId: string,
   clientId: string,
 ): Promise<{ idToken: string; accessToken: string }> {
-  let cuerpo: RespuestaCognito;
+  let body: RespuestaCognito;
   try {
-    cuerpo = await got
+    body = await got
       .post(`https://cognito-idp.${region}.amazonaws.com/`, {
         headers: {
           'content-type': 'application/x-amz-json-1.1',
@@ -52,12 +52,12 @@ async function login(
     throw new Error(`Cognito no respondió: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  const r = cuerpo.AuthenticationResult;
+  const r = body.AuthenticationResult;
   if (!r?.AccessToken || !r?.IdToken) {
     // Un desafío pendiente (cambio de contraseña, MFA) no se puede resolver aquí.
-    const motivo = cuerpo.ChallengeName
-      ? `Cognito pide resolver "${cuerpo.ChallengeName}" antes de dar un token`
-      : cuerpo.message || cuerpo.__type || 'respuesta sin tokens';
+    const motivo = body.ChallengeName
+      ? `Cognito pide resolver "${body.ChallengeName}" antes de dar un token`
+      : body.message || body.__type || 'respuesta sin tokens';
     throw new Error(`Invalid auth response: ${motivo}`);
   }
   return { idToken: r.IdToken, accessToken: r.AccessToken };

@@ -8,10 +8,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-let fallos = 0;
+let failures = 0;
 const ok = (n, c, extra = '') => {
     console.log(`  ${c ? 'OK   ' : 'FALLA'} ${n}${extra ? ' · ' + extra : ''}`);
-    if (!c) fallos++;
+    if (!c) failures++;
 };
 const leerJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 
@@ -60,11 +60,11 @@ recorrer('src');
 const literales = new Map();
 const conPlantilla = [];
 for (const f of ficherosTs) {
-    const texto = fs.readFileSync(f, 'utf8');
-    for (const m of texto.matchAll(/l10n\.t\(\s*'((?:[^'\\]|\\.)*)'/g)) {
+    const text = fs.readFileSync(f, 'utf8');
+    for (const m of text.matchAll(/l10n\.t\(\s*'((?:[^'\\]|\\.)*)'/g)) {
         literales.set(m[1].replace(/\\'/g, "'").replace(/\\"/g, '"'), f);
     }
-    for (const m of texto.matchAll(/l10n\.t\(\s*"((?:[^"\\]|\\.)*)"/g)) {
+    for (const m of text.matchAll(/l10n\.t\(\s*"((?:[^"\\]|\\.)*)"/g)) {
         literales.set(m[1].replace(/\\"/g, '"'), f);
     }
     if (/l10n\.t\(\s*`/.test(texto)) conPlantilla.push(f);
@@ -85,5 +85,5 @@ const huecos = (s) => [...s.matchAll(/\{(\d+)\}/g)].map((m) => m[1]).sort().join
 const descuadre = [...literales.keys()].filter((k) => k in bundleEs && huecos(k) !== huecos(bundleEs[k]));
 ok('los huecos {0} cuadran en las dos lenguas', descuadre.length === 0, descuadre.join(' | '));
 
-console.log(`\n===== ${fallos} fallos`);
+console.log(`\n===== ${failures} failures`);
 process.exit(fallos ? 1 : 0);

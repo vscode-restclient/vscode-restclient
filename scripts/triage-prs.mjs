@@ -11,17 +11,17 @@ const token = execSync('printf "protocol=https\\nhost=github.com\\n\\n" | git cr
   shell: 'C:/Program Files/Git/bin/bash.exe', encoding: 'utf8'
 }).split('\n').find(l => l.startsWith('password='))?.slice(9).trim();
 
-const api = async (ruta) => {
-  const r = await fetch(`https://api.github.com/repos/${REPO}${ruta}`, {
+const api = async (filePath) => {
+  const r = await fetch(`https://api.github.com/repos/${REPO}${filePath}`, {
     headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' }
   });
-  if (!r.ok) throw new Error(`${ruta}: HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`${filePath}: HTTP ${r.status}`);
   return r.json();
 };
 
 const correr = (cmd) => {
-  try { return { ok: true, salida: execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
-  catch (e) { return { ok: false, salida: (e.stdout ?? '') + (e.stderr ?? '') }; }
+  try { return { ok: true, output: execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
+  catch (e) { return { ok: false, output: (e.stdout ?? '') + (e.stderr ?? '') }; }
 };
 
 console.log('trayendo los pull requests abiertos...');
@@ -38,16 +38,16 @@ const filas = [];
 
 for (const pr of prs) {
   const votos = (await api(`/issues/${pr.number}`)).reactions?.total_count ?? 0;
-  const ficheros = (await api(`/pulls/${pr.number}/files?per_page=100`)).map(f => f.filename);
-  const soloDocs = ficheros.length > 0 && ficheros.every(f => /\.md$|^images\/|^docs\//.test(f));
+  const files = (await api(`/pulls/${pr.number}/files?per_page=100`)).map(f => f.filename);
+  const soloDocs = files.length > 0 && files.every(f => /\.md$|^images\/|^docs\//.test(f));
 
   // ¿Aplica todavía sobre nuestro main?
   correr(`git fetch origin pull/${pr.number}/head:pr-${pr.number} --quiet`);
   const existe = correr(`git rev-parse --verify pr-${pr.number}`).ok;
-  let estado = 'sin rama';
+  let status = 'sin rama';
   if (existe) {
     const merge = correr(`git merge-tree --write-tree ${base} pr-${pr.number}`);
-    estado = merge.ok ? 'aplica' : 'conflicto';
+    status = merge.ok ? 'aplica' : 'conflicto';
   }
 
   filas.push({
@@ -56,25 +56,25 @@ for (const pr of prs) {
     autor: pr.user?.login ?? '?',
     fecha: pr.created_at.slice(0, 10),
     votos,
-    ficheros: ficheros.length,
+    files: files.length,
     soloDocs,
-    estado,
-    rutas: ficheros.slice(0, 6)
+    status,
+    filePaths: files.slice(0, 6)
   });
   process.stdout.write('.');
 }
 console.log('\n');
 
-const orden = (f) => (f.estado === 'aplica' ? 0 : 1) * 1000 - f.votos;
+const orden = (f) => (f.status === 'aplica' ? 0 : 1) * 1000 - f.votos;
 filas.sort((a, b) => orden(a) - orden(b));
 
-const marca = { aplica: 'APLICA  ', conflicto: 'conflicto', 'sin rama': 'sin rama ' };
+const mark = { applies: 'APLICA  ', conflict: 'conflicto', 'sin rama': 'sin rama ' };
 console.log('estado     votos  fich  fecha       #     título');
 for (const f of filas) {
-  console.log(`${marca[f.estado]} ${String(f.votos).padStart(5)} ${String(f.ficheros).padStart(5)}  ${f.fecha}  ${String(f.n).padStart(5)}  ${f.titulo}${f.soloDocs ? '  [solo docs]' : ''}`);
+  console.log(`${mark[f.status]} ${String(f.votos).padStart(5)} ${String(f.files).padStart(5)}  ${f.fecha}  ${String(f.n).padStart(5)}  ${f.titulo}${f.soloDocs ? '  [solo docs]' : ''}`);
 }
 
-const aplican = filas.filter(f => f.estado === 'aplica');
+const aplican = filas.filter(f => f.status === 'aplica');
 console.log(`\naplican limpio: ${aplican.length} de ${filas.length}`);
 console.log(`de esos, con votos: ${aplican.filter(f => f.votos > 0).length}`);
 fs.writeFileSync('docs/triaje-prs.json', JSON.stringify(filas, null, 2));

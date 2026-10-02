@@ -14,17 +14,17 @@ if (!fs.existsSync(RUNNER)) {
 console.log(`runner: ${RUNNER}`);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-prueba-'));
-const servidor = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'servidor-pruebas.cjs');
-const hijo = spawn(process.execPath, [servidor, '127.0.0.1'], { stdio: ['ignore', 'pipe', 'inherit'] });
+const server = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'servidor-pruebas.cjs');
+const hijo = spawn(process.execPath, [server, '127.0.0.1'], { stdio: ['ignore', 'pipe', 'inherit'] });
 const puerto = await new Promise((res, rej) => {
   hijo.stdout.once('data', d => res(JSON.parse(d.toString()).puerto));
   setTimeout(() => rej(new Error('el servidor no arrancó')), 8000);
 });
 
 const BR = String.fromCharCode(10);
-const escribir = (nombre, lineas) => {
-  const f = path.join(tmp, nombre);
-  fs.writeFileSync(f, lineas.join(BR) + BR);
+const escribir = (name, lines) => {
+  const f = path.join(tmp, name);
+  fs.writeFileSync(f, lines.join(BR) + BR);
   return f;
 };
 
@@ -61,45 +61,45 @@ const malo = escribir('falla.http', [
 
 const correr = (args) => new Promise((res) => {
   const p = spawn(process.execPath, [RUNNER, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let salida = '', error = '';
-  p.stdout.on('data', d => salida += d);
+  let output = '', error = '';
+  p.stdout.on('data', d => output += d);
   p.stderr.on('data', d => error += d);
-  p.on('close', codigo => res({ codigo, salida, error }));
+  p.on('close', exitCode => res({ exitCode, output, error }));
 });
 
-let fallos = 0;
-const ok = (n, c, extra = '') => { console.log(`${c ? '  OK  ' : '  FALLA'} ${n}${extra ? ' · ' + extra : ''}`); if (!c) fallos++; };
+let failures = 0;
+const ok = (n, c, extra = '') => { console.log(`${c ? '  OK  ' : '  FALLA'} ${n}${extra ? ' · ' + extra : ''}`); if (!c) failures++; };
 
 console.log('== P-23 · el fichero completo, con dos peticiones encadenadas');
 const r1 = await correr([bueno]);
-console.log(r1.salida.trim().split(BR).map(l => '     ' + l).join(BR));
-ok('sale con código 0 cuando todo pasa', r1.codigo === 0, `código ${r1.codigo}`);
-ok('ejecuta las dos peticiones', (r1.salida.match(/ok /g) || []).length === 2);
-ok('el token de la primera llega a la segunda', r1.salida.includes('facturas') && !r1.salida.includes('FALLA'));
+console.log(r1.output.trim().split(BR).map(l => '     ' + l).join(BR));
+ok('sale con código 0 cuando todo pasa', r1.exitCode === 0, `código ${r1.exitCode}`);
+ok('ejecuta las dos peticiones', (r1.output.match(/ok /g) || []).length === 2);
+ok('el token de la primera llega a la segunda', r1.output.includes('facturas') && !r1.output.includes('FALLA'));
 
 console.log(BR + '== P-23 · una aserción que falla');
 const r2 = await correr([malo]);
-ok('sale con código 1', r2.codigo === 1, `código ${r2.codigo}`);
-ok('dice qué aserción falló y con qué valor', r2.salida.includes('status == 200') && r2.salida.includes('404'));
+ok('sale con código 1', r2.exitCode === 1, `código ${r2.exitCode}`);
+ok('dice qué aserción falló y con qué valor', r2.output.includes('status == 200') && r2.output.includes('404'));
 
 console.log(BR + '== salida en JSON, para integración continua');
 const r3 = await correr([bueno, '--json']);
-let datos = null;
-try { datos = JSON.parse(r3.salida); } catch { /* se reporta abajo */ }
-ok('la salida es JSON válido', datos !== null);
-ok('trae un paso por petición con sus aserciones', datos?.pasos?.length === 2 && datos.pasos[1].aserciones.length === 5);
-ok('las aserciones sobre cabeceras y tiempo pasan', datos?.pasos?.[1]?.aserciones?.every(a => a.pasa === true) === true,
-  (datos?.pasos?.[1]?.aserciones ?? []).filter(a => !a.pasa).map(a => a.asercion?.crudo ?? '?').join(' | '));
-ok('cada aserción dice si pasa', datos?.pasos?.[0]?.aserciones?.every(a => a.pasa === true) === true);
+let data = null;
+try { data = JSON.parse(r3.output); } catch { /* se reporta abajo */ }
+ok('la salida es JSON válido', data !== null);
+ok('trae un paso por petición con sus aserciones', data?.steps?.length === 2 && data.steps[1].assertions.length === 5);
+ok('las aserciones sobre cabeceras y tiempo pasan', data?.steps?.[1]?.assertions?.every(a => a.passed === true) === true,
+  (data?.steps?.[1]?.assertions ?? []).filter(a => !a.passed).map(a => a.assertion?.raw ?? '?').join(' | '));
+ok('cada aserción dice si pasa', data?.steps?.[0]?.assertions?.every(a => a.passed === true) === true);
 
 console.log(BR + '== variables desde la línea de órdenes');
 const conVar = escribir('var.http', ['GET {{destino}}/facturas', 'Authorization: Bearer tok-123', '', '# @assert status == 200']);
 const r4 = await correr([conVar, '--var', `destino=http://127.0.0.1:${puerto}`]);
-ok('--var sustituye la variable', r4.codigo === 0, r4.salida.trim().split(BR)[0]);
+ok('--var sustituye la variable', r4.exitCode === 0, r4.output.trim().split(BR)[0]);
 
 console.log(BR + '== formato JetBrains: entornos de fichero, import, run y secretos');
-fs.writeFileSync(path.join(tmp, 'http-client.env.json'), JSON.stringify({ dev: { host: `http://127.0.0.1:${puerto}`, ruta: '/eco/publico' } }));
-fs.writeFileSync(path.join(tmp, 'http-client.private.env.json'), JSON.stringify({ dev: { ruta: '/eco/privado' } }));
+fs.writeFileSync(path.join(tmp, 'http-client.env.json'), JSON.stringify({ dev: { host: `http://127.0.0.1:${puerto}`, filePath: '/eco/publico' } }));
+fs.writeFileSync(path.join(tmp, 'http-client.private.env.json'), JSON.stringify({ dev: { filePath: '/eco/privado' } }));
 fs.mkdirSync(path.join(tmp, 'lib'), { recursive: true });
 escribir(path.join('lib', 'auth.http'), ['# @name login', 'POST {{host}}/auth', 'Content-Type: application/json', '', '{"user":"ana"}']);
 const jet = escribir('jet.http', [
@@ -126,19 +126,19 @@ const jet = escribir('jet.http', [
   '# @assert status == 200',
 ]);
 const r7 = await correr([jet, '--env', 'dev', '--secret', 'API_KEY=clave-123', '--json']);
-let d7 = null; try { d7 = JSON.parse(r7.salida); } catch { /* abajo */ }
-ok('--env lee el entorno de http-client.env.json y el privado manda', r7.codigo === 0 && d7?.pasos?.[1]?.aserciones?.every(a => a.pasa), r7.salida.slice(0, 300));
-ok('run #login ejecuta la petición importada con su nombre', d7?.pasos?.[0]?.nombre === 'login' && d7?.pasos?.[0]?.estado === 200);
-ok('la respuesta del importado encadena en el fichero que importa', d7?.pasos?.[2]?.estado === 200);
+let d7 = null; try { d7 = JSON.parse(r7.output); } catch { /* abajo */ }
+ok('--env lee el entorno de http-client.env.json y el privado manda', r7.exitCode === 0 && d7?.steps?.[1]?.assertions?.every(a => a.passed), r7.output.slice(0, 300));
+ok('run #login ejecuta la petición importada con su nombre', d7?.steps?.[0]?.name === 'login' && d7?.steps?.[0]?.status === 200);
+ok('la respuesta del importado encadena en el fichero que importa', d7?.steps?.[2]?.status === 200);
 const r8 = await correr([jet, '--env', 'dev']);
-ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.codigo === 1 && r8.salida.includes('falta el secreto "API_KEY"') && r8.salida.includes('RESTCLIENT_SECRET_API_KEY'), r8.salida.split(BR).find(l => l.includes('secreto')) ?? '');
+ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.exitCode === 1 && r8.output.includes('falta el secreto "API_KEY"') && r8.output.includes('RESTCLIENT_SECRET_API_KEY'), r8.output.split(BR).find(l => l.includes('secreto')) ?? '');
 const r9 = await new Promise((res) => {
   const p2 = spawn(process.execPath, [RUNNER, jet, '--env', 'dev', '--continuar'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, RESTCLIENT_SECRET_API_KEY: 'clave-123' } });
-  let salida = ''; p2.stdout.on('data', d => salida += d); p2.on('close', codigo => res({ codigo, salida }));
+  let output = ''; p2.stdout.on('data', d => output += d); p2.on('close', exitCode => res({ exitCode, output }));
 });
-ok('el secreto también llega por RESTCLIENT_SECRET*', r9.codigo === 0, r9.salida.split(BR)[1] ?? '');
+ok('el secreto también llega por RESTCLIENT_SECRET*', r9.exitCode === 0, r9.output.split(BR)[1] ?? '');
 const r10 = await correr([jet, '--env', 'no-existe', '--secret', 'API_KEY=x', '--continuar']);
-ok('un entorno que no existe avisa y no revienta', r10.codigo !== 2 && r10.error.includes('--env no-existe'), r10.error.split(BR)[0]);
+ok('un entorno que no existe avisa y no revienta', r10.exitCode !== 2 && r10.error.includes('--env no-existe'), r10.error.split(BR)[0]);
 
 console.log(BR + '== streaming: SSE y WebSocket');
 const sse = escribir('sse.http', [
@@ -151,7 +151,7 @@ const sse = escribir('sse.http', [
   '# @assert sse.last == [DONE]',
 ]);
 const r12 = await correr([sse, '--timeout', '5000']);
-ok('un text/event-stream se lee entero y sse.* funciona', r12.codigo === 0, r12.salida.trim().split(BR).slice(0, 3).join(' | '));
+ok('un text/event-stream se lee entero y sse.* funciona', r12.exitCode === 0, r12.output.trim().split(BR).slice(0, 3).join(' | '));
 const ws = escribir('socket.http', [
   '# @timeout 700',
   `WEBSOCKET ws://127.0.0.1:${puerto}/socket`,
@@ -167,8 +167,8 @@ const ws = escribir('socket.http', [
   '# @assert ws.last == eco: segundo',
 ]);
 const r13 = await correr([ws, '--json']);
-let d13 = null; try { d13 = JSON.parse(r13.salida); } catch { /* abajo */ }
-ok('WEBSOCKET: saludo, eco de dos mensajes y cierre por @timeout', r13.codigo === 0 && d13?.pasos?.[0]?.estado === 101, (d13?.pasos?.[0]?.aserciones ?? []).filter(a => !a.pasa).map(a => a.asercion + ' -> ' + a.obtenido).join(' | ') || r13.error.slice(0, 200));
+let d13 = null; try { d13 = JSON.parse(r13.output); } catch { /* abajo */ }
+ok('WEBSOCKET: saludo, eco de dos mensajes y cierre por @timeout', r13.exitCode === 0 && d13?.steps?.[0]?.status === 101, (d13?.steps?.[0]?.assertions ?? []).filter(a => !a.passed).map(a => a.assertion + ' -> ' + a.actual).join(' | ') || r13.error.slice(0, 200));
 
 console.log(BR + '== multiparte con fichero, cURL pegado y --junit');
 fs.writeFileSync(path.join(tmp, 'adjunto.txt'), 'contenido del adjunto {{host}}');
@@ -198,25 +198,25 @@ const multi = escribir('multi.http', [
 ]);
 const junit = path.join(tmp, 'informe.xml');
 const r14 = await correr([multi, '--var', `host=http://127.0.0.1:${puerto}`, '--json', '--junit', junit]);
-let d14 = null; try { d14 = JSON.parse(r14.salida); } catch { /* abajo */ }
-const cuerpoMulti = d14?.pasos?.[0] ? '' : r14.salida.slice(0, 200);
-ok('un multiparte con <@ fichero llega con el contenido y las variables sustituidas', r14.codigo === 0 && d14?.pasos?.[0]?.aserciones?.every(a => a.pasa), (d14?.pasos?.[0]?.aserciones ?? []).filter(a => !a.pasa).map(a => a.asercion + ' -> ' + a.obtenido).join(' | ') || cuerpoMulti);
-ok('una orden curl pegada se envía como curl lo haría', d14?.pasos?.[1]?.aserciones?.every(a => a.pasa) === true, (d14?.pasos?.[1]?.aserciones ?? []).filter(a => !a.pasa).map(a => a.asercion + ' -> ' + a.obtenido).join(' | '));
+let d14 = null; try { d14 = JSON.parse(r14.output); } catch { /* abajo */ }
+const cuerpoMulti = d14?.steps?.[0] ? '' : r14.output.slice(0, 200);
+ok('un multiparte con <@ fichero llega con el contenido y las variables sustituidas', r14.exitCode === 0 && d14?.steps?.[0]?.assertions?.every(a => a.passed), (d14?.steps?.[0]?.assertions ?? []).filter(a => !a.passed).map(a => a.assertion + ' -> ' + a.actual).join(' | ') || cuerpoMulti);
+ok('una orden curl pegada se envía como curl lo haría', d14?.steps?.[1]?.assertions?.every(a => a.passed) === true, (d14?.steps?.[1]?.assertions ?? []).filter(a => !a.passed).map(a => a.assertion + ' -> ' + a.actual).join(' | '));
 const xml = fs.existsSync(junit) ? fs.readFileSync(junit, 'utf8') : '';
 ok('--junit escribe un informe con un caso por petición', xml.includes('tests="2" failures="0" errors="0"') && (xml.match(/<testcase /g) || []).length === 2, xml.slice(0, 120));
 const r15 = await correr([malo, '--junit', junit]);
 const xmlMalo = fs.readFileSync(junit, 'utf8');
-ok('el informe recoge la aserción fallida', r15.codigo === 1 && xmlMalo.includes('failures="1"') && xmlMalo.includes('<failure message="status == 200 -&gt; 404"/>'), xmlMalo.split(BR).find(l => l.includes('failure')) ?? '');
+ok('el informe recoge la aserción fallida', r15.exitCode === 1 && xmlMalo.includes('failures="1"') && xmlMalo.includes('<failure message="status == 200 -&gt; 404"/>'), xmlMalo.split(BR).find(l => l.includes('failure')) ?? '');
 
 console.log(BR + '== errores de uso');
 const r5 = await correr([]);
-ok('sin fichero explica cómo se usa', r5.codigo === 2 && r5.error.includes('uso:'));
+ok('sin fichero explica cómo se usa', r5.exitCode === 2 && r5.error.includes('uso:'));
 const r6 = await correr([bueno, '--var', 'malescrita']);
-ok('una variable mal escrita se rechaza', r6.codigo === 2 && r6.error.includes('clave=valor'));
+ok('una variable mal escrita se rechaza', r6.exitCode === 2 && r6.error.includes('clave=valor'));
 const r11 = await correr([bueno, '--secret', 'sin-igual']);
-ok('un secreto mal escrito se rechaza', r11.codigo === 2 && r11.error.includes('clave=valor'));
+ok('un secreto mal escrito se rechaza', r11.exitCode === 2 && r11.error.includes('clave=valor'));
 
 hijo.kill();
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log(`${BR}===== ${fallos} fallos`);
-process.exit(fallos ? 1 : 0);
+console.log(`${BR}===== ${failures} fallos`);
+process.exit(failures ? 1 : 0);

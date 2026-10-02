@@ -4,7 +4,7 @@ import * as Constants from '../common/constants';
 import { fromString as ParseReqMetaKey, RequestMetadata } from '../models/requestMetadata';
 import { SelectedRequest } from '../models/SelectedRequest';
 import { VariableProcessor } from './variableProcessor';
-import { cerrarImportaciones, LINEA_IMPORT, resolverRun, RUN } from '../core/importaciones';
+import { closeImports, IMPORT_LINE, resolveRun, RUN } from '../core/imports';
 
 export interface RequestRangeOptions {
     ignoreCommentLine?: boolean;
@@ -22,8 +22,8 @@ export class Selector {
     private static readonly responseStatusLineRegex = /^\s*HTTP\/[\d.]+/;
 
     /** Lee una petición a partir de su texto (p. ej. `run #login`), resolviendo variables contra el documento dado. */
-    public static async getRequestFromText(document: TextDocument, texto: string): Promise<SelectedRequest | null> {
-        return this.leerPeticion(document, texto);
+    public static async getRequestFromText(document: TextDocument, text: string): Promise<SelectedRequest | null> {
+        return this.readRequest(document, text);
     }
 
     public static async getRequest(editor: TextEditor, range: Range | null = null): Promise<SelectedRequest | null> {
@@ -55,15 +55,15 @@ export class Selector {
             return null;
         }
 
-        return this.leerPeticion(editor.document, selectedText);
+        return this.readRequest(editor.document, selectedText);
     }
 
-    private static async leerPeticion(document: TextDocument, selectedText: string): Promise<SelectedRequest | null> {
+    private static async readRequest(document: TextDocument, selectedText: string): Promise<SelectedRequest | null> {
         // `run #nombre`: se sustituye por la petición con ese nombre, de este
         // fichero o de uno importado, antes de leer nada más.
         if (RUN.test(selectedText)) {
             try {
-                selectedText = Selector.resolverRun(document, selectedText);
+                selectedText = Selector.resolveRun(document, selectedText);
             } catch (e) {
                 window.showErrorMessage(e instanceof Error ? e.message : String(e));
                 return null;
@@ -101,10 +101,10 @@ export class Selector {
         };
     }
 
-    private static resolverRun(document: TextDocument, texto: string): string {
+    private static resolveRun(document: TextDocument, text: string): string {
         const completo = document.getText();
-        const importados = document.uri.scheme === 'file' ? cerrarImportaciones(document.fileName, completo).importados : [];
-        return resolverRun({ texto, linea: 0 }, completo, importados).texto;
+        const imported = document.uri.scheme === 'file' ? closeImports(document.fileName, completo).imported : [];
+        return resolveRun({ text, line: 0 }, completo, imported).text;
     }
 
     public static parseReqMetadatas(lines: string[]): Map<RequestMetadata, string | undefined> {
@@ -202,7 +202,7 @@ export class Selector {
 
     /** `import ./otro.http`: no es una petición, es una declaración. */
     public static isImportLine(line: string): boolean {
-        return LINEA_IMPORT.test(line);
+        return IMPORT_LINE.test(line);
     }
 
     public static isResponseStatusLine(line: string): boolean {

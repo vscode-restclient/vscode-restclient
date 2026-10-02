@@ -10,21 +10,21 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { Bloque, trocear } from './secuencia';
+import { Block, splitBlocks } from './sequence';
 
 const IMPORT = /^\s*import\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/gm;
-export const LINEA_IMPORT = /^\s*import\s+\S/;
+export const IMPORT_LINE = /^\s*import\s+\S/;
 export const RUN = /^\s*run\s+#(\S+)\s*$/m;
 
-export interface Importado {
-    fichero: string;
-    texto: string;
+export interface Imported {
+    file: string;
+    text: string;
 }
 
 /** Rutas de `import` de un texto, resueltas contra la carpeta del fichero que las contiene. */
-export function rutasImportadas(texto: string, ficheroBase: string): string[] {
+export function importedPaths(text: string, ficheroBase: string): string[] {
     const dir = path.dirname(path.resolve(ficheroBase));
-    return [...texto.matchAll(IMPORT)].map(m => path.resolve(dir, m[1] ?? m[2] ?? m[3]));
+    return [...text.matchAll(IMPORT)].map(m => path.resolve(dir, m[1] ?? m[2] ?? m[3]));
 }
 
 /**
@@ -33,15 +33,15 @@ export function rutasImportadas(texto: string, ficheroBase: string): string[] {
  * una sola vez. Los que no existen se saltan y se devuelven aparte para poder
  * avisar.
  */
-export function cerrarImportaciones(
-    fichero: string,
-    texto?: string,
+export function closeImports(
+    file: string,
+    text?: string,
     leer: (f: string) => string = (f) => fs.readFileSync(f, 'utf8')
-): { importados: Importado[]; faltan: string[] } {
-    const raiz = path.resolve(fichero);
-    const vistos = new Set<string>([raiz]);
-    const cola = rutasImportadas(texto ?? leer(raiz), raiz);
-    const importados: Importado[] = [];
+): { imported: Imported[]; faltan: string[] } {
+    const root = path.resolve(file);
+    const vistos = new Set<string>([root]);
+    const cola = importedPaths(text ?? leer(root), root);
+    const imported: Imported[] = [];
     const faltan: string[] = [];
     while (cola.length) {
         const f = cola.shift()!;
@@ -54,22 +54,22 @@ export function cerrarImportaciones(
             continue;
         }
         const t = leer(f);
-        importados.push({ fichero: f, texto: t });
-        cola.push(...rutasImportadas(t, f));
+        imported.push({ file: f, text: t });
+        cola.push(...importedPaths(t, f));
     }
-    return { importados, faltan };
+    return { imported, faltan };
 }
 
 /** Bloque con `@name` = nombre: primero en el propio texto, luego en los importados, en orden. */
-export function bloqueLlamado(nombre: string, texto: string, importados: Importado[]): (Bloque & { fichero?: string }) | undefined {
-    const propio = trocear(texto).find(b => b.nombre === nombre);
+export function namedBlock(name: string, text: string, imported: Imported[]): (Block & { file?: string }) | undefined {
+    const propio = splitBlocks(text).find(b => b.name === name);
     if (propio) {
         return propio;
     }
-    for (const i of importados) {
-        const b = trocear(i.texto).find(x => x.nombre === nombre);
+    for (const i of imported) {
+        const b = splitBlocks(i.text).find(x => x.name === name);
         if (b) {
-            return { ...b, fichero: i.fichero };
+            return { ...b, file: i.file };
         }
     }
     return undefined;
@@ -80,32 +80,32 @@ export function bloqueLlamado(nombre: string, texto: string, importados: Importa
  * la respuesta se guarde con ese nombre); si no, el mismo bloque. Conserva la
  * línea del `run` para que los errores señalen donde está escrito.
  */
-export function resolverRun(bloque: Bloque, texto: string, importados: Importado[]): Bloque & { fichero?: string } {
-    const m = RUN.exec(bloque.texto);
+export function resolveRun(block: Block, text: string, imported: Imported[]): Block & { file?: string } {
+    const m = RUN.exec(block.text);
     if (!m) {
-        return bloque;
+        return block;
     }
-    const real = bloqueLlamado(m[1], texto, importados);
+    const real = namedBlock(m[1], text, imported);
     if (!real) {
         throw new Error(`run #${m[1]}: no hay ninguna petición con ese nombre en este fichero ni en los importados`);
     }
-    return { ...real, linea: bloque.linea };
+    return { ...real, line: block.line };
 }
 
 /** `@variable = valor` de un texto, en orden de aparición (la última definición gana). */
-export function variablesDeTexto(texto: string): Record<string, string> {
+export function textVariables(text: string): Record<string, string> {
     const fuera: Record<string, string> = {};
-    for (const m of texto.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*?)\s*$/gm)) {
+    for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*?)\s*$/gm)) {
         fuera[m[1]] = m[2];
     }
     return fuera;
 }
 
 /** Variables de los importados (en orden) con las propias encima. */
-export function variablesConImportados(texto: string, importados: Importado[]): Record<string, string> {
+export function variablesWithImports(text: string, imported: Imported[]): Record<string, string> {
     let fuera: Record<string, string> = {};
-    for (const i of importados) {
-        fuera = { ...fuera, ...variablesDeTexto(i.texto) };
+    for (const i of imported) {
+        fuera = { ...fuera, ...textVariables(i.text) };
     }
-    return { ...fuera, ...variablesDeTexto(texto) };
+    return { ...fuera, ...textVariables(text) };
 }

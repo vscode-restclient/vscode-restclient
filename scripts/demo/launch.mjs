@@ -128,12 +128,12 @@ async function main() {
     });
     console.log(`servidor de la demo en ${puerto}`);
 
-    const trabajo = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-ws-'));
-    fs.writeFileSync(path.join(trabajo, 'api.http'), API_HTTP(puerto));
-    fs.writeFileSync(path.join(trabajo, 'pruebas.http'), PRUEBAS_HTTP(puerto));
-    fs.writeFileSync(path.join(trabajo, 'chat.http'), CHAT_HTTP(puerto));
-    fs.mkdirSync(path.join(trabajo, '.vscode'));
-    fs.writeFileSync(path.join(trabajo, '.vscode', 'settings.json'), JSON.stringify(AJUSTES, null, 2));
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-ws-'));
+    fs.writeFileSync(path.join(work, 'api.http'), API_HTTP(puerto));
+    fs.writeFileSync(path.join(work, 'pruebas.http'), PRUEBAS_HTTP(puerto));
+    fs.writeFileSync(path.join(work, 'chat.http'), CHAT_HTTP(puerto));
+    fs.mkdirSync(path.join(work, '.vscode'));
+    fs.writeFileSync(path.join(work, '.vscode', 'settings.json'), JSON.stringify(AJUSTES, null, 2));
 
     const capturador = cp.spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -146,7 +146,7 @@ async function main() {
             extensionDevelopmentPath: RAIZ,
             extensionTestsPath: path.join(RAIZ, 'scripts', 'demo', 'guion.cjs'),
             launchArgs: [
-                trabajo,
+                work,
                 `--user-data-dir=${path.join(RAIZ, '.vscode-test', 'demo-user-data')}`,
                 '--disable-extensions',
                 '--disable-workspace-trust',
@@ -163,7 +163,7 @@ async function main() {
         hijo.kill();
         await new Promise((r) => capturador.on('close', r));
         fs.rmSync(tmpServidor, { recursive: true, force: true });
-        fs.rmSync(trabajo, { recursive: true, force: true });
+        fs.rmSync(work, { recursive: true, force: true });
     }
 
     const fotogramas = fs.readdirSync(SALIDA).filter((f) => /^f\d+\.png$/.test(f)).length;

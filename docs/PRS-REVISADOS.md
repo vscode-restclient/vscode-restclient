@@ -1,6 +1,6 @@
 # Los 61 pull requests abiertos del proyecto original
 
-Triaje del 24 de agosto de 2026, con `scripts/triaje-prs.mjs`. El detalle
+Triaje del 24 de agosto de 2026, con `scripts/triage-prs.mjs`. El detalle
 completo está en `docs/triaje-prs.json`.
 
 **Nueve de los sesenta y uno aplican limpio** sobre esta base; los otros 52

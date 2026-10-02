@@ -11,7 +11,7 @@ import { PreviewOption } from '../models/previewOption';
  * no se lee de ningún sitio, porque un fichero que se ejecuta en integración
  * continua debe comportarse igual en todas las máquinas.
  */
-export function ajustesMinimos(): IRestClientSettings {
+export function minimalSettings(): IRestClientSettings {
     return {
         followRedirect: true,
         defaultHeaders: { 'User-Agent': 'vscode-restclient' },

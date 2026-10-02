@@ -13,24 +13,24 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const FICHERO_PUBLICO = 'http-client.env.json';
-export const FICHERO_PRIVADO = 'http-client.private.env.json';
+export const PUBLIC_FILE = 'http-client.env.json';
+export const PRIVATE_FILE = 'http-client.private.env.json';
 
-export type Entornos = Record<string, Record<string, string>>;
+export type Environments = Record<string, Record<string, string>>;
 
 /**
  * Sube carpeta a carpeta desde `desde` y devuelve la primera que tenga alguno
  * de los dos ficheros. `tope` (la raíz del espacio de trabajo, normalmente)
  * frena la búsqueda: más arriba no es del proyecto.
  */
-export function carpetaDeEntornos(desde: string, tope?: string): string | undefined {
+export function environmentsFolder(desde: string, tope?: string): string | undefined {
     let dir = path.resolve(desde);
-    const limite = tope ? path.resolve(tope) : undefined;
+    const limit = tope ? path.resolve(tope) : undefined;
     for (;;) {
-        if (fs.existsSync(path.join(dir, FICHERO_PUBLICO)) || fs.existsSync(path.join(dir, FICHERO_PRIVADO))) {
+        if (fs.existsSync(path.join(dir, PUBLIC_FILE)) || fs.existsSync(path.join(dir, PRIVATE_FILE))) {
             return dir;
         }
-        if (limite && dir === limite) {
+        if (limit && dir === limit) {
             return undefined;
         }
         const padre = path.dirname(dir);
@@ -46,38 +46,38 @@ export function carpetaDeEntornos(desde: string, tope?: string): string | undefi
  * y se sigue con lo que haya, que es lo que uno quiere mientras edita el
  * fichero.
  */
-export function leerEntornos(carpeta: string, avisar: (mensaje: string) => void = () => { /* silencio */ }): Entornos {
-    const fuera: Entornos = {};
-    for (const nombre of [FICHERO_PUBLICO, FICHERO_PRIVADO]) {
-        const ruta = path.join(carpeta, nombre);
-        if (!fs.existsSync(ruta)) {
+export function readEnvironments(folder: string, warn: (message: string) => void = () => { /* silencio */ }): Environments {
+    const fuera: Environments = {};
+    for (const name of [PUBLIC_FILE, PRIVATE_FILE]) {
+        const filePath = path.join(folder, name);
+        if (!fs.existsSync(filePath)) {
             continue;
         }
         try {
-            const json = JSON.parse(fs.readFileSync(ruta, 'utf8'));
+            const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
             if (typeof json !== 'object' || json === null) {
-                avisar(`${nombre}: se esperaba un objeto con un entorno por clave`);
+                warn(`${name}: se esperaba un objeto con un entorno por clave`);
                 continue;
             }
-            for (const [entorno, vars] of Object.entries(json)) {
+            for (const [environment, vars] of Object.entries(json)) {
                 if (typeof vars !== 'object' || vars === null) {
                     continue;
                 }
-                fuera[entorno] = { ...(fuera[entorno] ?? {}), ...aTexto(vars as Record<string, unknown>) };
+                fuera[environment] = { ...(fuera[environment] ?? {}), ...aTexto(vars as Record<string, unknown>) };
             }
         } catch (e) {
-            avisar(`${nombre}: ${e instanceof Error ? e.message : String(e)}`);
+            warn(`${name}: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
     return fuera;
 }
 
 /** Variables del entorno pedido, o `{}` si no existe. */
-export function variablesDelEntorno(carpeta: string | undefined, entorno: string | undefined, avisar?: (m: string) => void): Record<string, string> {
-    if (!carpeta || !entorno) {
+export function environmentVariables(folder: string | undefined, environment: string | undefined, warn?: (m: string) => void): Record<string, string> {
+    if (!folder || !environment) {
         return {};
     }
-    return leerEntornos(carpeta, avisar)[entorno] ?? {};
+    return readEnvironments(folder, warn)[environment] ?? {};
 }
 
 /** Un valor que no sea texto (número, objeto) se usa tal cual se escribiría en la petición. */

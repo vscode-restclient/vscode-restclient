@@ -16,21 +16,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 import * as http from 'http';
-import { entornoTerminal } from '../core/entorno';
-import { carpetaDeEntornos, leerEntornos } from '../core/entornosJetBrains';
-import { cerrarImportaciones, Importado, resolverRun, variablesConImportados } from '../core/importaciones';
-import { parsear } from './parserMinimo';
-import { Bloque, ejecutarSecuencia, esPeticion, trocear } from '../core/secuencia';
-import { comprobar, leerAserciones, Resultado } from '../core/aserciones';
-import { esEventStream } from '../core/sse';
-import { hablar, mensajesDelCuerpo, MS_ESCUCHA_POR_DEFECTO } from '../core/websocket';
+import { terminalEnvironment } from '../core/environment';
+import { environmentsFolder, readEnvironments } from '../core/jetBrainsEnvironments';
+import { closeImports, Imported, resolveRun, variablesWithImports } from '../core/imports';
+import { parseRequests } from './minimalParser';
+import { Block, runSequence, isRequest, splitBlocks } from '../core/sequence';
+import { checkAssertions, readAssertions, AssertionResult } from '../core/assertions';
+import { isEventStream } from '../core/sse';
+import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { aJunit } from '../core/junit';
 
-export interface Opciones {
-    fichero: string;
+export interface Options {
+    file: string;
     variables: Record<string, string>;
-    secretos: Record<string, string>;
-    entorno?: string;
+    secrets: Record<string, string>;
+    environment?: string;
     continuar: boolean;
     json: boolean;
     timeoutMs: number;
@@ -40,13 +40,13 @@ export interface Opciones {
     junit?: string;
 }
 
-export const USO = 'uso: restclient <fichero.http> [--env nombre] [--var clave=valor] [--secret NOMBRE=valor] [--continuar] [--json] [--junit informe.xml] [--timeout ms]';
+export const USAGE = 'uso: restclient <fichero.http> [--env nombre] [--var clave=valor] [--secret NOMBRE=valor] [--continuar] [--json] [--junit informe.xml] [--timeout ms]';
 
-export function leerArgumentos(argv: string[]): Opciones | string {
+export function readArguments(argv: string[]): Options | string {
     const variables: Record<string, string> = {};
-    const secretos: Record<string, string> = {};
-    let fichero = '';
-    let entorno: string | undefined;
+    const secrets: Record<string, string> = {};
+    let file = '';
+    let environment: string | undefined;
     let continuar = false;
     let json = false;
     let junit: string | undefined;
@@ -73,10 +73,10 @@ export function leerArgumentos(argv: string[]): Opciones | string {
             if (typeof r === 'string') {
                 return r;
             }
-            secretos[r[0]] = r[1];
+            secrets[r[0]] = r[1];
         } else if (a === '--env' || a === '-e') {
-            entorno = argv[++i];
-            if (!entorno) {
+            environment = argv[++i];
+            if (!environment) {
                 return '--env necesita el nombre de un entorno de http-client.env.json';
             }
         } else if (a === '--timeout') {
@@ -94,22 +94,22 @@ export function leerArgumentos(argv: string[]): Opciones | string {
                 return '--junit necesita la ruta del informe XML';
             }
         } else if (!a.startsWith('-')) {
-            fichero = a;
+            file = a;
         }
     }
-    if (!fichero) {
-        return USO;
+    if (!file) {
+        return USAGE;
     }
-    return { fichero, variables, secretos, entorno, continuar, json, timeoutMs, junit };
+    return { file, variables, secrets, environment, continuar, json, timeoutMs, junit };
 }
 
 /** El bloque con `@name` = nombre, ya sea en el fichero o vía `run #nombre`. */
-function soloElBloque(bloques: Bloque[], nombre: string): Bloque[] {
-    const directo = bloques.find(b => b.nombre === nombre);
+function soloElBloque(blocks: Block[], name: string): Block[] {
+    const directo = blocks.find(b => b.name === name);
     if (directo) {
         return [directo];
     }
-    return [{ texto: `run #${nombre}`, linea: 0 }];
+    return [{ text: `run #${name}`, line: 0 }];
 }
 
 /**
@@ -117,21 +117,21 @@ function soloElBloque(bloques: Bloque[], nombre: string): Bloque[] {
  * y válidas para todo el fichero. Se leen del texto completo, no del bloque,
  * porque así es como funcionan en el editor.
  */
-export function variablesDeFichero(texto: string): Record<string, string> {
+export function fileVariables(text: string): Record<string, string> {
     const fuera: Record<string, string> = {};
-    for (const m of texto.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*)$/gm)) {
+    for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*)$/gm)) {
         fuera[m[1]] = m[2].trim();
     }
     return fuera;
 }
 
 /** Secretos: de la línea de órdenes, o de `RESTCLIENT_SECRET_NOMBRE`. Faltar es un error, no un hueco. */
-export function secreto(nombre: string, secretos: Record<string, string>): string {
-    const valor = secretos[nombre] ?? process.env[`RESTCLIENT_SECRET_${nombre}`];
-    if (valor === undefined) {
-        throw new Error(`falta el secreto "${nombre}": pásalo con --secret ${nombre}=valor o en la variable de entorno RESTCLIENT_SECRET_${nombre}`);
+export function secret(name: string, secrets: Record<string, string>): string {
+    const value = secrets[name] ?? process.env[`RESTCLIENT_SECRET_${name}`];
+    if (value === undefined) {
+        throw new Error(`falta el secreto "${name}": pásalo con --secret ${name}=valor o en la variable de entorno RESTCLIENT_SECRET_${name}`);
     }
-    return valor;
+    return value;
 }
 
 /**
@@ -140,25 +140,25 @@ export function secreto(nombre: string, secretos: Record<string, string>): strin
  * que en el editor, con los alias de JetBrains, para que un fichero se
  * comporte igual en los dos sitios.
  */
-export function sustituir(texto: string, variables: Record<string, string>, secretos: Record<string, string> = {}): string {
-    return texto.replace(/\{\{([^{}]+)\}\}/g, (completo, nombre: string) => {
-        const clave = nombre.trim();
-        if (clave in variables) {
-            return variables[clave];
+export function substitute(text: string, variables: Record<string, string>, secrets: Record<string, string> = {}): string {
+    return text.replace(/\{\{([^{}]+)\}\}/g, (completo, name: string) => {
+        const key = name.trim();
+        if (key in variables) {
+            return variables[key];
         }
-        const [sistema, ...resto] = clave.split(/\s+/);
+        const [sistema, ...resto] = key.split(/\s+/);
         const argumento = resto.join(' ');
         switch (sistema.replace(/\(.*$/, '')) {
             case '$processEnv': return process.env[argumento] ?? '';
             case '$faker': {
-                const grupos = fakerRegex.exec(clave);
+                const grupos = fakerRegex.exec(key);
                 if (!grupos) {
                     return completo;
                 }
                 const r = resolveFakerPath(faker, grupos[1], grupos[2]);
                 return 'value' in r ? r.value : completo;
             }
-            case '$secret': return secreto(argumento, secretos);
+            case '$secret': return secret(argumento, secrets);
             case '$guid':
             case '$uuid': return crypto.randomUUID();
             case '$timestamp': return String(Math.floor(Date.now() / 1000));
@@ -169,7 +169,7 @@ export function sustituir(texto: string, variables: Record<string, string>, secr
                 return Number.isFinite(min) && Number.isFinite(max) && min < max ? String(min + Math.floor(Math.random() * (max - min))) : completo;
             }
             case '$random.integer': {
-                const m = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(clave);
+                const m = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(key);
                 if (!m) {
                     return completo;
                 }
@@ -181,135 +181,135 @@ export function sustituir(texto: string, variables: Record<string, string>, secr
     });
 }
 
-export async function ejecutar(opciones: Opciones, salida: (linea: string) => void): Promise<number> {
-    const ficheroAbs = path.resolve(opciones.fichero);
-    const texto = fs.readFileSync(ficheroAbs, 'utf8');
-    const raiz = path.dirname(ficheroAbs);
-    const entorno = entornoTerminal(raiz, ficheroAbs);
+export async function execute(options: Options, output: (line: string) => void): Promise<number> {
+    const ficheroAbs = path.resolve(options.file);
+    const text = fs.readFileSync(ficheroAbs, 'utf8');
+    const root = path.dirname(ficheroAbs);
+    const environment = terminalEnvironment(root, ficheroAbs);
 
-    const { importados, faltan } = cerrarImportaciones(ficheroAbs, texto);
+    const { imported, faltan } = closeImports(ficheroAbs, text);
     for (const f of faltan) {
-        entorno.avisar(`import: no existe ${f}`);
+        environment.warn(`import: no existe ${f}`);
     }
 
     // Prioridad de menor a mayor: entorno de fichero -> @variables (importadas,
     // luego propias) -> --var. Lo de la línea de órdenes manda: es lo que
     // permite apuntar el mismo fichero a otro sitio desde el servidor de CI.
     const variables = {
-        ...variablesDeEntorno(raiz, opciones.entorno, entorno.avisar),
-        ...variablesConImportados(texto, importados),
-        ...opciones.variables
+        ...variablesDeEntorno(root, options.environment, environment.warn),
+        ...variablesWithImports(text, imported),
+        ...options.variables
     };
 
-    const todos = trocear(texto).filter(esPeticion);
-    const bloques = opciones.solo ? soloElBloque(todos, opciones.solo) : todos;
-    const porBloque = new Map<number, Resultado[]>();
+    const todos = splitBlocks(text).filter(isRequest);
+    const blocks = options.solo ? soloElBloque(todos, options.solo) : todos;
+    const porBloque = new Map<number, AssertionResult[]>();
     // Lo que ya han devuelto las peticiones con nombre, para poder encadenar.
-    const previas = new Map<string, { cuerpo: string; cabeceras: Record<string, string | undefined>; estado: number }>();
+    const previous = new Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>();
 
-    const pasos = await ejecutarSecuencia(bloques, {
-        continuarTrasFallo: opciones.continuar,
-        resolver: async (b: Bloque) => {
-            const real = resolverRun(b, texto, importados);
-            return { ...real, texto: sustituir(resolverPrevias(real.texto, previas), variables, opciones.secretos) };
+    const steps = await runSequence(blocks, {
+        continueOnFailure: options.continuar,
+        resolver: async (b: Block) => {
+            const real = resolveRun(b, text, imported);
+            return { ...real, text: substitute(resolvePrevious(real.text, previous), variables, options.secrets) };
         },
-        enviar: async (b: Bloque) => {
-            const peticion = parsear(b.texto, raiz, t => sustituir(t, variables, opciones.secretos));
-            const timeout = timeoutDelBloque(b.texto);
-            const resultado = peticion.metodo === 'WEBSOCKET'
-                ? await enviarWebSocket(peticion, timeout ?? MS_ESCUCHA_POR_DEFECTO)
-                : await enviarPeticion(peticion, timeout ?? opciones.timeoutMs);
-            if (b.nombre) {
-                previas.set(b.nombre, resultado);
+        enviar: async (b: Block) => {
+            const request = parseRequests(b.text, root, t => substitute(t, variables, options.secrets));
+            const timeout = blockTimeout(b.text);
+            const result = request.method === 'WEBSOCKET'
+                ? await enviarWebSocket(request, timeout ?? DEFAULT_LISTEN_MS)
+                : await sendRequest(request, timeout ?? options.timeoutMs);
+            if (b.name) {
+                previous.set(b.name, result);
             }
-            return resultado;
+            return result;
         },
     });
 
-    let fallos = 0;
-    pasos.forEach((paso, i) => {
-        const resultados = paso.error
+    let failures = 0;
+    steps.forEach((step, i) => {
+        const results = step.error
             ? []
-            : comprobar(leerAserciones(bloques[i].texto), { estado: paso.estado, cuerpo: paso.cuerpo, cabeceras: paso.cabeceras, ms: paso.ms });
-        porBloque.set(i, resultados);
-        const malas = resultados.filter(r => !r.pasa);
-        fallos += malas.length + (paso.error ? 1 : 0);
+            : checkAssertions(readAssertions(blocks[i].text), { status: step.status, body: step.body, headers: step.headers, ms: step.ms });
+        porBloque.set(i, results);
+        const failed = results.filter(r => !r.passed);
+        failures += failed.length + (step.error ? 1 : 0);
 
-        if (!opciones.json) {
-            const marca = paso.error ? 'ERROR' : malas.length ? 'FALLA' : '  ok ';
-            salida(`${marca}  ${paso.nombre.padEnd(20)} ${String(paso.estado ?? '').padStart(3)}  ${paso.ms} ms`);
-            for (const m of malas) {
-                salida(`         ${m.asercion.crudo}   ->  ${recortar(m.obtenido)}`);
+        if (!options.json) {
+            const mark = step.error ? 'ERROR' : failed.length ? 'FALLA' : '  ok ';
+            output(`${mark}  ${step.name.padEnd(20)} ${String(step.status ?? '').padStart(3)}  ${step.ms} ms`);
+            for (const m of failed) {
+                output(`         ${m.assertion.raw}   ->  ${truncate(m.actual)}`);
             }
-            if (paso.error) {
-                salida(`         ${paso.error}`);
+            if (step.error) {
+                output(`         ${step.error}`);
             }
         }
     });
 
-    if (opciones.junit) {
-        fs.writeFileSync(opciones.junit, aJunit(path.basename(opciones.fichero), pasos.map((p, i) => ({
-            nombre: p.nombre,
+    if (options.junit) {
+        fs.writeFileSync(options.junit, aJunit(path.basename(options.file), steps.map((p, i) => ({
+            name: p.name,
             ms: p.ms,
             error: p.error,
-            fallos: (porBloque.get(i) ?? []).filter(r => !r.pasa).map(r => `${r.asercion.crudo} -> ${r.obtenido}`)
+            failures: (porBloque.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`)
         }))));
     }
 
-    if (opciones.json) {
-        salida(JSON.stringify({
-            fichero: opciones.fichero,
-            pasos: pasos.map((p, i) => ({
-                nombre: p.nombre, estado: p.estado, ms: p.ms, error: p.error,
-                aserciones: (porBloque.get(i) ?? []).map(r => ({ asercion: r.asercion.crudo, pasa: r.pasa, obtenido: r.obtenido }))
+    if (options.json) {
+        output(JSON.stringify({
+            file: options.file,
+            steps: steps.map((p, i) => ({
+                name: p.name, status: p.status, ms: p.ms, error: p.error,
+                assertions: (porBloque.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual }))
             }))
         }, null, 2));
     } else {
-        const total = pasos.length;
-        salida('');
-        salida(fallos === 0 ? `${total} peticiones, todo en verde` : `${total} peticiones, ${fallos} fallo(s)`);
+        const total = steps.length;
+        output('');
+        output(failures === 0 ? `${total} peticiones, todo en verde` : `${total} peticiones, ${failures} fallo(s)`);
     }
-    return fallos === 0 ? 0 : 1;
+    return failures === 0 ? 0 : 1;
 }
 
 /** Variables del entorno pedido, leídas de los http-client.env.json desde la carpeta del fichero hacia arriba. */
-function variablesDeEntorno(raiz: string, nombre: string | undefined, avisar: (m: string) => void): Record<string, string> {
-    if (!nombre) {
+function variablesDeEntorno(root: string, name: string | undefined, warn: (m: string) => void): Record<string, string> {
+    if (!name) {
         return {};
     }
-    const carpeta = carpetaDeEntornos(raiz);
-    if (!carpeta) {
-        avisar(`--env ${nombre}: no hay http-client.env.json desde ${raiz} hacia arriba`);
+    const folder = environmentsFolder(root);
+    if (!folder) {
+        warn(`--env ${name}: no hay http-client.env.json desde ${root} hacia arriba`);
         return {};
     }
-    const entornos = leerEntornos(carpeta, avisar);
-    if (!(nombre in entornos)) {
-        avisar(`--env ${nombre}: ese entorno no está en ${carpeta}. Hay: ${Object.keys(entornos).join(', ') || 'ninguno'}`);
+    const environments = readEnvironments(folder, warn);
+    if (!(name in environments)) {
+        warn(`--env ${name}: ese entorno no está en ${folder}. Hay: ${Object.keys(environments).join(', ') || 'ninguno'}`);
         return {};
     }
-    return entornos[nombre];
+    return environments[name];
 }
 
 /** `# @timeout 5000` en el bloque manda sobre el --timeout general. */
-export function timeoutDelBloque(texto: string): number | undefined {
-    const m = /^\s*(?:#|\/\/)\s*@timeout\s+(\d+)\s*$/m.exec(texto);
+export function blockTimeout(text: string): number | undefined {
+    const m = /^\s*(?:#|\/\/)\s*@timeout\s+(\d+)\s*$/m.exec(text);
     return m ? Number(m[1]) : undefined;
 }
 
 /** WebSocket: la «respuesta» es la transcripción, con estado 101 como en el editor. */
-async function enviarWebSocket(p: { url: string; cabeceras: Record<string, string>; cuerpo?: string | Buffer }, ms: number):
-    Promise<{ estado: number; cuerpo: string; cabeceras: Record<string, string | undefined> }> {
-    const cuerpo = typeof p.cuerpo === 'string' ? p.cuerpo : p.cuerpo?.toString('utf8');
-    const r = await hablar(p.url, p.cabeceras, mensajesDelCuerpo(cuerpo), ms);
+async function enviarWebSocket(p: { url: string; headers: Record<string, string>; body?: string | Buffer }, ms: number):
+    Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
+    const body = typeof p.body === 'string' ? p.body : p.body?.toString('utf8');
+    const r = await talk(p.url, p.headers, bodyMessages(body), ms);
     if (r.cerradoPor === 'error' && r.recibidos.length === 0) {
         throw new Error(r.detalle ?? 'WebSocket error');
     }
-    return { estado: 101, cuerpo: r.transcripcion, cabeceras: { 'content-type': 'text/plain', 'x-closed-by': r.cerradoPor } };
+    return { status: 101, body: r.transcript, headers: { 'content-type': 'text/plain', 'x-closed-by': r.cerradoPor } };
 }
 
 /** Envía la petición con el cliente HTTP de Node: sin dependencias. */
-function enviarPeticion(p: { metodo: string; url: string; cabeceras: Record<string, string>; cuerpo?: string | Buffer }, timeoutMs: number):
-    Promise<{ estado: number; cuerpo: string; cabeceras: Record<string, string | undefined> }> {
+function sendRequest(p: { method: string; url: string; headers: Record<string, string>; body?: string | Buffer }, timeoutMs: number):
+    Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
     return new Promise((resolver, rechazar) => {
         let destino: URL;
         try {
@@ -319,68 +319,68 @@ function enviarPeticion(p: { metodo: string; url: string; cabeceras: Record<stri
             return;
         }
         const transporte = destino.protocol === 'https:' ? https : http;
-        const peticion = transporte.request(destino, { method: p.metodo, headers: p.cabeceras, timeout: timeoutMs }, respuesta => {
-            const trozos: Buffer[] = [];
+        const request = transporte.request(destino, { method: p.method, headers: p.headers, timeout: timeoutMs }, response => {
+            const chunks: Buffer[] = [];
             const terminar = () => resolver({
-                estado: respuesta.statusCode ?? 0,
-                cuerpo: Buffer.concat(trozos).toString('utf8'),
-                cabeceras: respuesta.headers as Record<string, string | undefined>
+                status: response.statusCode ?? 0,
+                body: Buffer.concat(chunks).toString('utf8'),
+                headers: response.headers as Record<string, string | undefined>
             });
-            respuesta.on('data', t => trozos.push(t as Buffer));
-            respuesta.on('end', terminar);
+            response.on('data', t => chunks.push(t as Buffer));
+            response.on('end', terminar);
             // Un stream de eventos puede no terminar nunca: pasado el tiempo se
             // corta y lo recibido hasta entonces es la respuesta, no un error.
-            if (esEventStream(respuesta.headers['content-type'])) {
-                const corte = setTimeout(() => { respuesta.destroy(); terminar(); }, timeoutMs);
-                respuesta.on('end', () => clearTimeout(corte));
+            if (isEventStream(response.headers['content-type'])) {
+                const corte = setTimeout(() => { response.destroy(); terminar(); }, timeoutMs);
+                response.on('end', () => clearTimeout(corte));
             }
         });
-        peticion.on('timeout', () => peticion.destroy(new Error(`sin respuesta en ${timeoutMs} ms`)));
-        peticion.on('error', e => rechazar(e));
-        if (p.cuerpo !== undefined) {
-            if (!Object.keys(p.cabeceras).some(k => k.toLowerCase() === 'content-length')) {
-                peticion.setHeader('Content-Length', Buffer.byteLength(p.cuerpo));
+        request.on('timeout', () => request.destroy(new Error(`sin respuesta en ${timeoutMs} ms`)));
+        request.on('error', e => rechazar(e));
+        if (p.body !== undefined) {
+            if (!Object.keys(p.headers).some(k => k.toLowerCase() === 'content-length')) {
+                request.setHeader('Content-Length', Buffer.byteLength(p.body));
             }
-            peticion.write(p.cuerpo);
+            request.write(p.body);
         }
-        peticion.end();
+        request.end();
     });
 }
 
 /** Resuelve `{{nombre.response.body.$.x}}` con lo que ya respondió esa petición. */
-function resolverPrevias(texto: string, previas: Map<string, { cuerpo: string; cabeceras: Record<string, string | undefined>; estado: number }>): string {
-    return texto.replace(/\{\{(\w+)\.response\.(body|headers)\.([^{}]+)\}\}/g, (completo, nombre: string, parte: string, resto: string) => {
-        const r = previas.get(nombre);
+function resolvePrevious(text: string, previous: Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>): string {
+    return text.replace(/\{\{(\w+)\.response\.(body|headers)\.([^{}]+)\}\}/g, (completo, name: string, parte: string, resto: string) => {
+        const r = previous.get(name);
         if (!r) {
             return completo;
         }
-        const sujeto = parte === 'headers' ? `headers.${resto.trim()}` : `body.${resto.trim()}`;
+        const subject = parte === 'headers' ? `headers.${resto.trim()}` : `body.${resto.trim()}`;
         // Se reutiliza el mismo resolutor que las aserciones: un solo lenguaje.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { valorDe } = require('../core/aserciones');
-        const valor = valorDe(sujeto, { estado: r.estado, cuerpo: r.cuerpo, cabeceras: r.cabeceras, ms: 0 });
-        return valor === '' ? completo : valor;
+        const { valueFor } = require('../core/assertions');
+        const value = valueFor(subject, { status: r.status, body: r.body, headers: r.headers, ms: 0 });
+        return value === '' ? completo : value;
     });
 }
 
-const recortar = (s: string) => (s.length > 90 ? s.slice(0, 87) + '...' : s);
+const truncate = (s: string) => (s.length > 90 ? s.slice(0, 87) + '...' : s);
 
-export { Importado };
+export { Imported };
 
 if (require.main === module) {
     if (process.argv[2] === 'mcp') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { servirMcp } = require('./mcp');
+        const { serveMcp } = require('./mcp');
         const i = process.argv.indexOf('--raiz');
-        servirMcp(i > 0 ? process.argv[i + 1] : process.cwd());
+        serveMcp(i > 0 ? process.argv[i + 1] : process.cwd());
     } else {
-        const opciones = leerArgumentos(process.argv.slice(2));
-        if (typeof opciones === 'string') {
-            process.stderr.write(opciones + '\n');
+        const options = readArguments(process.argv.slice(2));
+        if (typeof options === 'string') {
+            process.stderr.write(options + '\n');
             process.exit(2);
         }
-        ejecutar(opciones, l => process.stdout.write(l + '\n'))
-            .then(codigo => process.exit(codigo))
+        execute(options, l => process.stdout.write(l + '\n'))
+            .then(exitCode => process.exit(exitCode))
             .catch(e => {
                 process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
                 process.exit(2);
