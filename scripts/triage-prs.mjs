@@ -77,5 +77,5 @@ for (const f of filas) {
 const aplican = filas.filter(f => f.status === 'aplica');
 console.log(`\naplican limpio: ${aplican.length} de ${filas.length}`);
 console.log(`de esos, con votos: ${aplican.filter(f => f.votos > 0).length}`);
-fs.writeFileSync('docs/triaje-prs.json', JSON.stringify(filas, null, 2));
-console.log('detalle en docs/triaje-prs.json');
+fs.writeFileSync('docs/triage-prs.json', JSON.stringify(filas, null, 2));
+console.log('detalle en docs/triage-prs.json');

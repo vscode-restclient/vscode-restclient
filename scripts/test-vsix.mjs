@@ -20,7 +20,7 @@ const s = http.createServer((q, r) => {
   let b = ''; q.on('data', c => b += c);
   q.on('end', () => {
     r.writeHead(200, { 'content-type': 'application/json' });
-    r.end(JSON.stringify({ token: 'tok-123', recibido: b }));
+    r.end(JSON.stringify({ token: 'tok-123', received: b }));
   });
 });
 s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ puerto: s.address().port })));`;
@@ -68,7 +68,7 @@ async function main() {
     try {
         await runTests({
             vscodeExecutablePath: ejecutable,
-            extensionTestsPath: path.join(RAIZ, 'scripts', 'prueba-instalada.cjs'),
+            extensionTestsPath: path.join(RAIZ, 'scripts', 'test-installed.cjs'),
             launchArgs: [work, '--extensions-dir', extensiones, '--user-data-dir', data, '--locale=es', '--disable-workspace-trust'],
             extensionTestsEnv: { VSIX_PUERTO: String(puerto) },
         });

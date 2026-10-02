@@ -247,14 +247,14 @@ export class RequestController {
         try {
             const ms = settings.timeoutInMilliseconds > 0 ? settings.timeoutInMilliseconds : DEFAULT_LISTEN_MS;
             const r = await talk(httpRequest.url, httpRequest.headers as Record<string, string>, bodyMessages(httpRequest.rawBody), ms);
-            if (r.cerradoPor === 'error' && r.recibidos.length === 0) {
-                throw new Error(r.detalle ?? 'WebSocket error');
+            if (r.closedBy === 'error' && r.received.length === 0) {
+                throw new Error(r.detail ?? 'WebSocket error');
             }
             const body = Buffer.from(r.transcript, 'utf8');
             const total = Date.now() - t0;
             const response = new HttpResponse(
                 101, 'Switching Protocols', '1.1',
-                { 'Content-Type': 'text/plain; charset=utf-8', 'X-Closed-By': r.cerradoPor },
+                { 'Content-Type': 'text/plain; charset=utf-8', 'X-Closed-By': r.closedBy },
                 r.transcript, body.length, 0, body,
                 { total } as HttpResponse['timingPhases'],
                 httpRequest);

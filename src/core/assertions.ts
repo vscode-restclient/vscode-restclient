@@ -90,11 +90,11 @@ export function valueFor(subject: string, r: CheckableResponse): string {
         }
     }
     if (subject.startsWith('ws.')) {
-        const { recibidos } = readTranscript(r.body ?? '');
+        const { received } = readTranscript(r.body ?? '');
         switch (subject.slice(3)) {
-            case 'count': return String(recibidos.length);
-            case 'first': return recibidos[0] ?? '';
-            case 'last': return recibidos[recibidos.length - 1] ?? '';
+            case 'count': return String(received.length);
+            case 'first': return received[0] ?? '';
+            case 'last': return received[received.length - 1] ?? '';
             default: return '';
         }
     }

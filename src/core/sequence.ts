@@ -38,7 +38,7 @@ export function splitBlocks(text: string): Block[] {
     let actual: string[] = [];
     let inicio = 0;
 
-    const cerrar = () => {
+    const close = () => {
         const t = actual.join(String.fromCharCode(10));
         if (t.trim().length > 0) {
             blocks.push({ text: t, line: inicio, name: NOMBRE.exec(t)?.[1] });
@@ -48,13 +48,13 @@ export function splitBlocks(text: string): Block[] {
 
     for (let i = 0; i < lines.length; i++) {
         if (SEPARADOR.test(lines[i])) {
-            cerrar();
+            close();
             inicio = i + 1;
             continue;
         }
         actual.push(lines[i]);
     }
-    cerrar();
+    close();
     return blocks;
 }
 
@@ -73,7 +73,7 @@ export interface SequenceOptions {
     /** Envía un bloque ya resuelto y devuelve la respuesta. */
     enviar(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined> }>;
     /** Sustituye variables usando lo que ya han devuelto las peticiones previas. */
-    resolver?(block: Block): Promise<Block>;
+    resolve?(block: Block): Promise<Block>;
     /** Por defecto, un fallo detiene la secuencia. */
     continueOnFailure?: boolean;
     /** Se llama al terminar cada paso, para poder ir informando. */
@@ -97,7 +97,7 @@ export async function runSequence(blocks: Block[], options: SequenceOptions): Pr
         let name = block.name ?? `#${hechos.length + 1}`;
         let step: ExecutedStep;
         try {
-            const ready = options.resolver ? await options.resolver(block) : block;
+            const ready = options.resolve ? await options.resolve(block) : block;
             name = ready.name ?? name;
             const r = await options.enviar(ready);
             step = { name, line: block.line, status: r.status, body: r.body, headers: r.headers, ms: Date.now() - t0 };

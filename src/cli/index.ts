@@ -2,7 +2,7 @@
  * restclient — el mismo fichero .http, ejecutado desde la terminal.
  *
  *   restclient peticiones.http [--env dev] [--var host=https://api] [--secret KEY=valor]
- *                              [--continuar] [--json] [--timeout ms]
+ *                              [--continue] [--json] [--timeout ms]
  *
  * Es la petición número seis más votada del proyecto original (+44 votos desde
  * 2019) y lo que convierte un fichero de peticiones en una prueba de
@@ -31,7 +31,7 @@ export interface Options {
     variables: Record<string, string>;
     secrets: Record<string, string>;
     environment?: string;
-    continuar: boolean;
+    continueOnFailure: boolean;
     json: boolean;
     timeoutMs: number;
     /** Sólo la petición con este nombre (lo usa el servidor MCP). */
@@ -40,14 +40,14 @@ export interface Options {
     junit?: string;
 }
 
-export const USAGE = 'uso: restclient <fichero.http> [--env nombre] [--var clave=valor] [--secret NOMBRE=valor] [--continuar] [--json] [--junit informe.xml] [--timeout ms]';
+export const USAGE = 'usage: restclient <file.http> [--env name] [--var key=value] [--secret NAME=value] [--continue] [--json] [--junit report.xml] [--timeout ms]';
 
 export function readArguments(argv: string[]): Options | string {
     const variables: Record<string, string> = {};
     const secrets: Record<string, string> = {};
     let file = '';
     let environment: string | undefined;
-    let continuar = false;
+    let continueOnFailure = false;
     let json = false;
     let junit: string | undefined;
     let timeoutMs = 30_000;
@@ -84,8 +84,8 @@ export function readArguments(argv: string[]): Options | string {
             if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
                 return '--timeout necesita un número de milisegundos mayor que 0';
             }
-        } else if (a === '--continuar') {
-            continuar = true;
+        } else if (a === '--continue') {
+            continueOnFailure = true;
         } else if (a === '--json') {
             json = true;
         } else if (a === '--junit') {
@@ -100,7 +100,7 @@ export function readArguments(argv: string[]): Options | string {
     if (!file) {
         return USAGE;
     }
-    return { file, variables, secrets, environment, continuar, json, timeoutMs, junit };
+    return { file, variables, secrets, environment, continueOnFailure, json, timeoutMs, junit };
 }
 
 /** El bloque con `@name` = nombre, ya sea en el fichero o vía `run #nombre`. */
@@ -129,7 +129,7 @@ export function fileVariables(text: string): Record<string, string> {
 export function secret(name: string, secrets: Record<string, string>): string {
     const value = secrets[name] ?? process.env[`RESTCLIENT_SECRET_${name}`];
     if (value === undefined) {
-        throw new Error(`falta el secreto "${name}": pásalo con --secret ${name}=valor o en la variable de entorno RESTCLIENT_SECRET_${name}`);
+        throw new Error(`missing secret "${name}": pass it with --secret ${name}=value or in the RESTCLIENT_SECRET_${name} environment variable`);
     }
     return value;
 }
@@ -203,13 +203,13 @@ export async function execute(options: Options, output: (line: string) => void):
 
     const todos = splitBlocks(text).filter(isRequest);
     const blocks = options.solo ? soloElBloque(todos, options.solo) : todos;
-    const porBloque = new Map<number, AssertionResult[]>();
+    const byBlock = new Map<number, AssertionResult[]>();
     // Lo que ya han devuelto las peticiones con nombre, para poder encadenar.
     const previous = new Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>();
 
     const steps = await runSequence(blocks, {
-        continueOnFailure: options.continuar,
-        resolver: async (b: Block) => {
+        continueOnFailure: options.continueOnFailure,
+        resolve: async (b: Block) => {
             const real = resolveRun(b, text, imported);
             return { ...real, text: substitute(resolvePrevious(real.text, previous), variables, options.secrets) };
         },
@@ -231,7 +231,7 @@ export async function execute(options: Options, output: (line: string) => void):
         const results = step.error
             ? []
             : checkAssertions(readAssertions(blocks[i].text), { status: step.status, body: step.body, headers: step.headers, ms: step.ms });
-        porBloque.set(i, results);
+        byBlock.set(i, results);
         const failed = results.filter(r => !r.passed);
         failures += failed.length + (step.error ? 1 : 0);
 
@@ -252,7 +252,7 @@ export async function execute(options: Options, output: (line: string) => void):
             name: p.name,
             ms: p.ms,
             error: p.error,
-            failures: (porBloque.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`)
+            failures: (byBlock.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`)
         }))));
     }
 
@@ -261,7 +261,7 @@ export async function execute(options: Options, output: (line: string) => void):
             file: options.file,
             steps: steps.map((p, i) => ({
                 name: p.name, status: p.status, ms: p.ms, error: p.error,
-                assertions: (porBloque.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual }))
+                assertions: (byBlock.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual }))
             }))
         }, null, 2));
     } else {
@@ -301,16 +301,16 @@ async function enviarWebSocket(p: { url: string; headers: Record<string, string>
     Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
     const body = typeof p.body === 'string' ? p.body : p.body?.toString('utf8');
     const r = await talk(p.url, p.headers, bodyMessages(body), ms);
-    if (r.cerradoPor === 'error' && r.recibidos.length === 0) {
-        throw new Error(r.detalle ?? 'WebSocket error');
+    if (r.closedBy === 'error' && r.received.length === 0) {
+        throw new Error(r.detail ?? 'WebSocket error');
     }
-    return { status: 101, body: r.transcript, headers: { 'content-type': 'text/plain', 'x-closed-by': r.cerradoPor } };
+    return { status: 101, body: r.transcript, headers: { 'content-type': 'text/plain', 'x-closed-by': r.closedBy } };
 }
 
 /** Envía la petición con el cliente HTTP de Node: sin dependencias. */
 function sendRequest(p: { method: string; url: string; headers: Record<string, string>; body?: string | Buffer }, timeoutMs: number):
     Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
-    return new Promise((resolver, rechazar) => {
+    return new Promise((resolve, rechazar) => {
         let destino: URL;
         try {
             destino = new URL(p.url);
@@ -321,7 +321,7 @@ function sendRequest(p: { method: string; url: string; headers: Record<string, s
         const transporte = destino.protocol === 'https:' ? https : http;
         const request = transporte.request(destino, { method: p.method, headers: p.headers, timeout: timeoutMs }, response => {
             const chunks: Buffer[] = [];
-            const terminar = () => resolver({
+            const terminar = () => resolve({
                 status: response.statusCode ?? 0,
                 body: Buffer.concat(chunks).toString('utf8'),
                 headers: response.headers as Record<string, string | undefined>
@@ -371,7 +371,7 @@ if (require.main === module) {
     if (process.argv[2] === 'mcp') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { serveMcp } = require('./mcp');
-        const i = process.argv.indexOf('--raiz');
+        const i = process.argv.indexOf('--root');
         serveMcp(i > 0 ? process.argv[i + 1] : process.cwd());
     } else {
         const options = readArguments(process.argv.slice(2));

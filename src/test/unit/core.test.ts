@@ -54,7 +54,7 @@ describe('ejecutar en secuencia', () => {
         const hechos: ExecutedStep[] = [];
         const alResolver: number[] = [];
         await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
-            resolver: async (b) => { alResolver.push(hechos.length); return b; },
+            resolve: async (b) => { alResolver.push(hechos.length); return b; },
             enviar: async () => response(200),
             alTerminarPaso: (p) => { hechos.push(p); }
         });
@@ -64,23 +64,23 @@ describe('ejecutar en secuencia', () => {
     });
 
     it('P-20 · un fallo detiene la secuencia', async () => {
-        let enviados = 0;
+        let sent = 0;
         const steps = await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
-            enviar: async () => { enviados++; if (enviados === 2) { throw new Error('sin conexion'); } return response(200); }
+            enviar: async () => { sent++; if (sent === 2) { throw new Error('sin conexion'); } return response(200); }
         });
         assert.strictEqual(steps.length, 2, 'no debe seguir tras el fallo');
         assert.strictEqual(steps[1].error, 'sin conexion');
-        assert.strictEqual(enviados, 2);
+        assert.strictEqual(sent, 2);
     });
 
     it('P-20 · con continuarTrasFallo llega hasta el final', async () => {
-        let enviados = 0;
+        let sent = 0;
         const steps = await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
             continueOnFailure: true,
-            enviar: async () => { enviados++; if (enviados === 2) { throw new Error('vaya'); } return response(200); }
+            enviar: async () => { sent++; if (sent === 2) { throw new Error('oops'); } return response(200); }
         });
         assert.strictEqual(steps.length, 3);
-        assert.strictEqual(enviados, 3);
+        assert.strictEqual(sent, 3);
     });
 });
 

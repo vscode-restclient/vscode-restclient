@@ -66,18 +66,18 @@ describe('Rest Client · formato JetBrains y secretos', () => {
   });
 
   it('P-36 · http-client.env.json junto al fichero: el entorno elegido resuelve, y el privado manda', async () => {
-    escribir('http-client.env.json', JSON.stringify({ dev: { host: BASE, filePath: '/publico' }, prod: { host: 'http://no-se-usa' } }));
-    escribir('http-client.private.env.json', JSON.stringify({ dev: { filePath: '/privado-manda' } }));
-    const file = escribir('entorno.http', j('GET {{host}}{{ruta}}', ''));
+    escribir('http-client.env.json', JSON.stringify({ dev: { host: BASE, path: '/public' }, prod: { host: 'http://unused' } }));
+    escribir('http-client.private.env.json', JSON.stringify({ dev: { path: '/private-wins' } }));
+    const file = escribir('entorno.http', j('GET {{host}}{{path}}', ''));
 
     await vscode.commands.executeCommand('rest-client.switch-environment', 'dev');
-    const t = await sendFile(file, 0, '/privado-manda');
+    const t = await sendFile(file, 0, '/private-wins');
     assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
-    assert.ok(/"ruta":\s*"\/privado-manda"/.test(t), 'el privado debe mandar sobre el público');
+    assert.ok(/"path":\s*"\/private-wins"/.test(t), 'el privado debe mandar sobre el público');
   });
 
   it('P-37 · import + run #nombre: se envía la petición importada y su respuesta resuelve en el fichero que importa', async () => {
-    escribir(path.join('lib', 'auth.http'), j(`@host = ${BASE}`, '', '# @name login', 'GET {{host}}/eco/login', ''));
+    escribir(path.join('lib', 'auth.http'), j(`@host = ${BASE}`, '', '# @name login', 'GET {{host}}/echo/login', ''));
     const file = escribir('api.http', j(
       'import ./lib/auth.http',
       '',
@@ -85,20 +85,20 @@ describe('Rest Client · formato JetBrains y secretos', () => {
       '',
       '###',
       '',
-      'GET {{host}}/eco/facturas?desde={{login.response.body.$.ruta}}',
+      'GET {{host}}/echo/facturas?desde={{login.response.body.$.path}}',
       '',
     ));
 
-    const primera = await sendFile(file, 2, '"ruta": "/eco/login"');
+    const primera = await sendFile(file, 2, '"ruta": "/echo/login"');
     assert.ok(primera.includes('HTTP/1.1 200'), 'run #login debe enviar la petición importada');
 
-    const segunda = await sendFile(file, 6, '/eco/facturas?desde=');
-    assert.ok(/"ruta":\s*"\/eco\/facturas\?desde=\/eco\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
+    const segunda = await sendFile(file, 6, '/echo/facturas?desde=');
+    assert.ok(/"ruta":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
   });
 
   it('P-38 · $secret: guardado con el comando, se sustituye; el fichero no lo contiene', async () => {
     await vscode.commands.executeCommand('rest-client.set-secret', 'API_KEY', 'clave-secreta-123');
-    const file = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Prueba: {{$secret API_KEY}}', ''));
+    const file = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Test: {{$secret API_KEY}}', ''));
     assert.ok(!fs.readFileSync(file, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
     const t = await sendFile(file, 0, '/con-secreto');
     assert.ok(/"cabecera":\s*"clave-secreta-123"/.test(t), 'el secreto debe llegar en la cabecera: ' + t.slice(0, 200));
@@ -166,7 +166,7 @@ describe('Rest Client · streaming', () => {
     const file = escribir('socket.http', j(
       '# @timeout 800',
       `WEBSOCKET ws://[::1]:${PUERTO}/socket`,
-      'X-Prueba: ana',
+      'X-Test: ana',
       '',
       '{"a":1}',
       '===',
@@ -198,7 +198,7 @@ describe('Rest Client · herramientas para agentes', () => {
       this.skip();
       return;
     }
-    const file = escribir('agente.http', j('# @name saludo', `GET ${BASE}/eco/agente`, 'X-Prueba: desde-agente', '', '###', '', `GET ${BASE}/otra`, ''));
+    const file = escribir('agente.http', j('# @name saludo', `GET ${BASE}/echo/agente`, 'X-Test: desde-agente', '', '###', '', `GET ${BASE}/otra`, ''));
     assert.ok(fs.existsSync(file));
     const token = new vscode.CancellationTokenSource().token;
     const text = (r: { content: { value?: string }[] }) => r.content.map((p) => p.value ?? '').join('');
@@ -238,17 +238,17 @@ describe('RestClient · lo portado de rest-client-next', () => {
     // «admin:it's a total eclipse»: antes se partía por cada espacio y por cada
     // ':', y llegaba truncada.
     const key = "it's a total: eclipse";
-    const file = escribir('basic.http', j(`GET ${BASE}/eco/basic`, `Authorization: Basic admin:${key}`, ''));
-    const t = await sendFile(file, 0, '/eco/basic');
-    const recibida = /"autorizacion":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
+    const file = escribir('basic.http', j(`GET ${BASE}/echo/basic`, `Authorization: Basic admin:${key}`, ''));
+    const t = await sendFile(file, 0, '/echo/basic');
+    const recibida = /"authorization":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.ok(recibida, 'no llegó cabecera Authorization: ' + t.slice(0, 200));
     assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), `admin:${key}`);
   });
 
   it('P-48 · Basic Auth: la forma «usuario contraseña» separada por espacio sigue funcionando', async () => {
-    const file = escribir('basic2.http', j(`GET ${BASE}/eco/basic2`, 'Authorization: Basic ana secreta', ''));
-    const t = await sendFile(file, 0, '/eco/basic2');
-    const recibida = /"autorizacion":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
+    const file = escribir('basic2.http', j(`GET ${BASE}/echo/basic2`, 'Authorization: Basic ana secreta', ''));
+    const t = await sendFile(file, 0, '/echo/basic2');
+    const recibida = /"authorization":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), 'ana:secreta');
   });
 
@@ -294,7 +294,7 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
     const t = await sendFile(file, 0, '"/buscar"', 40);
     assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
     assert.ok(/"metodo":\s*"QUERY"/.test(t), 'el servidor debe recibir el metodo QUERY: ' + t.slice(0, 250));
-    assert.ok(/"recibido":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'el cuerpo debe viajar con la peticion: ' + t.slice(0, 250));
+    assert.ok(/"received":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'el cuerpo debe viajar con la peticion: ' + t.slice(0, 250));
   });
 });
 
@@ -302,10 +302,10 @@ describe('faker en el editor (carga diferida)', () => {
   it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
     this.timeout(60000);
     const file = escribir('faker.http', j(
-      `GET ${BASE}/eco?correo={{$faker internet.email}}`,
-      'X-Prueba: marca-faker',
+      `GET ${BASE}/echo?correo={{$faker internet.email}}`,
+      'X-Test: faker-mark',
     ));
-    const text = await sendFile(file, 0, 'marca-faker', 40);
+    const text = await sendFile(file, 0, 'faker-mark', 40);
     const email = /email=([^&"\\]+)/.exec(text)?.[1] ?? '';
     assert.ok(/%40|@/.test(email), `no parece un email: ${email || text.slice(0, 200)}`);
     assert.ok(!email.includes('faker'), 'la variable quedo sin resolver');

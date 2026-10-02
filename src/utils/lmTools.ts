@@ -72,7 +72,7 @@ export function registerTools(context: vscode.ExtensionContext, controller: Requ
                 }
                 // El propio ejecutable del editor hace de Node con ELECTRON_RUN_AS_NODE:
                 // así no hace falta que haya un `node` en el PATH.
-                return [new api.McpStdioServerDefinition!('RestClient', process.execPath, [cli, 'mcp', '--raiz', root], { ELECTRON_RUN_AS_NODE: '1' })];
+                return [new api.McpStdioServerDefinition!('RestClient', process.execPath, [cli, 'mcp', '--root', root], { ELECTRON_RUN_AS_NODE: '1' })];
             },
         }));
     }

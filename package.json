@@ -786,7 +786,7 @@
         "demo": "node scripts/demo/launch.mjs && node scripts/demo/assemble.mjs",
         "build": "webpack --mode production",
         "test:mcp": "node scripts/test-mcp.mjs",
-        "preparar-npm": "node scripts/prepare-npm.mjs"
+        "prepare-npm": "node scripts/prepare-npm.mjs"
     },
     "devDependencies": {
         "@types/aws4": "^1.5.1",

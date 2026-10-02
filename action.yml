@@ -63,7 +63,7 @@ runs:
         args=("$HK_FILE" --timeout "$HK_TIMEOUT")
         [ -n "$HK_ENV" ] && args+=(--env "$HK_ENV")
         [ -n "$HK_JUNIT" ] && args+=(--junit "$HK_JUNIT")
-        [ "$HK_CONTINUE" = "true" ] && args+=(--continuar)
+        [ "$HK_CONTINUE" = "true" ] && args+=(--continue)
         while IFS= read -r linea; do
           [ -n "$linea" ] && args+=(--var "$linea")
         done <<< "$HK_VARS"

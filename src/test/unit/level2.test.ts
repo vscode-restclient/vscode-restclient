@@ -57,12 +57,12 @@ describe('import y run', () => {
         const b = path.join(dir, 'lib', 'b.http');
         const c = path.join(dir, 'lib', 'c.http');
         fs.mkdirSync(path.dirname(b));
-        fs.writeFileSync(a, j('import ./lib/b.http', 'import "./no-existe.http"', '', 'GET http://a'));
+        fs.writeFileSync(a, j('import ./lib/b.http', 'import "./not-found.http"', '', 'GET http://a'));
         fs.writeFileSync(b, j('@host = http://b', 'import ./c.http', '', '# @name login', 'POST {{host}}/login'));
         fs.writeFileSync(c, j('import ../a.http', 'import ./b.http', '@extra = 1'));
         const { imported, faltan } = closeImports(a);
         assert.deepStrictEqual(imported.map(i => path.basename(i.file)), ['b.http', 'c.http'], 'orden de aparicion, sin repetir a.http ni b.http');
-        assert.deepStrictEqual(faltan.map(f => path.basename(f)), ['no-existe.http']);
+        assert.deepStrictEqual(faltan.map(f => path.basename(f)), ['not-found.http']);
         assert.deepStrictEqual(importedPaths("import 'x y.http'", a), [path.join(dir, 'x y.http')], 'las comillas admiten espacios');
 
         const vars = variablesWithImports(j('@host = http://propio', 'GET {{host}}'), imported);
@@ -117,7 +117,7 @@ describe('streaming', () => {
         assert.strictEqual(ok.passed, true);
 
         const ws = { status: 101, body: j('<< hola ana', '>> {"a":1}', '<< eco: {"a":1}', '-- closed after 300 ms'), ms: 300 };
-        assert.deepStrictEqual(readTranscript(ws.body), { recibidos: ['hola ana', 'eco: {"a":1}'], enviados: ['{"a":1}'] });
+        assert.deepStrictEqual(readTranscript(ws.body), { received: ['hola ana', 'eco: {"a":1}'], sent: ['{"a":1}'] });
         assert.strictEqual(valueFor('ws.count', ws), '2');
         assert.strictEqual(valueFor('ws.last', ws), 'eco: {"a":1}');
         const [mal] = checkAssertions(readAssertions('# @assert ws.nada == 1'), ws);
@@ -163,19 +163,19 @@ describe('runner en todas partes', () => {
         const p = parseRequests(j(
             "curl -X POST 'http://api/x?a=1' \\",
             "  -H 'Content-Type: application/json' \\",
-            '  -H "X-Prueba: con espacio" \\',
+            '  -H "X-Test: con espacio" \\',
             "  -u ana:secreta \\",
             "  -d '{\"a\": 1}'",
         ), '.');
         assert.strictEqual(p.method, 'POST');
         assert.strictEqual(p.url, 'http://api/x?a=1');
         assert.strictEqual(p.headers['Content-Type'], 'application/json');
-        assert.strictEqual(p.headers['X-Prueba'], 'con espacio');
+        assert.strictEqual(p.headers['X-Test'], 'con espacio');
         assert.strictEqual(p.headers['Authorization'], 'Basic ' + Buffer.from('ana:secreta').toString('base64'));
         assert.strictEqual(p.body, '{"a": 1}');
 
-        const sencillo = parseRequests('curl https://api/lista', '.');
-        assert.deepStrictEqual([sencillo.method, sencillo.url, sencillo.body], ['GET', 'https://api/lista', undefined]);
+        const sencillo = parseRequests('curl https://api/list', '.');
+        assert.deepStrictEqual([sencillo.method, sencillo.url, sencillo.body], ['GET', 'https://api/list', undefined]);
         const conDatos = parseRequests('curl https://api/form -d a=1 -d b=2', '.');
         assert.deepStrictEqual([conDatos.method, conDatos.body, conDatos.headers['Content-Type']], ['POST', 'a=1&b=2', 'application/x-www-form-urlencoded']);
         assert.deepStrictEqual(splitArguments(`-H "a: b c" -d 'x y' z\\ `), ['-H', 'a: b c', '-d', 'x y', 'z\\']);

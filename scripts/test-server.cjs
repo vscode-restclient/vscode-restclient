@@ -5,7 +5,7 @@
 // y un WebSocket de eco escrito a mano (RFC 6455, tramas de texto), para no
 // meter una dependencia solo para probar.
 //
-//   node servidor-pruebas.cjs [host]   -> imprime {"puerto": N}
+//   node test-server.cjs [host]   -> imprime {"puerto": N}
 const http = require('http');
 const crypto = require('crypto');
 
@@ -21,24 +21,24 @@ const s = http.createServer((q, r) => {
   q.on('data', c => b += c);
   q.on('end', () => {
     const u = q.url;
-    const eco = () => ({ method: q.method, filePath: u, header: q.headers['x-prueba'] || null, agente: q.headers['user-agent'] || null, recibido: b });
-    if (u.startsWith('/estado/')) { const c = Number(u.split('/')[2]) || 500; return json(r, c, { error: 'vaya', status: c }, { 'x-ruta': u }); }
+    const eco = () => ({ method: q.method, path: u, header: q.headers['x-test'] || null, agente: q.headers['user-agent'] || null, received: b });
+    if (u.startsWith('/status/')) { const c = Number(u.split('/')[2]) || 500; return json(r, c, { error: 'oops', status: c }, { 'x-path': u }); }
     if (u === '/redirige') { r.writeHead(302, { location: '/destino' }); return r.end(); }
-    if (u === '/lento') { return setTimeout(() => json(r, 200, eco(), { 'x-ruta': u }), 1500); }
-    if (u === '/lista') { return json(r, 200, { items: [{ id: 7 }, { id: 9 }] }, { 'x-ruta': u }); }
-    if (u === '/json') { return json(r, 200, { anidado: { a: 1, b: [1, 2, 3] } }, { 'x-ruta': u }); }
-    if (u === '/texto') { r.writeHead(200, { 'content-type': 'text/plain', 'x-ruta': u }); return r.end('soy texto plano'); }
-    if (u === '/xml') { r.writeHead(200, { 'content-type': 'application/xml', 'x-ruta': u }); return r.end('<raiz><hijo>valor</hijo></raiz>'); }
+    if (u === '/slow') { return setTimeout(() => json(r, 200, eco(), { 'x-path': u }), 1500); }
+    if (u === '/list') { return json(r, 200, { items: [{ id: 7 }, { id: 9 }] }, { 'x-path': u }); }
+    if (u === '/json') { return json(r, 200, { nested: { a: 1, b: [1, 2, 3] } }, { 'x-path': u }); }
+    if (u === '/text') { r.writeHead(200, { 'content-type': 'text/plain', 'x-path': u }); return r.end('plain text here'); }
+    if (u === '/xml') { r.writeHead(200, { 'content-type': 'application/xml', 'x-path': u }); return r.end('<root><child>value</child></root>'); }
     if (u === '/auth') { return json(r, 200, { token: 'tok-123' }); }
-    if (u.startsWith('/eco')) { return json(r, 200, { filePath: u, header: q.headers['x-prueba'] || null, autorizacion: q.headers.authorization || null, recibido: b }); }
+    if (u.startsWith('/echo')) { return json(r, 200, { path: u, header: q.headers['x-test'] || null, authorization: q.headers.authorization || null, received: b }); }
     if (u.startsWith('/facturas')) {
       const ok = q.headers.authorization === 'Bearer tok-123';
-      return json(r, ok ? 200 : 401, { total: ok ? 3 : 0, autorizacion: q.headers.authorization || null });
+      return json(r, ok ? 200 : 401, { total: ok ? 3 : 0, authorization: q.headers.authorization || null });
     }
-    if (u === '/no-existe') { return json(r, 404, { error: 'no existe' }); }
+    if (u === '/not-found') { return json(r, 404, { error: 'no existe' }); }
     if (u.startsWith('/sse')) {
       // Tres eventos espaciados: el panel tiene que pintarlos según llegan.
-      r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-ruta': u });
+      r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-path': u });
       r.write(': latido\n\n');
       const events = ['{"delta":"Hola"}', '{"delta":" mundo"}', '[DONE]'];
       let i = 0;
@@ -52,7 +52,7 @@ const s = http.createServer((q, r) => {
       }, 200);
       return;
     }
-    json(r, 200, eco(), { 'x-ruta': u });
+    json(r, 200, eco(), { 'x-path': u });
   });
 });
 
@@ -69,7 +69,7 @@ s.on('upgrade', (q, socket) => {
       : Buffer.concat([Buffer.from([0x81, 126]), Buffer.from([(data.length >> 8) & 0xff, data.length & 0xff])]);
     socket.write(Buffer.concat([header, data]));
   };
-  enviar(`hola ${q.headers['x-prueba'] || 'anonimo'}`);
+  enviar(`hola ${q.headers['x-test'] || 'anonimo'}`);
   let resto = Buffer.alloc(0);
   socket.on('data', (chunk) => {
     resto = Buffer.concat([resto, chunk]);

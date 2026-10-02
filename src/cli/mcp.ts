@@ -1,5 +1,5 @@
 /**
- * `restclient mcp [--raiz carpeta]`: servidor MCP por stdio, sin dependencias.
+ * `restclient mcp [--root carpeta]`: servidor MCP por stdio, sin dependencias.
  *
  * Lo que un agente (Claude Code, Cursor, el modo agente de Copilot) necesita
  * para usar los ficheros `.http` como herramienta: listar peticiones, enviar
@@ -70,7 +70,7 @@ const HERRAMIENTAS = [
 ];
 
 export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): void {
-    const raizAbs = path.resolve(root);
+    const absoluteRoot = path.resolve(root);
     const rl = readline.createInterface({ input: entrada, crlfDelay: Infinity });
     const responder = (id: Peticion['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
         output.write(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...body }) + '\n');
@@ -89,7 +89,7 @@ export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.
         }
         const esNotificacion = msg.id === undefined;
         try {
-            const result = await atender(msg, raizAbs);
+            const result = await handle(msg, absoluteRoot);
             if (!esNotificacion) {
                 responder(msg.id, { result: result });
             }
@@ -108,7 +108,7 @@ class ErrorRpc extends Error {
     }
 }
 
-async function atender(msg: Peticion, root: string): Promise<unknown> {
+async function handle(msg: Peticion, root: string): Promise<unknown> {
     switch (msg.method) {
         case 'initialize':
             return { protocolVersion: PROTOCOLO, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };
@@ -149,7 +149,7 @@ async function llamar(params: Record<string, unknown>, root: string): Promise<{ 
                     variables: aTexto(args.vars),
                     secrets: aTexto(args.secrets),
                     environment: typeof args.env === 'string' ? args.env : undefined,
-                    continuar: args.continueOnFailure === true,
+                    continueOnFailure: args.continueOnFailure === true,
                     json: true,
                     timeoutMs: typeof args.timeoutMs === 'number' && args.timeoutMs > 0 ? args.timeoutMs : 30_000,
                     solo: name === 'send_request' ? String(args.name) : undefined,

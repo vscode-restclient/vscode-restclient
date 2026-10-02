@@ -51,7 +51,7 @@ describe('Rest Client · peticiones reales', () => {
 
     it('P-02 · POST con cabeceras y cuerpo', async () => {
       const t = await enviar(
-        `POST ${BASE}/crear\nContent-Type: application/json\nX-Prueba: valor-de-prueba\n\n{"a":1}\n`,
+        `POST ${BASE}/crear\nContent-Type: application/json\nX-Test: valor-de-prueba\n\n{"a":1}\n`,
         'valor-de-prueba',
       );
       assert.ok(/"metodo":\s*"POST"/.test(t), 'no llegó como POST');
@@ -76,14 +76,14 @@ describe('Rest Client · peticiones reales', () => {
     // casan con la duracion o el tamano de una respuesta anterior (el panel
     // se reutiliza), y el test se queda con el documento equivocado.
     it('P-05 · un 404 se muestra, no se traga', async () => {
-      const t = await enviar(`GET ${BASE}/estado/404\n`, '/estado/404');
+      const t = await enviar(`GET ${BASE}/status/404\n`, '/status/404');
       assert.ok(t.includes('HTTP/1.1 404'), `sin 404 en:\n${t.slice(0, 200)}`);
     });
 
     it('P-05 · un 500 se muestra con su cuerpo', async () => {
-      const t = await enviar(`GET ${BASE}/estado/500\n`, '/estado/500');
+      const t = await enviar(`GET ${BASE}/status/500\n`, '/status/500');
       assert.ok(t.includes('HTTP/1.1 500'), `sin 500 en:\n${t.slice(0, 200)}`);
-      assert.ok(t.includes('vaya'), 'debe verse el cuerpo del error');
+      assert.ok(t.includes('oops'), 'debe verse el cuerpo del error');
     });
   });
 
@@ -95,20 +95,20 @@ describe('Rest Client · peticiones reales', () => {
     });
 
     it('P-07 · una respuesta lenta acaba llegando', async () => {
-      const t = await enviar(`GET ${BASE}/lento\n`, '/lento', 25);
+      const t = await enviar(`GET ${BASE}/slow\n`, '/slow', 25);
       assert.ok(t.includes('HTTP/1.1 200'));
     });
   });
 
   describe('formatos de respuesta', () => {
     it('P-09 · JSON se formatea legible', async () => {
-      const t = await enviar(`GET ${BASE}/json\n`, 'anidado');
-      assert.ok(/\n\s+"anidado"/.test(t), 'el JSON debería salir indentado');
+      const t = await enviar(`GET ${BASE}/json\n`, 'nested');
+      assert.ok(/\n\s+"nested"/.test(t), 'el JSON debería salir indentado');
     });
 
     it('P-09 · texto plano se muestra tal cual', async () => {
-      const t = await enviar(`GET ${BASE}/texto\n`, 'soy texto plano');
-      assert.ok(t.includes('soy texto plano'));
+      const t = await enviar(`GET ${BASE}/text\n`, 'plain text here');
+      assert.ok(t.includes('plain text here'));
     });
 
     it('P-09 · XML se muestra', async () => {
@@ -124,7 +124,7 @@ describe('Rest Client · peticiones reales', () => {
     it('P-28 · reenviar una petición no arrastra cabeceras manipuladas', async () => {
       const doc = await vscode.workspace.openTextDocument({
         language: 'http',
-        content: `POST ${BASE}/reenvio` + BR + 'Content-Type: application/json' + BR + 'X-Prueba: original' + BR + BR + '{"n":1}' + BR
+        content: `POST ${BASE}/reenvio` + BR + 'Content-Type: application/json' + BR + 'X-Test: original' + BR + BR + '{"n":1}' + BR
       });
       await vscode.window.showTextDocument(doc, { preview: false });
       await vscode.commands.executeCommand('rest-client.request');
@@ -247,14 +247,14 @@ describe('Rest Client · variables de petición', () => {
 
     // Se espera a la respuesta CONCRETA de esta primera petición: el documento
     // de respuesta se reutiliza y podría haber un 200 de una prueba anterior.
-    // El servidor marca cada respuesta con `x-ruta`, así que se espera a la de
+    // El servidor marca cada respuesta con `x-path`, así que se espera a la de
     // ESTA petición y no a un 200 que dejó una prueba anterior.
     const filePath = '/' + lines[primera + 1].split('/').pop()!;
     let lista = false;
     for (let i = 0; i < 60 && !lista; i++) {
       await esperar(250);
       lista = vscode.workspace.textDocuments.some(
-        (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes('HTTP/1.1 200') && d.getText().includes('x-ruta: ' + filePath),
+        (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes('HTTP/1.1 200') && d.getText().includes('x-path: ' + filePath),
       );
     }
     assert.ok(lista, 'la primera petición no llegó a responder');
@@ -281,34 +281,34 @@ describe('Rest Client · variables de petición', () => {
 
   it('P-12 · JSONPath extrae un valor de la respuesta anterior', async () => {
     const t = await encadenar(
-      `# @name primera\nGET ${BASE}/json\n\n###\n\n# segunda\nGET ${BASE}/eco-json?v={{primera.response.body.$.anidado.a}}\n`,
-      '/eco-json',
+      `# @name primera\nGET ${BASE}/json\n\n###\n\n# segunda\nGET ${BASE}/echo-json?v={{primera.response.body.$.nested.a}}\n`,
+      '/echo-json',
     );
-    assert.ok(t.includes('/eco-json?v=1'), `el JSONPath no se resolvió:\n${t.slice(0, 250)}`);
+    assert.ok(t.includes('/echo-json?v=1'), `el JSONPath no se resolvió:\n${t.slice(0, 250)}`);
   });
 
   it('P-13 · XPath extrae un valor de una respuesta XML', async () => {
     const t = await encadenar(
-      `# @name uno\nGET ${BASE}/xml\n\n###\n\n# segunda\nGET ${BASE}/eco-xml?v={{uno.response.body.//hijo/text()}}\n`,
-      '/eco-xml',
+      `# @name uno\nGET ${BASE}/xml\n\n###\n\n# segunda\nGET ${BASE}/echo-xml?v={{uno.response.body.//hijo/text()}}\n`,
+      '/echo-xml',
     );
-    assert.ok(t.includes('/eco-xml?v=valor'), `el XPath no se resolvió:\n${t.slice(0, 250)}`);
+    assert.ok(t.includes('/echo-xml?v=valor'), `el XPath no se resolvió:\n${t.slice(0, 250)}`);
   });
 
   // PR #853: un JSONPath que casa con varios valores devolvía solo el primero
   // en silencio, que es peor que no devolver nada: parece que funciona.
   it('P-29 · un JSONPath con varios resultados los devuelve todos', async () => {
     const t = await encadenar(
-      `# @name uno` + BR + `GET ${BASE}/lista` + BR + BR + '###' + BR + BR + `GET ${BASE}/eco-lista?v={{uno.response.body.$.items[*].id}}` + BR,
-      '/eco-lista',
+      `# @name uno` + BR + `GET ${BASE}/list` + BR + BR + '###' + BR + BR + `GET ${BASE}/echo-lista?v={{uno.response.body.$.items[*].id}}` + BR,
+      '/echo-lista',
     );
     assert.ok(t.includes('7') && t.includes('9'), `deberían venir los dos identificadores:` + BR + t.slice(0, 250));
   });
 
   it('P-14 · se puede leer una cabecera de la respuesta anterior', async () => {
     const t = await encadenar(
-      `# @name uno\nGET ${BASE}/json\n\n###\n\n# segunda\nGET ${BASE}/eco-cab?v={{uno.response.headers.content-type}}\n`,
-      '/eco-cab',
+      `# @name uno\nGET ${BASE}/json\n\n###\n\n# segunda\nGET ${BASE}/echo-cab?v={{uno.response.headers.content-type}}\n`,
+      '/echo-cab',
     );
     assert.ok(t.includes('application/json'), `la cabecera no se resolvió:\n${t.slice(0, 250)}`);
   });

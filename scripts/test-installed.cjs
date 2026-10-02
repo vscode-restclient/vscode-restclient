@@ -27,7 +27,7 @@ exports.run = async () => {
 
     // 3. Una peticion de verdad, de punta a punta, con la extension instalada.
     const folder = vscode.workspace.workspaceFolders[0].uri.fsPath;
-    const file = path.join(folder, 'prueba.http');
+    const file = path.join(folder, 'test.http');
     fs.writeFileSync(file, [
         `@host = http://127.0.0.1:${process.env.VSIX_PUERTO}`,
         '',

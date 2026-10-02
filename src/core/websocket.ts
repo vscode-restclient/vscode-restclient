@@ -10,10 +10,10 @@
  */
 export interface WsResult {
     transcript: string;
-    enviados: string[];
-    recibidos: string[];
-    cerradoPor: 'tiempo' | 'servidor' | 'error';
-    detalle?: string;
+    sent: string[];
+    received: string[];
+    closedBy: 'timeout' | 'server' | 'error';
+    detail?: string;
 }
 
 export const DEFAULT_LISTEN_MS = 3000;
@@ -31,69 +31,69 @@ export function talk(url: string, headers: Record<string, string>, messages: str
     if (!Ws) {
         return Promise.reject(new Error('WebSocket needs Node 22 or newer (no WebSocket global in this runtime)'));
     }
-    return new Promise(resolver => {
-        const enviados: string[] = [];
-        const recibidos: string[] = [];
+    return new Promise(resolve => {
+        const sent: string[] = [];
+        const received: string[] = [];
         const lines: string[] = [];
         let terminado = false;
         let socket: WebSocketMinimo;
 
-        const cerrar = (cerradoPor: WsResult['cerradoPor'], detalle?: string) => {
+        const close = (closedBy: WsResult['closedBy'], detail?: string) => {
             if (terminado) {
                 return;
             }
             terminado = true;
-            clearTimeout(temporizador);
+            clearTimeout(timer);
             try {
                 socket.close();
             } catch { /* ya cerrado */ }
-            if (detalle) {
-                lines.push(`-- ${detalle}`);
+            if (detail) {
+                lines.push(`-- ${detail}`);
             }
-            resolver({ transcript: lines.join('\n'), enviados, recibidos, cerradoPor, detalle });
+            resolve({ transcript: lines.join('\n'), sent, received, closedBy, detail });
         };
-        const temporizador = setTimeout(() => cerrar('tiempo', `closed after ${ms} ms`), ms);
+        const timer = setTimeout(() => close('timeout', `closed after ${ms} ms`), ms);
 
         try {
             // undici admite cabeceras propias como extensión de la API estándar.
             socket = new Ws(url, { headers: headers });
         } catch (e) {
-            clearTimeout(temporizador);
-            resolver({ transcript: `-- ${mensajeDe(e)}`, enviados, recibidos, cerradoPor: 'error', detalle: mensajeDe(e) });
+            clearTimeout(timer);
+            resolve({ transcript: `-- ${messageOf(e)}`, sent, received, closedBy: 'error', detail: messageOf(e) });
             return;
         }
         socket.addEventListener('open', () => {
             for (const m of messages) {
                 socket.send(m);
-                enviados.push(m);
+                sent.push(m);
                 lines.push(`>> ${m}`);
             }
         });
         socket.addEventListener('message', (ev: { data: unknown }) => {
             const text = typeof ev.data === 'string' ? ev.data : `[binary ${(ev.data as { byteLength?: number })?.byteLength ?? '?'} bytes]`;
-            recibidos.push(text);
+            received.push(text);
             lines.push(`<< ${text}`);
         });
-        socket.addEventListener('close', (ev: { code?: number; reason?: string }) => cerrar('servidor', `server closed (${ev.code ?? ''}${ev.reason ? ' ' + ev.reason : ''})`));
-        socket.addEventListener('error', (ev: { message?: string; error?: unknown }) => cerrar('error', ev.message ?? mensajeDe(ev.error) ?? 'connection error'));
+        socket.addEventListener('close', (ev: { code?: number; reason?: string }) => close('server', `server closed (${ev.code ?? ''}${ev.reason ? ' ' + ev.reason : ''})`));
+        socket.addEventListener('error', (ev: { message?: string; error?: unknown }) => close('error', ev.message ?? messageOf(ev.error) ?? 'connection error'));
     });
 }
 
 /** Lo que las aserciones necesitan de una transcripción: cuántos mensajes llegaron y cuál fue el último. */
-export function readTranscript(text: string): { recibidos: string[]; enviados: string[] } {
-    const recibidos: string[] = [];
-    const enviados: string[] = [];
+export function readTranscript(text: string): { received: string[]; sent: string[] } {
+    const received: string[] = [];
+    const sent: string[] = [];
     for (const l of text.split(/\r?\n/)) {
         if (l.startsWith('<< ')) {
-            recibidos.push(l.slice(3));
+            received.push(l.slice(3));
         } else if (l.startsWith('>> ')) {
-            enviados.push(l.slice(3));
+            sent.push(l.slice(3));
         }
     }
-    return { recibidos, enviados };
+    return { received, sent };
 }
 
-const mensajeDe = (e: unknown) => (e instanceof Error ? e.message : e === undefined ? undefined : String(e));
+const messageOf = (e: unknown) => (e instanceof Error ? e.message : e === undefined ? undefined : String(e));
 
 interface WebSocketMinimo {
     send(data: string): void;

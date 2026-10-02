@@ -11,7 +11,7 @@ async function main(): Promise<void> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-it-'));
   // Servidor de pruebas compartido con la suite del runner (scripts/test-server.cjs):
   // eco, códigos de estado, JSON, XML, redirección, SSE y un WebSocket de eco.
-  const server = path.join(root, 'scripts', 'servidor-pruebas.cjs');
+  const server = path.join(root, 'scripts', 'test-server.cjs');
   const hijo = cp.spawn(process.execPath, [server, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
   const puerto: string = await new Promise((res, rej) => {
     hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).puerto)));

@@ -84,7 +84,7 @@ Outside the editor, `restclient mcp` is an MCP server over stdio for Claude Code
   "mcpServers": {
     "restclient": {
       "command": "npx",
-      "args": ["restclient", "mcp", "--raiz", "."]
+      "args": ["restclient", "mcp", "--root", "."]
     }
   }
 }

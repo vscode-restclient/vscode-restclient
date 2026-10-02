@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const RUNNER = process.env.CLI_RUTA ?? 'dist-cli/cli/index.js';
-const SERVIDOR = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'servidor-pruebas.cjs');
+const SERVIDOR = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'test-server.cjs');
 const BR = String.fromCharCode(10);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-prueba-'));
@@ -20,11 +20,11 @@ fs.writeFileSync(path.join(tmp, 'http-client.env.json'), JSON.stringify({ dev: {
 fs.writeFileSync(path.join(tmp, 'api.http'), [
   '# @name login', 'POST {{host}}/auth', 'Content-Type: application/json', '', '{"user":"ana"}', '', '# @assert status == 200', '',
   '###', '', '# @name facturas', 'GET {{host}}/facturas', 'Authorization: Bearer {{login.response.body.$.token}}', '', '# @assert body.$.total == 3', '',
-  '###', '', 'GET {{host}}/eco/suelta', 'X-Prueba: {{$secret API_KEY}}', '',
+  '###', '', 'GET {{host}}/echo/suelta', 'X-Test: {{$secret API_KEY}}', '',
 ].join(BR));
 fs.writeFileSync(path.join(os.tmpdir(), 'fuera-de-raiz.http'), 'GET http://127.0.0.1/no');
 
-const mcp = spawn(process.execPath, [RUNNER, 'mcp', '--raiz', tmp], { stdio: ['pipe', 'pipe', 'pipe'] });
+const mcp = spawn(process.execPath, [RUNNER, 'mcp', '--root', tmp], { stdio: ['pipe', 'pipe', 'pipe'] });
 let buffer = '';
 const pendientes = new Map();
 mcp.stdout.on('data', d => {
@@ -73,7 +73,7 @@ ok('un JSON roto da -32700 con id null', roto?.error?.code === -32700);
 
 console.log(BR + '== herramientas');
 const l = await tool('list_requests', { file: 'api.http' });
-ok('list_requests lista nombre, método y URL sin enviar nada', l.data?.requests?.length === 3 && l.data.requests[0].name === 'login' && l.data.requests[0].method === 'POST' && l.data.requests[2].url === '{{host}}/eco/suelta', JSON.stringify(l.data).slice(0, 160));
+ok('list_requests lista nombre, método y URL sin enviar nada', l.data?.requests?.length === 3 && l.data.requests[0].name === 'login' && l.data.requests[0].method === 'POST' && l.data.requests[2].url === '{{host}}/echo/suelta', JSON.stringify(l.data).slice(0, 160));
 const s = await tool('send_request', { file: 'api.http', name: 'login', env: 'dev' });
 ok('send_request envía una petición por su nombre', s.data?.ok === true && s.data?.steps?.[0]?.status === 200 && s.data.steps.length === 1, JSON.stringify(s.data).slice(0, 160));
 const r = await tool('run_http_file', { file: 'api.http', env: 'dev', secrets: { API_KEY: 'k' } });

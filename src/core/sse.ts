@@ -16,7 +16,7 @@ export interface SseEvent {
 export function readEvents(text: string): SseEvent[] {
     const fuera: SseEvent[] = [];
     let actual: { event?: string; data: string[]; id?: string } = { data: [] };
-    const cerrar = () => {
+    const close = () => {
         if (actual.data.length > 0) {
             fuera.push({ event: actual.event, data: actual.data.join('\n'), id: actual.id });
         }
@@ -24,7 +24,7 @@ export function readEvents(text: string): SseEvent[] {
     };
     for (const line of text.split(/\r?\n/)) {
         if (line === '') {
-            cerrar();
+            close();
             continue;
         }
         if (line.startsWith(':')) {
@@ -41,7 +41,7 @@ export function readEvents(text: string): SseEvent[] {
             actual.id = value;
         }
     }
-    cerrar();
+    close();
     return fuera;
 }
 

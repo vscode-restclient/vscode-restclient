@@ -14,7 +14,7 @@ if (!fs.existsSync(RUNNER)) {
 console.log(`runner: ${RUNNER}`);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-prueba-'));
-const server = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'servidor-pruebas.cjs');
+const server = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'test-server.cjs');
 const hijo = spawn(process.execPath, [server, '127.0.0.1'], { stdio: ['ignore', 'pipe', 'inherit'] });
 const puerto = await new Promise((res, rej) => {
   hijo.stdout.once('data', d => res(JSON.parse(d.toString()).puerto));
@@ -54,7 +54,7 @@ const bueno = escribir('api.http', [
 ]);
 
 const malo = escribir('falla.http', [
-  `GET http://127.0.0.1:${puerto}/no-existe`,
+  `GET http://127.0.0.1:${puerto}/not-found`,
   '',
   '# @assert status == 200',
 ]);
@@ -98,8 +98,8 @@ const r4 = await correr([conVar, '--var', `destino=http://127.0.0.1:${puerto}`])
 ok('--var sustituye la variable', r4.exitCode === 0, r4.output.trim().split(BR)[0]);
 
 console.log(BR + '== formato JetBrains: entornos de fichero, import, run y secretos');
-fs.writeFileSync(path.join(tmp, 'http-client.env.json'), JSON.stringify({ dev: { host: `http://127.0.0.1:${puerto}`, filePath: '/eco/publico' } }));
-fs.writeFileSync(path.join(tmp, 'http-client.private.env.json'), JSON.stringify({ dev: { filePath: '/eco/privado' } }));
+fs.writeFileSync(path.join(tmp, 'http-client.env.json'), JSON.stringify({ dev: { host: `http://127.0.0.1:${puerto}`, path: '/echo/public' } }));
+fs.writeFileSync(path.join(tmp, 'http-client.private.env.json'), JSON.stringify({ dev: { path: '/echo/private' } }));
 fs.mkdirSync(path.join(tmp, 'lib'), { recursive: true });
 escribir(path.join('lib', 'auth.http'), ['# @name login', 'POST {{host}}/auth', 'Content-Type: application/json', '', '{"user":"ana"}']);
 const jet = escribir('jet.http', [
@@ -112,11 +112,11 @@ const jet = escribir('jet.http', [
   '',
   '###',
   '',
-  'GET {{host}}{{ruta}}',
-  'X-Prueba: {{$secret API_KEY}}-{{$random.integer(5,6)}}',
+  'GET {{host}}{{path}}',
+  'X-Test: {{$secret API_KEY}}-{{$random.integer(5,6)}}',
   '',
-  '# @assert body.$.ruta == /eco/privado',
-  '# @assert body.$.cabecera == clave-123-5',
+  '# @assert body.$.path == /echo/private',
+  '# @assert body.$.header == clave-123-5',
   '',
   '###',
   '',
@@ -131,13 +131,13 @@ ok('--env lee el entorno de http-client.env.json y el privado manda', r7.exitCod
 ok('run #login ejecuta la petición importada con su nombre', d7?.steps?.[0]?.name === 'login' && d7?.steps?.[0]?.status === 200);
 ok('la respuesta del importado encadena en el fichero que importa', d7?.steps?.[2]?.status === 200);
 const r8 = await correr([jet, '--env', 'dev']);
-ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.exitCode === 1 && r8.output.includes('falta el secreto "API_KEY"') && r8.output.includes('RESTCLIENT_SECRET_API_KEY'), r8.output.split(BR).find(l => l.includes('secreto')) ?? '');
+ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.exitCode === 1 && r8.output.includes('missing secret "API_KEY"') && r8.output.includes('RESTCLIENT_SECRET_API_KEY'), r8.output.split(BR).find(l => l.includes('secreto')) ?? '');
 const r9 = await new Promise((res) => {
-  const p2 = spawn(process.execPath, [RUNNER, jet, '--env', 'dev', '--continuar'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, RESTCLIENT_SECRET_API_KEY: 'clave-123' } });
+  const p2 = spawn(process.execPath, [RUNNER, jet, '--env', 'dev', '--continue'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, RESTCLIENT_SECRET_API_KEY: 'clave-123' } });
   let output = ''; p2.stdout.on('data', d => output += d); p2.on('close', exitCode => res({ exitCode, output }));
 });
 ok('el secreto también llega por RESTCLIENT_SECRET*', r9.exitCode === 0, r9.output.split(BR)[1] ?? '');
-const r10 = await correr([jet, '--env', 'no-existe', '--secret', 'API_KEY=x', '--continuar']);
+const r10 = await correr([jet, '--env', 'no-existe', '--secret', 'API_KEY=x', '--continue']);
 ok('un entorno que no existe avisa y no revienta', r10.exitCode !== 2 && r10.error.includes('--env no-existe'), r10.error.split(BR)[0]);
 
 console.log(BR + '== streaming: SSE y WebSocket');
@@ -155,7 +155,7 @@ ok('un text/event-stream se lee entero y sse.* funciona', r12.exitCode === 0, r1
 const ws = escribir('socket.http', [
   '# @timeout 700',
   `WEBSOCKET ws://127.0.0.1:${puerto}/socket`,
-  'X-Prueba: ana',
+  'X-Test: ana',
   '',
   '{"a":1}',
   '===',
@@ -171,9 +171,9 @@ let d13 = null; try { d13 = JSON.parse(r13.output); } catch { /* abajo */ }
 ok('WEBSOCKET: saludo, eco de dos mensajes y cierre por @timeout', r13.exitCode === 0 && d13?.steps?.[0]?.status === 101, (d13?.steps?.[0]?.assertions ?? []).filter(a => !a.passed).map(a => a.assertion + ' -> ' + a.actual).join(' | ') || r13.error.slice(0, 200));
 
 console.log(BR + '== multiparte con fichero, cURL pegado y --junit');
-fs.writeFileSync(path.join(tmp, 'adjunto.txt'), 'contenido del adjunto {{host}}');
+fs.writeFileSync(path.join(tmp, 'adjunto.txt'), 'attachment content {{host}}');
 const multi = escribir('multi.http', [
-  `POST http://127.0.0.1:${puerto}/eco/subida`,
+  `POST http://127.0.0.1:${puerto}/echo/subida`,
   'Content-Type: multipart/form-data; boundary=----limite',
   '',
   '------limite',
@@ -184,17 +184,17 @@ const multi = escribir('multi.http', [
   '------limite--',
   '',
   '# @assert status == 200',
-  '# @assert body.$.recibido contains contenido del adjunto http://127.0.0.1',
+  '# @assert body.$.received contains attachment content http://127.0.0.1',
   '',
   '###',
   '',
-  `curl -X POST http://127.0.0.1:${puerto}/eco/curl \\`,
-  "  -H 'X-Prueba: desde-curl' \\",
+  `curl -X POST http://127.0.0.1:${puerto}/echo/curl \\`,
+  "  -H 'X-Test: from-curl' \\",
   "  -d 'a=1'",
   '',
   '# @assert status == 200',
-  '# @assert body.$.cabecera == desde-curl',
-  '# @assert body.$.recibido == a=1',
+  '# @assert body.$.header == from-curl',
+  '# @assert body.$.received == a=1',
 ]);
 const junit = path.join(tmp, 'informe.xml');
 const r14 = await correr([multi, '--var', `host=http://127.0.0.1:${puerto}`, '--json', '--junit', junit]);
@@ -210,7 +210,7 @@ ok('el informe recoge la aserción fallida', r15.exitCode === 1 && xmlMalo.inclu
 
 console.log(BR + '== errores de uso');
 const r5 = await correr([]);
-ok('sin fichero explica cómo se usa', r5.exitCode === 2 && r5.error.includes('uso:'));
+ok('sin fichero explica cómo se usa', r5.exitCode === 2 && r5.error.includes('usage:'));
 const r6 = await correr([bueno, '--var', 'malescrita']);
 ok('una variable mal escrita se rechaza', r6.exitCode === 2 && r6.error.includes('clave=valor'));
 const r11 = await correr([bueno, '--secret', 'sin-igual']);
