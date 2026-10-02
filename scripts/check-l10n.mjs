@@ -67,7 +67,7 @@ for (const f of ficherosTs) {
     for (const m of text.matchAll(/l10n\.t\(\s*"((?:[^"\\]|\\.)*)"/g)) {
         literales.set(m[1].replace(/\\"/g, '"'), f);
     }
-    if (/l10n\.t\(\s*`/.test(texto)) conPlantilla.push(f);
+    if (/l10n\.t\(\s*`/.test(text)) conPlantilla.push(f);
 }
 
 const bundleEs = leerJson('l10n/bundle.l10n.es.json');
@@ -86,4 +86,4 @@ const descuadre = [...literales.keys()].filter((k) => k in bundleEs && huecos(k)
 ok('los huecos {0} cuadran en las dos lenguas', descuadre.length === 0, descuadre.join(' | '));
 
 console.log(`\n===== ${failures} failures`);
-process.exit(fallos ? 1 : 0);
+process.exit(failures ? 1 : 0);

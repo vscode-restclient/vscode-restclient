@@ -1,10 +1,10 @@
 /**
- * Aserciones sobre la respuesta, escritas en el propio fichero `.http`.
+ * Assertions about the response, written in the `.http` file itself.
  *
- * Es la tercera petición más votada del proyecto original (+59 votos desde
- * 2018). Van en un comentario con `@`, como el resto de metadatos, para que un
- * fichero con aserciones lo siga entendiendo cualquier otra herramienta que lea
- * el formato: quien no las conozca, las ignora.
+ * The third most upvoted request in the original project (+59 votes since
+ * 2018). They live in an `@` comment, like every other piece of metadata, so a
+ * file with assertions is still understood by any other tool that reads the
+ * format: whatever does not know them ignores them.
  *
  *   # @assert status == 200
  *   # @assert body.$.token exists
@@ -40,8 +40,8 @@ export interface CheckableResponse {
 
 const LINE_RE = /^[ \t]*(?:#|\/\/)[ \t]*@assert[ \t]+(.+?)[ \t]*$/gm;
 const PARTS = /^(\S+)[ \t]+(==|!=|<|>|contains|matches|exists)[ \t]*(.*)$/;
-// Escribir `header.` en singular es lo normal: la cabecera es una. Se aceptan
-// las dos formas antes que dejar fallar una asercion por una `s`.
+// Writing `header.` in the singular is the natural thing to do: there is one
+// header. Both forms are accepted rather than failing an assertion over an `s`.
 const HEADER_PREFIXES = ['headers.', 'header.'];
 
 export function readAssertions(block: string): Assertion[] {
@@ -57,11 +57,11 @@ export function readAssertions(block: string): Assertion[] {
 }
 
 /**
- * Resuelve el sujeto de una aserción contra la respuesta.
+ * Resolves the subject of an assertion against the response.
  *
- * Reutiliza la sintaxis que ya existe para las variables de petición
- * (`body.$.campo`, `headers.nombre`), más `status` y `time`, para que no haya
- * dos lenguajes distintos dentro del mismo fichero.
+ * It reuses the syntax that already exists for request variables
+ * (`body.$.field`, `headers.name`), plus `status` and `time`, so that there are
+ * not two different languages inside the same file.
  */
 export function valueFor(subject: string, r: CheckableResponse): string {
     if (subject === 'status') {
@@ -133,9 +133,9 @@ function porRuta(body: string | undefined, filePath: string): string {
 }
 
 /**
- * ¿Es un sujeto que sabemos resolver? Un `header.content-tipe` mal escrito
- * valía '' y la aserción fallaba como si el servidor tuviera la culpa; peor
- * todavía con `!=`, donde pasaba y el fichero parecía verde.
+ * Is this a subject we know how to resolve? A misspelt `header.content-tipe`
+ * used to be worth '', and the assertion failed as if the server were at fault;
+ * worse still with `!=`, where it passed and the file looked green.
  */
 export function isKnownSubject(subject: string): boolean {
     return subject === 'status'
@@ -170,9 +170,9 @@ export function checkAssertions(assertions: Assertion[], r: CheckableResponse): 
 }
 
 /**
- * Una expresión regular escrita por el usuario no puede colgar el editor: se
- * acota el patrón y el texto antes de evaluarla. Un patrón inválido falla la
- * aserción en vez de lanzar.
+ * A regular expression written by the user must not be able to hang the editor:
+ * both the pattern and the text are bounded before it is evaluated. An invalid
+ * pattern fails the assertion instead of throwing.
  */
 function matchesSafely(text: string, pattern: string): boolean {
     if (pattern.length === 0 || pattern.length > 200) {

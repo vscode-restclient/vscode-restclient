@@ -230,20 +230,20 @@ try {
 seccion('nivel 2: formato JetBrains, streaming, agentes y runner');
 const cliFuente = leer('src/cli/index.ts');
 ok('el runner entiende --env, --secret, --junit y --timeout', ['--env', '--secret', '--junit', '--timeout'].every((o) => cliFuente.includes(`'${o}'`)));
-ok('el runner lee http-client.env.json e import/run', cliFuente.includes('carpetaDeEntornos') && cliFuente.includes('resolverRun'));
+ok('el runner lee http-client.env.json e import/run', cliFuente.includes('environmentsFolder') && cliFuente.includes('resolveRun'));
 const selector = leer('src/utils/selector.ts');
-ok('el editor resuelve run #nombre y salta las lineas import', selector.includes('resolverRun') && selector.includes('isImportLine'));
+ok('el editor resuelve run #nombre y salta las lineas import', selector.includes('resolveRun') && selector.includes('isImportLine'));
 const sistema = leer('src/utils/httpVariableProviders/systemVariableProvider.ts');
 ok('el editor tiene $secret y los alias de JetBrains', sistema.includes('SecretVariableName') && sistema.includes('UuidVariableName') && sistema.includes('IsoTimestampVariableName'));
 const controlador = leer('src/controllers/requestController.ts');
-ok('el panel pinta text/event-stream segun llega', controlador.includes('iniciarStreaming') && controlador.includes('anadirTrozo'));
+ok('el panel pinta text/event-stream segun llega', controlador.includes('startStreaming') && controlador.includes('appendChunk'));
 ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
 const herramientas = leer('src/utils/lmTools.ts');
 ok('la herramienta de envio para agentes pide confirmacion', herramientas.includes('prepareInvocation') && herramientas.includes('confirmationMessages'));
 ok('la herramienta rechaza ficheros fuera del espacio de trabajo', herramientas.includes('is outside the workspace'));
 ok('las herramientas van declaradas en el manifiesto', (pkg.contributes.languageModelTools ?? []).length === 2 && (pkg.contributes.mcpServerDefinitionProviders ?? []).length === 1);
 const mcp = leer('src/cli/mcp.ts');
-ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('dentroDeLaRaiz') && !/fs\.write|writeFileSync/.test(mcp));
+ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('insideRoot') && !/fs\.write|writeFileSync/.test(mcp));
 const mcpPrueba = correr('node scripts/test-mcp.mjs');
 ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.exitCode === 0, /(\d+) failures/.exec(mcpPrueba.output)?.[0] ?? '');
 ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('restclient.js'));
@@ -276,7 +276,7 @@ if (fs.existsSync('dist/cli.js')) {
   ok('el runner publicado arranca solo (shebang)', cli.startsWith('#!/usr/bin/env node'));
   ok('el runner publicado no carga el editor', !cli.includes('require("vscode")'));
   const r = correr('node dist/cli.js');
-  ok('el runner publicado explica su uso', r.exitCode === 2 && r.output.includes('uso:'));
+  ok('el runner publicado explica su uso', r.exitCode === 2 && r.output.includes('usage:'));
 }
 
 seccion('compila y pasa las pruebas');
