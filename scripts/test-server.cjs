@@ -21,7 +21,7 @@ const s = http.createServer((q, r) => {
   q.on('data', c => b += c);
   q.on('end', () => {
     const u = q.url;
-    const eco = () => ({ method: q.method, path: u, header: q.headers['x-test'] || null, agente: q.headers['user-agent'] || null, received: b });
+    const eco = () => ({ method: q.method, path: u, header: q.headers['x-test'] || null, agent: q.headers['user-agent'] || null, received: b });
     if (u.startsWith('/status/')) { const c = Number(u.split('/')[2]) || 500; return json(r, c, { error: 'oops', status: c }, { 'x-path': u }); }
     if (u === '/redirige') { r.writeHead(302, { location: '/destino' }); return r.end(); }
     if (u === '/slow') { return setTimeout(() => json(r, 200, eco(), { 'x-path': u }), 1500); }

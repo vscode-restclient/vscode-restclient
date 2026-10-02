@@ -46,7 +46,7 @@ describe('Rest Client · peticiones reales', () => {
     it('P-01 · GET simple', async () => {
       const t = await enviar(`GET ${BASE}/hola\n`, '/hola');
       assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
-      assert.ok(/"ruta":\s*"\/hola"/.test(t), 'el servidor no vio la ruta');
+      assert.ok(/"path":\s*"\/hola"/.test(t), 'el servidor no vio la ruta');
     });
 
     it('P-02 · POST con cabeceras y cuerpo', async () => {
@@ -54,7 +54,7 @@ describe('Rest Client · peticiones reales', () => {
         `POST ${BASE}/crear\nContent-Type: application/json\nX-Test: valor-de-prueba\n\n{"a":1}\n`,
         'valor-de-prueba',
       );
-      assert.ok(/"metodo":\s*"POST"/.test(t), 'no llegó como POST');
+      assert.ok(/"method":\s*"POST"/.test(t), 'no llegó como POST');
       assert.ok(t.includes('valor-de-prueba'), 'no llegó la cabecera');
       assert.ok(t.includes('{\\"a\\":1}') || t.includes('"a":1'), 'no llegó el cuerpo');
     });
@@ -112,8 +112,8 @@ describe('Rest Client · peticiones reales', () => {
     });
 
     it('P-09 · XML se muestra', async () => {
-      const t = await enviar(`GET ${BASE}/xml\n`, '<raiz>');
-      assert.ok(t.includes('<hijo>'), 'debería verse el XML');
+      const t = await enviar(`GET ${BASE}/xml\n`, '<root>');
+      assert.ok(t.includes('<child>'), 'debería verse el XML');
     });
   });
 
@@ -289,10 +289,10 @@ describe('Rest Client · variables de petición', () => {
 
   it('P-13 · XPath extrae un valor de una respuesta XML', async () => {
     const t = await encadenar(
-      `# @name uno\nGET ${BASE}/xml\n\n###\n\n# segunda\nGET ${BASE}/echo-xml?v={{uno.response.body.//hijo/text()}}\n`,
+      `# @name uno\nGET ${BASE}/xml\n\n###\n\n# segunda\nGET ${BASE}/echo-xml?v={{uno.response.body.//child/text()}}\n`,
       '/echo-xml',
     );
-    assert.ok(t.includes('/echo-xml?v=valor'), `el XPath no se resolvió:\n${t.slice(0, 250)}`);
+    assert.ok(t.includes('/echo-xml?v=value'), `el XPath no se resolvió:\n${t.slice(0, 250)}`);
   });
 
   // PR #853: un JSONPath que casa con varios valores devolvía solo el primero

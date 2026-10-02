@@ -89,11 +89,11 @@ describe('Rest Client · formato JetBrains y secretos', () => {
       '',
     ));
 
-    const primera = await sendFile(file, 2, '"ruta": "/echo/login"');
+    const primera = await sendFile(file, 2, '"path": "/echo/login"');
     assert.ok(primera.includes('HTTP/1.1 200'), 'run #login debe enviar la petición importada');
 
     const segunda = await sendFile(file, 6, '/echo/facturas?desde=');
-    assert.ok(/"ruta":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
+    assert.ok(/"path":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
   });
 
   it('P-38 · $secret: guardado con el comando, se sustituye; el fichero no lo contiene', async () => {
@@ -101,13 +101,13 @@ describe('Rest Client · formato JetBrains y secretos', () => {
     const file = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Test: {{$secret API_KEY}}', ''));
     assert.ok(!fs.readFileSync(file, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
     const t = await sendFile(file, 0, '/con-secreto');
-    assert.ok(/"cabecera":\s*"clave-secreta-123"/.test(t), 'el secreto debe llegar en la cabecera: ' + t.slice(0, 200));
+    assert.ok(/"header":\s*"clave-secreta-123"/.test(t), 'el secreto debe llegar en la cabecera: ' + t.slice(0, 200));
   });
 
   it('P-39 · alias de JetBrains: $uuid, $isoTimestamp y $random.integer(min,max)', async () => {
     const file = escribir('alias.http', j(`GET ${BASE}/alias?u={{$uuid}}&t={{$isoTimestamp}}&r={{$random.integer(5,6)}}`, ''));
     const t = await sendFile(file, 0, '/alias?u=');
-    const filePath = /"ruta":\s*"([^"]+)"/.exec(t)?.[1] ?? '';
+    const filePath = /"path":\s*"([^"]+)"/.exec(t)?.[1] ?? '';
     assert.ok(/u=[0-9a-f-]{36}&/.test(filePath), `sin uuid en ${filePath}`);
     assert.ok(/t=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(filePath), `sin fecha ISO en ${filePath}`);
     assert.ok(/r=5$/.test(filePath), `random.integer(5,6) solo puede dar 5: ${filePath}`);
@@ -293,7 +293,7 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
     ));
     const t = await sendFile(file, 0, '"/buscar"', 40);
     assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
-    assert.ok(/"metodo":\s*"QUERY"/.test(t), 'el servidor debe recibir el metodo QUERY: ' + t.slice(0, 250));
+    assert.ok(/"method":\s*"QUERY"/.test(t), 'el servidor debe recibir el metodo QUERY: ' + t.slice(0, 250));
     assert.ok(/"received":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'el cuerpo debe viajar con la peticion: ' + t.slice(0, 250));
   });
 });
@@ -302,7 +302,7 @@ describe('faker en el editor (carga diferida)', () => {
   it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
     this.timeout(60000);
     const file = escribir('faker.http', j(
-      `GET ${BASE}/echo?correo={{$faker internet.email}}`,
+      `GET ${BASE}/echo?email={{$faker internet.email}}`,
       'X-Test: faker-mark',
     ));
     const text = await sendFile(file, 0, 'faker-mark', 40);
