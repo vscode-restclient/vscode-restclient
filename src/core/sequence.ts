@@ -1,16 +1,16 @@
 /**
- * Ejecutar todas las peticiones de un fichero en orden.
+ * Run every request in a file, in order.
  *
- * Es la petición número dos más votada del proyecto original (+62 votos desde
- * 2020) y la mitad de lo que hace falta para que un `.http` sirva en
- * integración continua: sin secuencia no hay suite, y sin suite no hay motivo
- * para preferir un fichero a una herramienta de escritorio.
+ * The second most upvoted request in the original project (+62 votes since
+ * 2020), and half of what a `.http` file needs to be useful in continuous
+ * integration: without a sequence there is no suite, and without a suite there
+ * is no reason to prefer a file over a desktop tool.
  */
 
-/** Un bloque de fichero: su texto y dónde empieza, para poder situar errores. */
+/** A block of a file: its text and where it starts, so errors can be located. */
 export interface Block {
     text: string;
-    /** Línea (base 0) donde empieza el bloque dentro del fichero. */
+    /** Line (0-based) where the block starts within the file. */
     line: number;
     name?: string;
 }
@@ -20,17 +20,17 @@ const SEPARADOR = /^#{3,}/;
 const NOMBRE = /^\s*(?:#|\/\/)\s*@name\s+(\S+)/m;
 
 /**
- * Trocea un fichero `.http` por sus separadores.
+ * Splits a `.http` file on its separators.
  *
- * Un `###` al principio de línea separa SIEMPRE, sin mirar si estamos dentro
- * de un cuerpo. Parece tosco y lo es, pero es exactamente lo que hace REST
- * Client desde 2016 (`Selector.getDelimiterRows`), y los ficheros que la gente
- * ya tiene escritos cuentan con ello. Ser más listo aquí rompería la
- * compatibilidad, que es lo único que hace este fork instalable sin trabajo.
+ * A `###` at the start of a line ALWAYS separates, without checking whether we
+ * are inside a body. That looks crude, and it is, but it is exactly what REST
+ * Client has done since 2016 (`Selector.getDelimiterRows`), and the files
+ * people have already written rely on it. Being cleverer here would break the
+ * compatibility that is the only thing making this fork a drop-in.
  *
- * Limitación heredada y conocida: un cuerpo que lleve `###` al principio de una
- * línea —un Markdown dentro de un JSON, por ejemplo— se parte en dos. La salida
- * es indentar esa línea o usar un fichero externo con `< cuerpo.json`.
+ * Known inherited limitation: a body carrying `###` at the start of a line —
+ * Markdown inside JSON, say — is split in two. The way out is to indent that
+ * line or move the body to an external file with `< body.json`.
  */
 export function splitBlocks(text: string): Block[] {
     const lines = text.split(SALTOS);
@@ -64,36 +64,36 @@ export interface ExecutedStep {
     status?: number;
     ms: number;
     error?: string;
-    /** Cuerpo de la respuesta, para las aserciones y el informe. */
+    /** Response body, for the assertions and the report. */
     body?: string;
     headers?: Record<string, string | undefined>;
 }
 
 export interface SequenceOptions {
-    /** Envía un bloque ya resuelto y devuelve la respuesta. */
+    /** Sends an already resolved block and returns the response. */
     enviar(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined> }>;
-    /** Sustituye variables usando lo que ya han devuelto las peticiones previas. */
+    /** Substitutes variables using what earlier requests have already returned. */
     resolve?(block: Block): Promise<Block>;
-    /** Por defecto, un fallo detiene la secuencia. */
+    /** By default, a failure stops the sequence. */
     continueOnFailure?: boolean;
-    /** Se llama al terminar cada paso, para poder ir informando. */
+    /** Called as each step finishes, so progress can be reported. */
     alTerminarPaso?(step: ExecutedStep): void;
 }
 
 /**
- * Ejecuta los bloques en orden. Cada respuesta queda disponible para el
- * siguiente bloque antes de resolverlo, que es lo que permite encadenar
- * `{{login.response.body.$.token}}` igual que al enviar a mano.
+ * Runs the blocks in order. Each response becomes available to the next block
+ * before it is resolved, which is what makes `{{login.response.body.$.token}}`
+ * chain exactly as it does when sending by hand.
  *
- * Un fallo detiene la secuencia salvo que se pida lo contrario: encadenar sobre
- * una respuesta que nunca llegó produce errores que no se entienden.
+ * A failure stops the sequence unless asked otherwise: chaining on a response
+ * that never arrived produces errors nobody can read.
  */
 export async function runSequence(blocks: Block[], options: SequenceOptions): Promise<ExecutedStep[]> {
     const hechos: ExecutedStep[] = [];
 
     for (const block of blocks) {
         const t0 = Date.now();
-        // El nombre se toma del bloque ya resuelto: un `run #login` se llama login.
+        // The name comes from the resolved block: a `run #login` is called login.
         let name = block.name ?? `#${hechos.length + 1}`;
         let step: ExecutedStep;
         try {
@@ -115,7 +115,7 @@ export async function runSequence(blocks: Block[], options: SequenceOptions): Pr
 
 const LINEA_DECLARACION = /^\s*(?:(?:#|\/\/).*|@[\w.-]+\s*=.*|import\s+\S.*)?$/;
 
-/** Un bloque que sólo tiene `import`, `@variables` y comentarios no es una petición. */
+/** A block with only `import`, `@variables` and comments is not a request. */
 export function isRequest(block: Block): boolean {
     return block.text.split(SALTOS).some(l => !LINEA_DECLARACION.test(l));
 }
@@ -124,7 +124,7 @@ export interface RequestSummary {
     name?: string;
     method: string;
     url: string;
-    /** Línea (base 0) del bloque en el fichero. */
+    /** Line (0-based) of the block in the file. */
     line: number;
 }
 
