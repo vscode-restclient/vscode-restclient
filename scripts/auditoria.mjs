@@ -105,8 +105,43 @@ seccion('dependencias');
 // un limite de tiempo y, sin datos, queda como aviso en vez de tumbar la CI.
 const audit = json(correr('npm audit --omit=dev --json --fetch-timeout=60000').salida);
 const v = audit.metadata?.vulnerabilities ?? {};
+
+// Excepciones: avisos que NO se pueden arreglar hoy y que no alcanzamos.
+// Cada una lleva por que, y la comprobacion de abajo las caduca sola en cuanto
+// aparezca un arreglo, para que ninguna se quede aqui por inercia.
+const EXCEPCIONES = {
+  'http-cache-semantics': {
+    porque: 'max-stale puede filtrar respuestas cacheadas entre usuarios (<=4.2.0). '
+      + 'No hay version corregida: 4.2.0 es la ultima publicada y el aviso la incluye. '
+      + 'Entra por got@11 -> cacheable-request, y got solo instancia CacheableRequest '
+      + 'si se le pasa options.cache; ni la extension ni el runner la pasan nunca, '
+      + 'asi que el codigo vulnerable no llega a ejecutarse. '
+      + 'Lo que npm propone como arreglo es got@7, un salto mayor hacia atras.',
+  },
+  'cacheable-request': { porque: 'solo aparece por arrastrar a http-cache-semantics' },
+  got: { porque: 'solo aparece por arrastrar a cacheable-request' },
+};
+
 if (typeof v.total === 'number') {
-  ok('ninguna vulnerabilidad en produccion', v.total === 0, `total: ${v.total}`);
+  const paquetes = Object.keys(audit.vulnerabilities ?? {});
+  const sinExcusa = paquetes.filter((n) => !EXCEPCIONES[n]);
+  ok(
+    'ninguna vulnerabilidad en produccion sin excepcion escrita',
+    sinExcusa.length === 0,
+    sinExcusa.length ? sinExcusa.join(', ') : `${paquetes.length} con excepcion, 0 sin ella`
+  );
+
+  // Una excepcion deja de valer en cuanto hay arreglo. `fixAvailable` como
+  // objeto con isSemVerMajor es npm proponiendo un downgrade: eso no cuenta.
+  for (const n of paquetes.filter((x) => EXCEPCIONES[x])) {
+    const fix = audit.vulnerabilities[n]?.fixAvailable;
+    const arreglable = fix === true || (fix && typeof fix === 'object' && !fix.isSemVerMajor);
+    ok(
+      `la excepcion de ${n} sigue siendo necesaria`,
+      !arreglable,
+      arreglable ? `ya hay arreglo (${JSON.stringify(fix)}): quitala y actualiza` : EXCEPCIONES[n].porque.slice(0, 80)
+    );
+  }
 } else {
   aviso('vulnerabilidades en produccion: npm audit no devolvio datos', 'sin red o formato inesperado');
 }
