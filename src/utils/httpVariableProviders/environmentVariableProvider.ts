@@ -57,8 +57,8 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
 
     private async getAvailableVariables(document?: TextDocument): Promise<{ [key: string]: string }> {
         let { name: environmentName } = await EnvironmentController.getCurrentEnvironment();
-        const sinEntorno = environmentName === Constants.NoEnvironmentSelectedName;
-        if (sinEntorno) {
+        const withoutEnvironment = environmentName === Constants.NoEnvironmentSelectedName;
+        if (withoutEnvironment) {
             environmentName = EnvironmentController.sharedEnvironmentName;
         }
         const variables = this._settings.environmentVariables;
@@ -74,8 +74,8 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
         // Resolve mappings from current environment
         this.mapEnvironmentVariables(environmentName, currentEnvironmentVariables, currentEnvironmentVariables);
 
-        const deFichero = sinEntorno ? {} : (fileEnvironments(document)[environmentName] ?? {});
-        return { ...sharedEnvironmentVariables, ...currentEnvironmentVariables, ...deFichero };
+        const fromFile = withoutEnvironment ? {} : (fileEnvironments(document)[environmentName] ?? {});
+        return { ...sharedEnvironmentVariables, ...currentEnvironmentVariables, ...fromFile };
     }
 
     private mapEnvironmentVariables(environment: string, current: { [key: string]: string }, shared: { [key: string]: string }) {

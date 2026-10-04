@@ -15,9 +15,9 @@ export interface Block {
     name?: string;
 }
 
-const SALTOS = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
-const SEPARADOR = /^#{3,}/;
-const NOMBRE = /^\s*(?:#|\/\/)\s*@name\s+(\S+)/m;
+const LINE_BREAK = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
+const SEPARATOR_RE = /^#{3,}/;
+const NAME_RE = /^\s*(?:#|\/\/)\s*@name\s+(\S+)/m;
 
 /**
  * Splits a `.http` file on its separators.
@@ -33,7 +33,7 @@ const NOMBRE = /^\s*(?:#|\/\/)\s*@name\s+(\S+)/m;
  * line or move the body to an external file with `< body.json`.
  */
 export function splitBlocks(text: string): Block[] {
-    const lines = text.split(SALTOS);
+    const lines = text.split(LINE_BREAK);
     const blocks: Block[] = [];
     let actual: string[] = [];
     let inicio = 0;
@@ -41,13 +41,13 @@ export function splitBlocks(text: string): Block[] {
     const close = () => {
         const t = actual.join(String.fromCharCode(10));
         if (t.trim().length > 0) {
-            blocks.push({ text: t, line: inicio, name: NOMBRE.exec(t)?.[1] });
+            blocks.push({ text: t, line: inicio, name: NAME_RE.exec(t)?.[1] });
         }
         actual = [];
     };
 
     for (let i = 0; i < lines.length; i++) {
-        if (SEPARADOR.test(lines[i])) {
+        if (SEPARATOR_RE.test(lines[i])) {
             close();
             inicio = i + 1;
             continue;
@@ -117,7 +117,7 @@ const LINEA_DECLARACION = /^\s*(?:(?:#|\/\/).*|@[\w.-]+\s*=.*|import\s+\S.*)?$/;
 
 /** A block with only `import`, `@variables` and comments is not a request. */
 export function isRequest(block: Block): boolean {
-    return block.text.split(SALTOS).some(l => !LINEA_DECLARACION.test(l));
+    return block.text.split(LINE_BREAK).some(l => !LINEA_DECLARACION.test(l));
 }
 
 export interface RequestSummary {
@@ -134,7 +134,7 @@ export interface RequestSummary {
  */
 export function requestSummaries(text: string): RequestSummary[] {
     return splitBlocks(text).filter(isRequest).map(b => {
-        const primera = b.text.split(SALTOS).find(l => !LINEA_DECLARACION.test(l))!.trim();
+        const primera = b.text.split(LINE_BREAK).find(l => !LINEA_DECLARACION.test(l))!.trim();
         const m = /^([A-Z]+)\s+(\S.*)$/.exec(primera);
         const run = /^run\s+#(\S+)/.exec(primera);
         if (run) {

@@ -1,14 +1,14 @@
 /**
- * Parser del formato `.http` para la terminal.
+ * Parser for the `.http` format, for the terminal.
  *
- * El parser del editor resuelve además variables, entornos y variables de
- * sistema, y para eso depende de los proveedores de VS Code: usarlo aquí
- * arrastraría medio editor. El runner ya trae las variables resueltas cuando
- * llega a este punto, así que sólo hace falta leer la petición.
+ * The editor's parser also resolves variables, environments and system
+ * variables, and for that it depends on VS Code's providers: using it here
+ * would drag in half the editor. By the time the runner reaches this point the
+ * variables are already resolved, so all that is left is reading the request.
  *
- * Cubre método, URL, cabeceras, cuerpo en línea, cuerpo desde fichero con
- * `< ruta` (también dentro de un multiparte, con `<@ ruta` para que se
- * sustituyan las variables del fichero) y una orden `curl` pegada.
+ * Covers method, URL, headers, an inline body, a body from a file with
+ * `< path` (including inside a multipart, with `<@ path` so the file's
+ * variables are substituted) and a pasted `curl` command.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -22,13 +22,13 @@ export interface MinimalRequest {
 
 const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE', 'CONNECT', 'QUERY', 'WEBSOCKET'];
 const SALTOS = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
-const FICHERO_EN_CUERPO = /^<(@)?\s+(.+?)\s*$/;
+const FILE_IN_BODY = /^<(@)?\s+(.+?)\s*$/;
 
 export function parseRequests(text: string, base: string, substitute: (t: string) => string = t => t): MinimalRequest {
     const lines = text.split(SALTOS);
     let i = 0;
 
-    // Comentarios, metadatos y líneas en blanco antes de la petición.
+    // Comments, metadata and blank lines before the request.
     while (i < lines.length && (lines[i].trim() === '' || /^\s*(#|\/\/)/.test(lines[i]) || /^\s*@[\w.-]+\s*=/.test(lines[i]) || /^\s*import\s+\S/.test(lines[i]))) {
         i++;
     }
@@ -54,7 +54,7 @@ export function parseRequests(text: string, base: string, substitute: (t: string
         throw new Error(`no encuentro la URL en "${primera}"`);
     }
 
-    // Una URL puede seguir en las líneas siguientes si empiezan por ? o &.
+    // A URL can continue on the following lines if they start with ? or &.
     while (i < lines.length && /^\s*[?&]/.test(lines[i])) {
         url += lines[i++].trim();
     }
@@ -71,8 +71,8 @@ export function parseRequests(text: string, base: string, substitute: (t: string
         }
     }
 
-    // Todo lo que sigue a la línea en blanco es el cuerpo, menos los comentarios
-    // de metadatos (@assert, @name, @timeout) que van al final del bloque.
+    // Everything after the blank line is the body, except the metadata
+    // comments (@assert, @name, @timeout) that sit at the end of the block.
     const restantes = lines.slice(i + 1).filter(l => !/^\s*(?:#|\/\/)\s*@(assert|name|timeout)\b/.test(l));
     const body = readBody(restantes, headers, base, substitute);
     return { method, url, headers, body };
@@ -82,25 +82,25 @@ const typeOf = (headers: Record<string, string>) =>
     Object.entries(headers).find(([k]) => k.toLowerCase() === 'content-type')?.[1] ?? '';
 
 /**
- * El cuerpo. Si alguna línea es `< fichero` se compone como bytes: el fichero
- * entra tal cual (o con variables sustituidas si es `<@ fichero`) y, en un
- * multiparte, los saltos son CRLF y hay uno final, que es lo que el servidor
- * espera para leer el último límite.
+ * The body. If any line is `< file` it is assembled as bytes: the file goes in
+ * as it is (or with variables substituted for `<@ file`) and, in a multipart,
+ * line breaks are CRLF with a trailing one, which is what the server expects in
+ * order to read the last boundary.
  */
 function readBody(lines: string[], headers: Record<string, string>, base: string, substitute: (t: string) => string): string | Buffer | undefined {
     // Sin ficheros: texto tal cual, recortado.
-    if (!lines.some(l => FICHERO_EN_CUERPO.test(l))) {
+    if (!lines.some(l => FILE_IN_BODY.test(l))) {
         const text = lines.join('\n').trim();
         return text === '' ? undefined : text;
     }
     const multipart = /multipart\//i.test(typeOf(headers));
     const newline = Buffer.from(multipart ? '\r\n' : '\n');
-    // Las líneas en blanco de los extremos no son cuerpo.
+    // Blank lines at either end are not part of the body.
     while (lines.length && lines[0].trim() === '') { lines.shift(); }
     while (lines.length && lines[lines.length - 1].trim() === '') { lines.pop(); }
     const parts: Buffer[] = [];
     lines.forEach((l, k) => {
-        const m = FICHERO_EN_CUERPO.exec(l);
+        const m = FILE_IN_BODY.exec(l);
         if (m) {
             const filePath = path.isAbsolute(m[2]) ? m[2] : path.join(base, m[2]);
             if (!fs.existsSync(filePath)) {
@@ -119,8 +119,8 @@ function readBody(lines: string[], headers: Record<string, string>, base: string
 
 /**
  * Una orden `curl` pegada: `-X`, `-H`, `-d`/`--data*`, `-u`, `--url`, y las
- * continuaciones con `\` al final de línea. Lo que curl haría con eso es lo
- * que se envía.
+ * continuations with `\` at the end of a line. What curl would do with it is
+ * what gets sent.
  */
 export function parseCurl(lines: string[], base: string): MinimalRequest {
     const unaLinea = lines.join('\n').replace(/\\\r?\n/g, ' ').replace(/^\s*curl\b/, '');
@@ -167,7 +167,7 @@ export function parseCurl(lines: string[], base: string): MinimalRequest {
     return { method: method ?? (body !== undefined ? 'POST' : 'GET'), url, headers, body };
 }
 
-/** Argumentos como los vería el shell: comillas simples y dobles, espacios dentro de ellas. */
+/** Arguments as the shell would see them: single and double quotes, spaces inside them. */
 export function splitArguments(text: string): string[] {
     const fuera: string[] = [];
     let actual = '';

@@ -9,7 +9,7 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const BR = String.fromCharCode(10);
 const j = (...l: string[]) => l.join(BR);
 
-const ajuste = (key: string, value: unknown) =>
+const setSetting = (key: string, value: unknown) =>
   vscode.workspace.getConfiguration('rest-client').update(key, value, vscode.ConfigurationTarget.Global);
 
 /** Carpeta del espacio de trabajo de la prueba: ahí van los ficheros de verdad. */
@@ -19,7 +19,7 @@ function folder(): string {
   return c!;
 }
 
-function escribir(name: string, contenido: string): string {
+function write(name: string, contenido: string): string {
   const filePath = path.join(folder(), name);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, contenido);
@@ -54,8 +54,8 @@ describe('Rest Client · formato JetBrains y secretos', () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
-    await ajuste('previewResponsePanelTakeFocus', false);
+    await setSetting('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponsePanelTakeFocus', false);
   });
 
   after(async () => {
@@ -66,9 +66,9 @@ describe('Rest Client · formato JetBrains y secretos', () => {
   });
 
   it('P-36 · http-client.env.json junto al fichero: el entorno elegido resuelve, y el privado manda', async () => {
-    escribir('http-client.env.json', JSON.stringify({ dev: { host: BASE, path: '/public' }, prod: { host: 'http://unused' } }));
-    escribir('http-client.private.env.json', JSON.stringify({ dev: { path: '/private-wins' } }));
-    const file = escribir('entorno.http', j('GET {{host}}{{path}}', ''));
+    write('http-client.env.json', JSON.stringify({ dev: { host: BASE, path: '/public' }, prod: { host: 'http://unused' } }));
+    write('http-client.private.env.json', JSON.stringify({ dev: { path: '/private-wins' } }));
+    const file = write('entorno.http', j('GET {{host}}{{path}}', ''));
 
     await vscode.commands.executeCommand('rest-client.switch-environment', 'dev');
     const t = await sendFile(file, 0, '/private-wins');
@@ -77,8 +77,8 @@ describe('Rest Client · formato JetBrains y secretos', () => {
   });
 
   it('P-37 · import + run #nombre: se envía la petición importada y su respuesta resuelve en el fichero que importa', async () => {
-    escribir(path.join('lib', 'auth.http'), j(`@host = ${BASE}`, '', '# @name login', 'GET {{host}}/echo/login', ''));
-    const file = escribir('api.http', j(
+    write(path.join('lib', 'auth.http'), j(`@host = ${BASE}`, '', '# @name login', 'GET {{host}}/echo/login', ''));
+    const file = write('api.http', j(
       'import ./lib/auth.http',
       '',
       'run #login',
@@ -98,14 +98,14 @@ describe('Rest Client · formato JetBrains y secretos', () => {
 
   it('P-38 · $secret: guardado con el comando, se sustituye; el fichero no lo contiene', async () => {
     await vscode.commands.executeCommand('rest-client.set-secret', 'API_KEY', 'clave-secreta-123');
-    const file = escribir('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Test: {{$secret API_KEY}}', ''));
+    const file = write('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Test: {{$secret API_KEY}}', ''));
     assert.ok(!fs.readFileSync(file, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
     const t = await sendFile(file, 0, '/con-secreto');
     assert.ok(/"header":\s*"clave-secreta-123"/.test(t), 'el secreto debe llegar en la cabecera: ' + t.slice(0, 200));
   });
 
   it('P-39 · alias de JetBrains: $uuid, $isoTimestamp y $random.integer(min,max)', async () => {
-    const file = escribir('alias.http', j(`GET ${BASE}/alias?u={{$uuid}}&t={{$isoTimestamp}}&r={{$random.integer(5,6)}}`, ''));
+    const file = write('alias.http', j(`GET ${BASE}/alias?u={{$uuid}}&t={{$isoTimestamp}}&r={{$random.integer(5,6)}}`, ''));
     const t = await sendFile(file, 0, '/alias?u=');
     const filePath = /"path":\s*"([^"]+)"/.exec(t)?.[1] ?? '';
     assert.ok(/u=[0-9a-f-]{36}&/.test(filePath), `sin uuid en ${filePath}`);
@@ -118,19 +118,19 @@ describe('Rest Client · streaming', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
-    await ajuste('previewResponsePanelTakeFocus', false);
+    await setSetting('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponsePanelTakeFocus', false);
   });
 
   after(async () => {
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
   it('P-42 · text/event-stream: el panel se abre en streaming antes de que termine, y al final llegan los 3 eventos', async () => {
     // Primero en modo panel: tiene que aparecer una pestaña «streaming» ANTES
     // del último evento (el servidor los espacia 200 ms).
-    await ajuste('previewResponseInUntitledDocument', false);
+    await setSetting('previewResponseInUntitledDocument', false);
     await esperar(300);
     const doc = await vscode.workspace.openTextDocument({ language: 'http', content: `GET ${BASE}/sse${BR}` });
     await vscode.window.showTextDocument(doc, { preview: false });
@@ -152,18 +152,18 @@ describe('Rest Client · streaming', () => {
       assert.ok(vistoFinal, 'al terminar el stream el panel pasa a la respuesta completa; pestañas vistas: ' + [...vistas].join(' | '));
     } finally {
       await envio;
-      await ajuste('previewResponseInUntitledDocument', true);
+      await setSetting('previewResponseInUntitledDocument', true);
     }
 
     // Y en modo documento, el cuerpo final trae los tres eventos.
-    const file = escribir('sse.http', j(`GET ${BASE}/sse`, ''));
+    const file = write('sse.http', j(`GET ${BASE}/sse`, ''));
     const t = await sendFile(file, 0, '[DONE]');
     assert.ok(t.includes('content-type: text/event-stream'), 'la cabecera del stream');
     assert.ok(t.includes('data: {"delta":"Hola"}') && t.includes('data: {"delta":" mundo"}'), 'los tres eventos llegan enteros');
   });
 
   it('P-43 · WEBSOCKET: saludo del servidor, eco de dos mensajes y estado 101', async () => {
-    const file = escribir('socket.http', j(
+    const file = write('socket.http', j(
       '# @timeout 800',
       `WEBSOCKET ws://[::1]:${PUERTO}/socket`,
       'X-Test: ana',
@@ -185,7 +185,7 @@ describe('Rest Client · herramientas para agentes', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
   });
 
   after(async () => {
@@ -198,7 +198,7 @@ describe('Rest Client · herramientas para agentes', () => {
       this.skip();
       return;
     }
-    const file = escribir('agente.http', j('# @name saludo', `GET ${BASE}/echo/agente`, 'X-Test: desde-agente', '', '###', '', `GET ${BASE}/otra`, ''));
+    const file = write('agente.http', j('# @name saludo', `GET ${BASE}/echo/agente`, 'X-Test: desde-agente', '', '###', '', `GET ${BASE}/otra`, ''));
     assert.ok(fs.existsSync(file));
     const token = new vscode.CancellationTokenSource().token;
     const text = (r: { content: { value?: string }[] }) => r.content.map((p) => p.value ?? '').join('');
@@ -227,7 +227,7 @@ describe('RestClient · lo portado de rest-client-next', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
   });
 
   after(async () => {
@@ -238,7 +238,7 @@ describe('RestClient · lo portado de rest-client-next', () => {
     // «admin:it's a total eclipse»: antes se partía por cada espacio y por cada
     // ':', y llegaba truncada.
     const key = "it's a total: eclipse";
-    const file = escribir('basic.http', j(`GET ${BASE}/echo/basic`, `Authorization: Basic admin:${key}`, ''));
+    const file = write('basic.http', j(`GET ${BASE}/echo/basic`, `Authorization: Basic admin:${key}`, ''));
     const t = await sendFile(file, 0, '/echo/basic');
     const recibida = /"authorization":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.ok(recibida, 'no llegó cabecera Authorization: ' + t.slice(0, 200));
@@ -246,14 +246,14 @@ describe('RestClient · lo portado de rest-client-next', () => {
   });
 
   it('P-48 · Basic Auth: la forma «usuario contraseña» separada por espacio sigue funcionando', async () => {
-    const file = escribir('basic2.http', j(`GET ${BASE}/echo/basic2`, 'Authorization: Basic ana secreta', ''));
+    const file = write('basic2.http', j(`GET ${BASE}/echo/basic2`, 'Authorization: Basic ana secreta', ''));
     const t = await sendFile(file, 0, '/echo/basic2');
     const recibida = /"authorization":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), 'ana:secreta');
   });
 
   it('P-49 · autocompletar dentro de {{ }} no duplica las llaves', async () => {
-    const file = escribir('completar.http', j('@host = http://ejemplo', 'GET {{host}}/x?id={{', ''));
+    const file = write('completar.http', j('@host = http://ejemplo', 'GET {{host}}/x?id={{', ''));
     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
     await vscode.window.showTextDocument(doc, { preview: false });
     const line = 1;
@@ -275,7 +275,7 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
   });
 
   after(async () => {
@@ -284,7 +284,7 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
 
   it('P-66 · QUERY llega como QUERY y con su cuerpo', async function () {
     this.timeout(60000);
-    const file = escribir('query.http', j(
+    const file = write('query.http', j(
       `QUERY ${BASE}/buscar`,
       'Content-Type: application/json',
       '',
@@ -301,7 +301,7 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
 describe('faker en el editor (carga diferida)', () => {
   it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
     this.timeout(60000);
-    const file = escribir('faker.http', j(
+    const file = write('faker.http', j(
       `GET ${BASE}/echo?email={{$faker internet.email}}`,
       'X-Test: faker-mark',
     ));

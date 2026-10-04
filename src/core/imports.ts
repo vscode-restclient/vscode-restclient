@@ -1,12 +1,12 @@
 /**
- * `import ./comun.http` y `run #nombre`, como en JetBrains.
+ * `import ./common.http` and `run #name`, as in JetBrains.
  *
- * Es la otra mitad de la familia más votada del original (#182 +52, #845 +29,
- * #1148 +23, #943 +22, #402 +26): variables y peticiones compartidas entre
- * ficheros. Un fichero importa a otro; con eso hereda sus `@variables` y puede
- * ejecutar sus peticiones con nombre.
+ * The other half of the most upvoted family in the original (#182 +52, #845
+ * +29, #1148 +23, #943 +22, #402 +26): variables and requests shared between
+ * files. One file imports another, inheriting its `@variables` and being able
+ * to run its named requests.
  *
- * Sin `vscode`: lo usan el editor y el runner.
+ * No `vscode` import: both the editor and the runner use this.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -21,17 +21,16 @@ export interface Imported {
     text: string;
 }
 
-/** Rutas de `import` de un texto, resueltas contra la carpeta del fichero que las contiene. */
-export function importedPaths(text: string, ficheroBase: string): string[] {
-    const dir = path.dirname(path.resolve(ficheroBase));
+/** The `import` paths of a text, resolved against the folder of the file holding them. */
+export function importedPaths(text: string, baseFile: string): string[] {
+    const dir = path.dirname(path.resolve(baseFile));
     return [...text.matchAll(IMPORT)].map(m => path.resolve(dir, m[1] ?? m[2] ?? m[3]));
 }
 
 /**
- * Todos los ficheros importados, en orden de aparición y sin repetir: un
- * fichero que se importa a sí mismo, o dos que se importan mutuamente, se leen
- * una sola vez. Los que no existen se saltan y se devuelven aparte para poder
- * avisar.
+ * Every imported file, in order of appearance and without repeats: a file that
+ * imports itself, or two that import each other, are read once. Missing ones
+ * are skipped and returned separately so they can be reported.
  */
 export function closeImports(
     file: string,
@@ -60,7 +59,7 @@ export function closeImports(
     return { imported, faltan };
 }
 
-/** Bloque con `@name` = nombre: primero en el propio texto, luego en los importados, en orden. */
+/** The block whose `@name` matches: first in the text itself, then in the imports, in order. */
 export function namedBlock(name: string, text: string, imported: Imported[]): (Block & { file?: string }) | undefined {
     const propio = splitBlocks(text).find(b => b.name === name);
     if (propio) {
@@ -76,9 +75,9 @@ export function namedBlock(name: string, text: string, imported: Imported[]): (B
 }
 
 /**
- * Si el bloque es `run #x`, devuelve el bloque real (con su `@name`, para que
- * la respuesta se guarde con ese nombre); si no, el mismo bloque. Conserva la
- * línea del `run` para que los errores señalen donde está escrito.
+ * If the block is `run #x`, returns the real block, keeping its `@name` so the
+ * response is stored under that name; otherwise the block itself. The line of
+ * the `run` is preserved so errors point at where it was written.
  */
 export function resolveRun(block: Block, text: string, imported: Imported[]): Block & { file?: string } {
     const m = RUN.exec(block.text);
@@ -92,7 +91,7 @@ export function resolveRun(block: Block, text: string, imported: Imported[]): Bl
     return { ...real, line: block.line };
 }
 
-/** `@variable = valor` de un texto, en orden de aparición (la última definición gana). */
+/** The `@variable = value` pairs of a text, in order of appearance; the last definition wins. */
 export function textVariables(text: string): Record<string, string> {
     const fuera: Record<string, string> = {};
     for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*?)\s*$/gm)) {
@@ -101,7 +100,7 @@ export function textVariables(text: string): Record<string, string> {
     return fuera;
 }
 
-/** Variables de los importados (en orden) con las propias encima. */
+/** Variables from the imports, in order, with the file's own on top. */
 export function variablesWithImports(text: string, imported: Imported[]): Record<string, string> {
     let fuera: Record<string, string> = {};
     for (const i of imported) {

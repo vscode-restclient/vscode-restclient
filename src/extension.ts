@@ -55,10 +55,10 @@ export async function activate(context: ExtensionContext) {
         if (typeof name !== 'string') {
             name = await window.showInputBox({
                 prompt: l10n.t('Secret name (use it as {{$secret NAME}})'),
-                validateInput: v => (SecretStore.nombreValido(v) ? undefined : l10n.t('Letters, digits, dots, dashes and underscores only')),
+                validateInput: v => (SecretStore.isValidName(v) ? undefined : l10n.t('Letters, digits, dots, dashes and underscores only')),
             });
         }
-        if (!name || !SecretStore.nombreValido(name)) {
+        if (!name || !SecretStore.isValidName(name)) {
             return;
         }
         if (typeof value !== 'string') {

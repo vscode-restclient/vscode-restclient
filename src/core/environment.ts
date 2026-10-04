@@ -13,14 +13,14 @@ export interface EnvironmentData {
     /** Raíz desde la que se resuelven las rutas relativas. */
     root(): string | undefined;
     /** Fichero .http en curso, si lo hay: último recurso para rutas relativas. */
-    ficheroActual(): string | undefined;
+    currentFile(): string | undefined;
 }
 
 /** Entorno de terminal: los avisos van a stderr para no ensuciar la salida. */
-export function terminalEnvironment(root: string, ficheroActual?: string): EnvironmentData {
+export function terminalEnvironment(root: string, currentFile?: string): EnvironmentData {
     return {
         warn: (message: string) => process.stderr.write(`aviso: ${message}\n`),
         root: () => path.resolve(root),
-        ficheroActual: () => ficheroActual
+        currentFile: () => currentFile
     };
 }

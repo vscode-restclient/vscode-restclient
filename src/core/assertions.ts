@@ -70,9 +70,9 @@ export function valueFor(subject: string, r: CheckableResponse): string {
     if (subject === 'time') {
         return String(r.ms);
     }
-    const prefijoCabecera = HEADER_PREFIXES.find(pre => subject.startsWith(pre));
-    if (prefijoCabecera) {
-        const name = subject.slice(prefijoCabecera.length).toLowerCase();
+    const headerPrefix = HEADER_PREFIXES.find(pre => subject.startsWith(pre));
+    if (headerPrefix) {
+        const name = subject.slice(headerPrefix.length).toLowerCase();
         const headers = r.headers ?? {};
         const key = Object.keys(headers).find(k => k.toLowerCase() === name);
         return key ? String(headers[key] ?? '') : '';

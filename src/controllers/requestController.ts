@@ -157,7 +157,7 @@ export class RequestController {
         // primer trozo y va creciendo. Al terminar se renderiza entero como
         // cualquier otra respuesta, así que historial y variables no cambian.
         let enStreaming = false;
-        const alRecibir: OnReceive = (chunk, meta) => {
+        const onReceive: OnReceive = (chunk, meta) => {
             if (settings.previewResponseInUntitledDocument || !isEventStream(getHeader(meta.headers, 'content-type') as string | undefined)) {
                 return;
             }
@@ -177,7 +177,7 @@ export class RequestController {
 
         // set http request
         try {
-            const response = await this._httpClient.send(httpRequest, settings, alRecibir);
+            const response = await this._httpClient.send(httpRequest, settings, onReceive);
 
             // check cancel
             if (httpRequest.isCancelled) {

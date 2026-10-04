@@ -31,7 +31,7 @@ async function enviar(contenido: string, mark: string, segundos = 20): Promise<s
   throw new Error(`sin respuesta con "${mark}" en ${segundos} s. Documentos: ${abiertos}`);
 }
 
-const ajuste = (key: string, value: unknown) =>
+const setSetting = (key: string, value: unknown) =>
   vscode.workspace.getConfiguration('rest-client').update(key, value, vscode.ConfigurationTarget.Global);
 
 describe('Rest Client · peticiones reales', () => {
@@ -39,7 +39,7 @@ describe('Rest Client · peticiones reales', () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
   });
 
   describe('lo básico', () => {
@@ -147,23 +147,23 @@ describe('Rest Client · peticiones reales', () => {
 
   describe('compatibilidad', () => {
     it('P-10 · un ajuste propio se aplica', async () => {
-      await ajuste('defaultHeaders', { 'User-Agent': 'rest-client-propio' });
+      await setSetting('defaultHeaders', { 'User-Agent': 'rest-client-propio' });
       try {
         const t = await enviar(`GET ${BASE}/cabeceras` + BR, 'rest-client-propio');
         assert.ok(t.includes('rest-client-propio'), 'no se aplicó la cabecera por defecto');
       } finally {
-        await ajuste('defaultHeaders', undefined);
+        await setSetting('defaultHeaders', undefined);
       }
     });
 
     it('P-16 · el ajuste propio gana al heredado', async () => {
-      await ajuste('defaultHeaders', { 'User-Agent': 'el-nuevo' });
+      await setSetting('defaultHeaders', { 'User-Agent': 'el-nuevo' });
       try {
         const t = await enviar(`GET ${BASE}/cabeceras` + BR, 'el-nuevo');
         assert.ok(t.includes('el-nuevo'), 'debe mandar el ajuste propio');
         assert.ok(!t.includes('viene-de-restclient'), 'el heredado no debe colarse');
       } finally {
-        await ajuste('defaultHeaders', undefined);
+        await setSetting('defaultHeaders', undefined);
       }
     });
   });
@@ -173,7 +173,7 @@ describe('Rest Client · resolución de localhost', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
   });
 
   // PR #1396: el servidor de pruebas escucha SOLO en IPv6. Sin el parche,
@@ -192,13 +192,13 @@ describe('Rest Client · vista previa', () => {
   });
 
   after(async () => {
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
   });
 
   // PR #1440: en Cursor `window.activeTextEditor.viewColumn` puede ser
   // undefined y la respuesta no se mostraba. Este es el camino que fallaba.
   it('P-26 · muestra la respuesta en el panel, no solo en un documento', async () => {
-    await ajuste('previewResponseInUntitledDocument', false);
+    await setSetting('previewResponseInUntitledDocument', false);
     const doc = await vscode.workspace.openTextDocument({ language: 'http', content: `GET ${BASE}/panel` + BR });
     await vscode.window.showTextDocument(doc, { preview: false });
     await vscode.commands.executeCommand('rest-client.request');
@@ -219,10 +219,10 @@ describe('Rest Client · variables de petición', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
-    await ajuste('previewResponseInUntitledDocument', true);
+    await setSetting('previewResponseInUntitledDocument', true);
     // Si la respuesta se lleva el foco, la siguiente petición se ejecutaría
     // sobre el documento de respuesta y no sobre el .http.
-    await ajuste('previewResponsePanelTakeFocus', false);
+    await setSetting('previewResponsePanelTakeFocus', false);
   });
 
   /**

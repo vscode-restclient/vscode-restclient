@@ -16,17 +16,17 @@ import { convertBufferToStream, convertStreamToBuffer } from './streamUtility';
 import { UserDataManager } from './userDataManager';
 import { EnvironmentData } from '../core/environment';
 
-function ajustesDelEditor(): IRestClientSettings {
+function editorSettings(): IRestClientSettings {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require('../models/configurationSettings').SystemSettings.Instance;
 }
 
 /**
- * Entorno por defecto: el del editor. Es el único punto de este fichero que
- * conoce VS Code, y se carga en diferido para que el runner de terminal nunca
- * llegue a importarlo.
+ * Default environment: the editor's. This is the only place in this file that
+ * knows about VS Code, and it loads lazily so the terminal runner never ends
+ * up importing it.
  */
-const ENTORNO_EDITOR: EnvironmentData = {
+const EDITOR_ENVIRONMENT: EnvironmentData = {
     warn: (message: string) => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { window } = require('vscode');
@@ -42,7 +42,7 @@ const ENTORNO_EDITOR: EnvironmentData = {
         const { Uri } = require('vscode');
         return Uri.parse(root).fsPath as string;
     },
-    ficheroActual: () => {
+    currentFile: () => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         return require('./workspaceUtility').getCurrentHttpFileName();
     }
@@ -55,7 +55,7 @@ import * as crypto from 'crypto';
 const encodeUrl = require('encodeurl');
 const CookieFileStore = require('tough-cookie-file-store').FileCookieStore;
 
-/** Meta de la respuesta en cuanto llegan las cabeceras, antes del cuerpo. */
+/** Response metadata as soon as the headers arrive, before the body. */
 export interface ResponseMeta {
     status: number;
     message: string;
@@ -63,7 +63,7 @@ export interface ResponseMeta {
     headers: ResponseHeaders;
 }
 
-/** Se llama por cada trozo del cuerpo según llega: es lo que permite pintar un stream en vivo. */
+/** Called for each chunk of the body as it arrives: this is what lets a stream be painted live. */
 export type OnReceive = (chunk: Buffer, meta: ResponseMeta) => void;
 
 type Certificate = {
@@ -76,16 +76,16 @@ type Certificate = {
 export class HttpClient {
     private cookieStore: Store;
 
-    public constructor(private readonly _entorno?: EnvironmentData) {
+    public constructor(private readonly _environment?: EnvironmentData) {
         const cookieFilePath = UserDataManager.cookieFilePath;
         this.cookieStore = new CookieFileStore(cookieFilePath) as Store;
     }
 
-    public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, alRecibir?: OnReceive): Promise<HttpResponse> {
-        // Los ajustes del editor se cargan en diferido: quien llame desde la
-        // terminal pasa los suyos y nunca entra aquí, que es lo que mantiene
-        // este fichero libre de VS Code.
-        settings = settings || ajustesDelEditor();
+    public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, onReceive?: OnReceive): Promise<HttpResponse> {
+        // Editor settings load lazily: a caller from the terminal passes its
+        // own and never reaches this line, which is what keeps this file free
+        // of VS Code.
+        settings = settings || editorSettings();
 
         const options = await this.prepareOptions(httpRequest, settings);
 
@@ -107,7 +107,7 @@ export class HttpClient {
             };
             res.on('data', chunk => {
                 bodySize += chunk.length;
-                alRecibir?.(chunk, meta);
+                onReceive?.(chunk, meta);
             });
         });
 
@@ -219,10 +219,10 @@ export class HttpClient {
             const [scheme, user, ...args] = authorization.split(/\s+/);
             const normalizedScheme = scheme.toLowerCase();
             if (normalizedScheme === 'basic' && user !== undefined) {
-                // `Basic usuario:contraseña` con dos puntos o espacios DENTRO de
-                // la contraseña: se parte por el PRIMER `:` de todo lo que sigue
-                // al esquema. Antes se partía por cada espacio y por cada `:`, así
-                // que «admin:it's a total eclipse» llegaba truncada (upstream
+                // `Basic user:password` with colons or spaces INSIDE the
+                // password: split on the FIRST `:` of everything after the
+                // scheme. It used to split on every space and every `:`, so
+                // «admin:it's a total eclipse» arrived truncated (upstream
                 // #1419).
                 const resto = [user, ...args].join(' ');
                 const dosPuntos = resto.indexOf(':');
@@ -232,12 +232,12 @@ export class HttpClient {
                 } else if (args.length > 0) {
                     credencial = `${user}:${args.join(' ')}`;
                 }
-                // Sin `:` y sin segundo argumento, lo que hay ya es el base64 de
-                // `usuario:contraseña`: se deja intacto, como siempre.
+                // With no `:` and no second argument, what is there is already
+                // the base64 of `user:password`: left untouched, as always.
                 if (credencial !== undefined) {
-                    // La cabecera se construye aquí en vez de dejársela a `got`
-                    // por `username`/`password`: got la mete en la URL y sale
-                    // con escapes («it's%20a%20total%3A%20eclipse»).
+                    // The header is built here rather than left to `got` via
+                    // `username`/`password`: got puts it in the URL, which
+                    // escapes it («it's%20a%20total%3A%20eclipse»).
                     removeHeader(options.headers!, 'Authorization');
                     (options.headers as Record<string, string>)['Authorization'] = `Basic ${base64(credencial)}`;
                 }
@@ -331,11 +331,11 @@ export class HttpClient {
     }
 
     /**
-     * Avisos y raíz de rutas. Inyectarlos es lo único que separaba a este
-     * cliente de poder ejecutarse fuera de VS Code.
+     * Warnings and the root for paths. Injecting them was the only thing
+     * standing between this client and running outside VS Code.
      */
     private get environment(): EnvironmentData {
-        return this._entorno ?? ENTORNO_EDITOR;
+        return this._environment ?? EDITOR_ENVIRONMENT;
     }
 
     private resolveCertificate(absoluteOrRelativePath: string | undefined): Buffer | undefined {
@@ -365,7 +365,7 @@ export class HttpClient {
             }
         }
 
-        const currentFilePath = this.environment.ficheroActual();
+        const currentFilePath = this.environment.currentFile();
         if (!currentFilePath) {
             return undefined;
         }

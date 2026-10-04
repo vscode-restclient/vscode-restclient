@@ -1,13 +1,13 @@
 /**
- * restclient — el mismo fichero .http, ejecutado desde la terminal.
+ * restclient — the same .http file, run from the terminal.
  *
  *   restclient peticiones.http [--env dev] [--var host=https://api] [--secret KEY=valor]
  *                              [--continue] [--json] [--timeout ms]
  *
- * Es la petición número seis más votada del proyecto original (+44 votos desde
- * 2019) y lo que convierte un fichero de peticiones en una prueba de
- * integración: sale con código 1 si alguna aserción falla, que es lo único que
- * un servidor de integración continua necesita entender.
+ * The sixth most upvoted request in the original project (+44 votes since
+ * 2019), and what turns a file of requests into an integration test: it exits
+ * with code 1 if any assertion fails, which is the only thing a continuous
+ * integration server needs to understand.
  */
 import * as crypto from 'crypto';
 import { faker } from '@faker-js/faker/locale/en';
@@ -34,7 +34,7 @@ export interface Options {
     continueOnFailure: boolean;
     json: boolean;
     timeoutMs: number;
-    /** Sólo la petición con este nombre (lo usa el servidor MCP). */
+    /** Only the request with this name; used by the MCP server. */
     solo?: string;
     /** Ruta del informe JUnit XML, si se pide. */
     junit?: string;
@@ -52,7 +52,7 @@ export function readArguments(argv: string[]): Options | string {
     let junit: string | undefined;
     let timeoutMs = 30_000;
 
-    const parClaveValor = (par: string, que: string): [string, string] | string => {
+    const keyValuePair = (par: string, que: string): [string, string] | string => {
         const corte = par.indexOf('=');
         if (corte < 1) {
             return `${que} mal escrito: "${par}". Se espera clave=valor`;
@@ -63,13 +63,13 @@ export function readArguments(argv: string[]): Options | string {
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '--var' || a === '-v') {
-            const r = parClaveValor(argv[++i] ?? '', 'variable');
+            const r = keyValuePair(argv[++i] ?? '', 'variable');
             if (typeof r === 'string') {
                 return r.replace('variable mal escrito', 'variable mal escrita');
             }
             variables[r[0]] = r[1];
         } else if (a === '--secret' || a === '-s') {
-            const r = parClaveValor(argv[++i] ?? '', 'secreto');
+            const r = keyValuePair(argv[++i] ?? '', 'secreto');
             if (typeof r === 'string') {
                 return r;
             }
@@ -103,7 +103,7 @@ export function readArguments(argv: string[]): Options | string {
     return { file, variables, secrets, environment, continueOnFailure, json, timeoutMs, junit };
 }
 
-/** El bloque con `@name` = nombre, ya sea en el fichero o vía `run #nombre`. */
+/** The block whose `@name` matches, either in the file or via `run #name`. */
 function soloElBloque(blocks: Block[], name: string): Block[] {
     const directo = blocks.find(b => b.name === name);
     if (directo) {
@@ -114,8 +114,8 @@ function soloElBloque(blocks: Block[], name: string): Block[] {
 
 /**
  * Variables de fichero: `@nombre = valor`, declaradas normalmente al principio
- * y válidas para todo el fichero. Se leen del texto completo, no del bloque,
- * porque así es como funcionan en el editor.
+ * and apply to the whole file. They are read from the full text rather than
+ * the block, because that is how they work in the editor.
  */
 export function fileVariables(text: string): Record<string, string> {
     const fuera: Record<string, string> = {};
@@ -125,7 +125,7 @@ export function fileVariables(text: string): Record<string, string> {
     return fuera;
 }
 
-/** Secretos: de la línea de órdenes, o de `RESTCLIENT_SECRET_NOMBRE`. Faltar es un error, no un hueco. */
+/** Secrets: from the command line, or from `RESTCLIENT_SECRET_NAME`. A missing one is an error, not a blank. */
 export function secret(name: string, secrets: Record<string, string>): string {
     const value = secrets[name] ?? process.env[`RESTCLIENT_SECRET_${name}`];
     if (value === undefined) {
@@ -135,10 +135,10 @@ export function secret(name: string, secrets: Record<string, string>): string {
 }
 
 /**
- * Sustituye `{{variable}}` con lo dado en la línea de órdenes, el entorno y
- * las variables de sistema que tienen sentido fuera del editor. Las mismas
- * que en el editor, con los alias de JetBrains, para que un fichero se
- * comporte igual en los dos sitios.
+ * Substitutes `{{variable}}` with what was given on the command line, the
+ * environment, and the system variables that make sense outside the editor.
+ * The same ones as in the editor, JetBrains aliases included, so that a file
+ * behaves identically in both places.
  */
 export function substitute(text: string, variables: Record<string, string>, secrets: Record<string, string> = {}): string {
     return text.replace(/\{\{([^{}]+)\}\}/g, (completo, name: string) => {
@@ -182,21 +182,21 @@ export function substitute(text: string, variables: Record<string, string>, secr
 }
 
 export async function execute(options: Options, output: (line: string) => void): Promise<number> {
-    const ficheroAbs = path.resolve(options.file);
-    const text = fs.readFileSync(ficheroAbs, 'utf8');
-    const root = path.dirname(ficheroAbs);
-    const environment = terminalEnvironment(root, ficheroAbs);
+    const absoluteFile = path.resolve(options.file);
+    const text = fs.readFileSync(absoluteFile, 'utf8');
+    const root = path.dirname(absoluteFile);
+    const environment = terminalEnvironment(root, absoluteFile);
 
-    const { imported, faltan } = closeImports(ficheroAbs, text);
+    const { imported, faltan } = closeImports(absoluteFile, text);
     for (const f of faltan) {
         environment.warn(`import: no existe ${f}`);
     }
 
     // Prioridad de menor a mayor: entorno de fichero -> @variables (importadas,
-    // luego propias) -> --var. Lo de la línea de órdenes manda: es lo que
-    // permite apuntar el mismo fichero a otro sitio desde el servidor de CI.
+    // then the file's own) -> --var. The command line wins: that is what lets
+    // the same file be pointed somewhere else from a CI server.
     const variables = {
-        ...variablesDeEntorno(root, options.environment, environment.warn),
+        ...environmentVars(root, options.environment, environment.warn),
         ...variablesWithImports(text, imported),
         ...options.variables
     };
@@ -204,7 +204,7 @@ export async function execute(options: Options, output: (line: string) => void):
     const todos = splitBlocks(text).filter(isRequest);
     const blocks = options.solo ? soloElBloque(todos, options.solo) : todos;
     const byBlock = new Map<number, AssertionResult[]>();
-    // Lo que ya han devuelto las peticiones con nombre, para poder encadenar.
+    // What the named requests have already returned, so they can be chained.
     const previous = new Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>();
 
     const steps = await runSequence(blocks, {
@@ -272,8 +272,8 @@ export async function execute(options: Options, output: (line: string) => void):
     return failures === 0 ? 0 : 1;
 }
 
-/** Variables del entorno pedido, leídas de los http-client.env.json desde la carpeta del fichero hacia arriba. */
-function variablesDeEntorno(root: string, name: string | undefined, warn: (m: string) => void): Record<string, string> {
+/** Variables of the requested environment, read from the http-client.env.json files upwards from the file's folder. */
+function environmentVars(root: string, name: string | undefined, warn: (m: string) => void): Record<string, string> {
     if (!name) {
         return {};
     }
@@ -290,13 +290,13 @@ function variablesDeEntorno(root: string, name: string | undefined, warn: (m: st
     return environments[name];
 }
 
-/** `# @timeout 5000` en el bloque manda sobre el --timeout general. */
+/** A `# @timeout 5000` in the block overrides the general --timeout. */
 export function blockTimeout(text: string): number | undefined {
     const m = /^\s*(?:#|\/\/)\s*@timeout\s+(\d+)\s*$/m.exec(text);
     return m ? Number(m[1]) : undefined;
 }
 
-/** WebSocket: la «respuesta» es la transcripción, con estado 101 como en el editor. */
+/** WebSocket: the «response» is the transcript, with status 101 as in the editor. */
 async function enviarWebSocket(p: { url: string; headers: Record<string, string>; body?: string | Buffer }, ms: number):
     Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
     const body = typeof p.body === 'string' ? p.body : p.body?.toString('utf8');
@@ -307,7 +307,7 @@ async function enviarWebSocket(p: { url: string; headers: Record<string, string>
     return { status: 101, body: r.transcript, headers: { 'content-type': 'text/plain', 'x-closed-by': r.closedBy } };
 }
 
-/** Envía la petición con el cliente HTTP de Node: sin dependencias. */
+/** Sends the request with Node's own HTTP client: no dependencies. */
 function sendRequest(p: { method: string; url: string; headers: Record<string, string>; body?: string | Buffer }, timeoutMs: number):
     Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
     return new Promise((resolve, rechazar) => {
@@ -328,8 +328,8 @@ function sendRequest(p: { method: string; url: string; headers: Record<string, s
             });
             response.on('data', t => chunks.push(t as Buffer));
             response.on('end', terminar);
-            // Un stream de eventos puede no terminar nunca: pasado el tiempo se
-            // corta y lo recibido hasta entonces es la respuesta, no un error.
+            // An event stream may never end: once the time is up it is cut,
+            // and what arrived by then is the response, not an error.
             if (isEventStream(response.headers['content-type'])) {
                 const corte = setTimeout(() => { response.destroy(); terminar(); }, timeoutMs);
                 response.on('end', () => clearTimeout(corte));
@@ -347,7 +347,7 @@ function sendRequest(p: { method: string; url: string; headers: Record<string, s
     });
 }
 
-/** Resuelve `{{nombre.response.body.$.x}}` con lo que ya respondió esa petición. */
+/** Resolves `{{name.response.body.$.x}}` with what that request already answered. */
 function resolvePrevious(text: string, previous: Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>): string {
     return text.replace(/\{\{(\w+)\.response\.(body|headers)\.([^{}]+)\}\}/g, (completo, name: string, parte: string, resto: string) => {
         const r = previous.get(name);
@@ -355,7 +355,7 @@ function resolvePrevious(text: string, previous: Map<string, { body: string; hea
             return completo;
         }
         const subject = parte === 'headers' ? `headers.${resto.trim()}` : `body.${resto.trim()}`;
-        // Se reutiliza el mismo resolutor que las aserciones: un solo lenguaje.
+        // The same resolver as the assertions is reused: one language, not two.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { valueFor } = require('../core/assertions');
         const value = valueFor(subject, { status: r.status, body: r.body, headers: r.headers, ms: 0 });

@@ -38,17 +38,17 @@ export class EnvironmentController {
      */
     @trace('Switch Environment')
     public async switchEnvironment(name?: string) {
-        const deAjustes = Object.keys(this.settings.environmentVariables)
+        const fromSettings = Object.keys(this.settings.environmentVariables)
             .filter(name => name !== EnvironmentController.sharedEnvironmentName);
-        const deFichero = Object.keys(fileEnvironments());
-        const names = [...new Set([...deAjustes, ...deFichero])];
+        const fromFile = Object.keys(fileEnvironments());
+        const names = [...new Set([...fromSettings, ...fromFile])];
 
         const userEnvironments: EnvironmentPickItem[] = names.map(name => ({
             name,
             label: name,
             description: [
                 name === this.currentEnvironment.name ? '$(check)' : '',
-                deFichero.includes(name) ? l10n.t('from http-client.env.json') : ''
+                fromFile.includes(name) ? l10n.t('from http-client.env.json') : ''
             ].filter(Boolean).join(' ') || undefined
         }));
 

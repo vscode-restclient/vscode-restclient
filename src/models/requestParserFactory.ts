@@ -13,11 +13,11 @@ export class RequestParserFactory {
         // Los ajustes del editor se cargan en diferido: quien parsea desde la
         // terminal pasa los suyos y nunca llega a importar VS Code.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const ajustes: IRestClientSettings = settings ?? require('./configurationSettings').SystemSettings.Instance;
+        const resolved: IRestClientSettings = settings ?? require('./configurationSettings').SystemSettings.Instance;
         if (RequestParserFactory.curlRegex.test(rawHttpRequest)) {
-            return new CurlRequestParser(rawHttpRequest, ajustes);
+            return new CurlRequestParser(rawHttpRequest, resolved);
         } else {
-            return new HttpRequestParser(rawHttpRequest, ajustes);
+            return new HttpRequestParser(rawHttpRequest, resolved);
         }
     }
 }

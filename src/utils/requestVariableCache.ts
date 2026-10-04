@@ -13,7 +13,7 @@ export class RequestVariableCache {
     // La última respuesta de cada nombre, venga del fichero que venga: es lo
     // que permite usar `{{login.response…}}` en un fichero que importa al que
     // tiene `login` (#1148, #943). El documento propio sigue mandando.
-    private static porNombreCache = new Map<string, HttpResponse>();
+    private static byNameCache = new Map<string, HttpResponse>();
 
     private static readonly eventEmitter = new EventEmitter<RequestVariableEvent>();
 
@@ -27,19 +27,19 @@ export class RequestVariableCache {
         }
 
         this.cache.get(document)!.set(name, response);
-        this.porNombreCache.set(name, response);
+        this.byNameCache.set(name, response);
         this.eventEmitter.fire({ name, document });
     }
 
     public static has(document: TextDocument, name: string): boolean {
-        return (this.cache.has(document) && this.cache.get(document)!.has(name)) || this.porNombreCache.has(name);
+        return (this.cache.has(document) && this.cache.get(document)!.has(name)) || this.byNameCache.has(name);
     }
 
     public static get(document: TextDocument, name: string): HttpResponse | undefined {
-        return this.cache.get(document)?.get(name) ?? this.porNombreCache.get(name);
+        return this.cache.get(document)?.get(name) ?? this.byNameCache.get(name);
     }
 
-    public static porNombre(name: string): HttpResponse | undefined {
-        return this.porNombreCache.get(name);
+    public static byName(name: string): HttpResponse | undefined {
+        return this.byNameCache.get(name);
     }
 }

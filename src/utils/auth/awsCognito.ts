@@ -14,7 +14,7 @@ import type { BeforeRequestHook } from 'got';
 
 const OBJETIVO = 'AWSCognitoIdentityProviderService.InitiateAuth';
 
-interface RespuestaCognito {
+interface CognitoResponse {
   AuthenticationResult?: {
     AccessToken?: string;
     IdToken?: string;
@@ -31,7 +31,7 @@ async function login(
   _userPoolId: string,
   clientId: string,
 ): Promise<{ idToken: string; accessToken: string }> {
-  let body: RespuestaCognito;
+  let body: CognitoResponse;
   try {
     body = await got
       .post(`https://cognito-idp.${region}.amazonaws.com/`, {
@@ -47,7 +47,7 @@ async function login(
         responseType: 'json',
         throwHttpErrors: false,
       })
-      .json<RespuestaCognito>();
+      .json<CognitoResponse>();
   } catch (e) {
     throw new Error(`Cognito no respondió: ${e instanceof Error ? e.message : String(e)}`);
   }

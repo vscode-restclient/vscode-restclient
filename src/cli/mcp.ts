@@ -22,7 +22,7 @@ import { execute, Options } from './index';
 
 const PROTOCOLO = '2025-06-18';
 
-interface Peticion {
+interface Request {
     jsonrpc?: string;
     id?: number | string | null;
     method?: string;
@@ -72,7 +72,7 @@ const HERRAMIENTAS = [
 export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): void {
     const absoluteRoot = path.resolve(root);
     const rl = readline.createInterface({ input: entrada, crlfDelay: Infinity });
-    const responder = (id: Peticion['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
+    const responder = (id: Request['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
         output.write(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...body }) + '\n');
     };
 
@@ -80,7 +80,7 @@ export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.
         if (line.trim() === '') {
             return;
         }
-        let msg: Peticion;
+        let msg: Request;
         try {
             msg = JSON.parse(line);
         } catch {
@@ -108,7 +108,7 @@ class ErrorRpc extends Error {
     }
 }
 
-async function handle(msg: Peticion, root: string): Promise<unknown> {
+async function handle(msg: Request, root: string): Promise<unknown> {
     switch (msg.method) {
         case 'initialize':
             return { protocolVersion: PROTOCOLO, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };

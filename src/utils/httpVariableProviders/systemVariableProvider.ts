@@ -76,16 +76,16 @@ export class SystemVariableProvider implements HttpVariableProvider {
     public readonly type: VariableType = VariableType.System;
 
     public async has(name: string, document: TextDocument): Promise<boolean> {
-        return this.resolveFuncs.has(SystemVariableProvider.nombreDe(name));
+        return this.resolveFuncs.has(SystemVariableProvider.nameOf(name));
     }
 
     /** `$random.integer(1,9)` no lleva espacio: el nombre es lo que hay antes del paréntesis. */
-    private static nombreDe(name: string): string {
+    private static nameOf(name: string): string {
         return name.split(' ').filter(Boolean)[0].replace(/\(.*$/, '');
     }
 
     public async get(name: string, document: TextDocument, context: HttpVariableContext): Promise<HttpVariable> {
-        const variableName = SystemVariableProvider.nombreDe(name);
+        const variableName = SystemVariableProvider.nameOf(name);
         if (!this.resolveFuncs.has(variableName)) {
             return { name: variableName, error: ResolveErrorMessage.SystemVariableNotExist };
         }
