@@ -110,16 +110,10 @@ const v = audit.metadata?.vulnerabilities ?? {};
 // Cada una lleva por que, y la comprobacion de abajo las caduca sola en cuanto
 // aparezca un arreglo, para que ninguna se quede aqui por inercia.
 const EXCEPCIONES = {
-  'http-cache-semantics': {
-    porque: 'max-stale puede filtrar respuestas cacheadas entre usuarios (<=4.2.0). '
-      + 'No hay version corregida: 4.2.0 es la ultima publicada y el aviso la incluye. '
-      + 'Entra por got@11 -> cacheable-request, y got solo instancia CacheableRequest '
-      + 'si se le pasa options.cache; ni la extension ni el runner la pasan nunca, '
-      + 'asi que el codigo vulnerable no llega a ejecutarse. '
-      + 'Lo que npm propone como arreglo es got@7, un salto mayor hacia atras.',
-  },
-  'cacheable-request': { porque: 'solo aparece por arrastrar a http-cache-semantics' },
-  got: { porque: 'solo aparece por arrastrar a cacheable-request' },
+  // (vacio) El 2026-10-03 hubo tres entradas por http-cache-semantics <=4.2.0,
+  // sin arreglo publicado y sin alcanzar (got solo usa cacheable-request con
+  // options.cache). Al dia siguiente salio 4.3.0 y esta misma comprobacion
+  // exigio quitarlas. Asi es como debe morir una excepcion.
 };
 
 if (typeof v.total === 'number') {

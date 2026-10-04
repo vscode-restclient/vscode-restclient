@@ -2483,7 +2483,7 @@ IN THE SOFTWARE.
 
 ==============================================================================
 
-http-cache-semantics@4.1.1
+http-cache-semantics@4.3.0
 License: BSD-2-Clause
 Repository: https://github.com/kornelski/http-cache-semantics
 Author: Kornel Lesiński <kornel@geekhood.net> (https://kornel.ski/)
