@@ -404,7 +404,37 @@ Authorization: Digest user passwd
 
 ### SSL Client Certificates
 
-We support `PFX`, `PKCS12`, and `PEM` certificates. Before using your certificates, you need to set the certificates paths(absolute/relative to workspace/relative to current http file) in the setting file for expected host name(port is optional). For each host, you can specify the key `cert`, `key`, `pfx` and `passphrase`.
+We support `PFX`, `PKCS12`, and `PEM` certificates. Before using your certificates, set their paths (absolute, relative to the workspace, or relative to the current HTTP file) in `rest-client.certificates` for the expected host. For each host, you can specify `cert`, `key`, `pfx` and `passphrase`.
+
+Host keys are case-insensitive, including exact keys:
+
+| Host key | Matches |
+| --- | --- |
+| `example.com` | Only `example.com` with no port in the URL |
+| `example.com:8443` | Only `example.com:8443` |
+| `example.com:*` | `example.com` with any port or no port |
+| `*.example.com` | Exactly one additional label, e.g. `a.example.com`, with no port |
+| `**.example.com` | One or more additional labels, e.g. `a.example.com` or `a.b.example.com`, with no port |
+| `**.example.com:*` | One or more additional labels, with any port or no port |
+
+Neither `*.` nor `**.` matches `example.com` itself; add a separate key for it.
+Host wildcards can also use a numeric port, e.g. `*.example.com:8443`.
+An explicitly written default port still counts as a port: `https://example.com:443` does not match `example.com`.
+Exact keys without `*` retain their existing opaque matching, apart from case-insensitivity (including IPv6 keys such as `[::1]:8443`).
+
+When several entries match, host specificity takes precedence: exact host, then `*.`, then `**.`.
+Among `**.` patterns, the longer suffix wins. Only at equal host specificity does the port decide: matching explicit port, then no port, then `:*`.
+For example, `a.example.com:*` beats `*.example.com:8443` for `https://a.example.com:8443`, regardless of settings order.
+
+Case-equivalent keys with identical `cert`, `key`, `pfx` and `passphrase` values are harmless duplicates.
+If those fields differ (including different paths to files with identical contents), an affected request fails with an error naming the conflicting keys.
+There is no fallback to a less-specific certificate or to sending without a certificate.
+A more-specific, unambiguous match continues to work; conflicts in entries that do not match the request do not block it.
+Error messages do not contain certificate values or passphrases.
+
+Wildcards must be a whole leading label (`*.` or `**.`), a port (`:*`), or both.
+Invalid wildcard keys such as `foo*.example.com` or `a.*.example.com` are flagged by the settings schema, ignored when sending, and logged once per key per session to the REST output channel, without a popup.
+Keys without `*` are not validated. These rules do not change `rest-client.oidcCertificates`.
 
 - `cert`: Path of public x509 certificate
 - `key`: Path of private key
@@ -812,7 +842,7 @@ By default, REST Client Extension only previews the full response in preview pan
 - `rest-client.environmentVariables`: Sets the environments and custom variables belongs to it (e.g., `{"production": {"host": "api.example.com"}, "sandbox":{"host":"sandbox.api.example.com"}}`). (Default is **{}**)
 - `rest-client.mimeAndFileExtensionMapping`: Sets the custom mapping of mime type and file extension of saved response body. (Default is **{}**)
 - `rest-client.previewResponseInUntitledDocument`: Preview response in untitled document if set to true, otherwise displayed in html view. (Default is **false**)
-- `rest-client.certificates`: Certificate paths for different hosts. The path can be absolute path or relative path(relative to workspace or current http file). (Default is **{}**)
+- `rest-client.certificates`: Certificate paths for case-insensitive host keys, supporting `*.`, `**.` and `:*`. Paths can be absolute or relative to the workspace or current HTTP file. See [SSL Client Certificates](#ssl-client-certificates) for precedence and conflict handling. (Default is **{}**)
 - `rest-client.suppressResponseBodyContentTypeValidationWarning`: Suppress response body content type validation. (Default is **false**)
 - `rest-client.previewOption`: Response preview output option. Option details is described above. (Default is **full**)
 - `rest-client.disableHighlightResponseBodyForLargeResponse`: Controls whether to highlight response body for response whose size is larger than limit specified by `rest-client.largeResponseSizeLimitInMB`. (Default is **true**)

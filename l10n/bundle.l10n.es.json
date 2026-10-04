@@ -1,4 +1,5 @@
 {
+    "Conflicting entries in rest-client.certificates: {0}. Case-equivalent keys must have identical cert, key, pfx and passphrase settings.": "Entradas en conflicto en rest-client.certificates: {0}. Las claves equivalentes salvo mayúsculas deben tener los mismos valores de cert, key, pfx y passphrase.",
     "Send Request": "Enviar la petición",
     "1 reference": "1 uso",
     "{0} references": "{0} usos",
