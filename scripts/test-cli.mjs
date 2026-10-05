@@ -17,7 +17,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-prueba-'));
 const server = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'test-server.cjs');
 const hijo = spawn(process.execPath, [server, '127.0.0.1'], { stdio: ['ignore', 'pipe', 'inherit'] });
 const puerto = await new Promise((res, rej) => {
-  hijo.stdout.once('data', d => res(JSON.parse(d.toString()).puerto));
+  hijo.stdout.once('data', d => res(JSON.parse(d.toString()).port));
   setTimeout(() => rej(new Error('el servidor no arrancó')), 8000);
 });
 

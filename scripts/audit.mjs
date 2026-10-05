@@ -281,6 +281,18 @@ ok('el panel pinta text/event-stream segun llega', controlador.includes('startSt
 // And through argv: the editor launches the MCP server of the bundled runner.
 ok('el editor lanza el servidor MCP con la opcion que el runner lee', leer('src/utils/lmTools.ts').includes("'mcp', '--root', root") && leer('src/cli/index.ts').includes("a === '--root'"));
 ok('el runner rechaza las opciones que no conoce', leer('src/cli/index.ts').includes('return unknownOption(a)'));
+// And through stdout: the test servers announce their port as JSON and five
+// readers parse it untyped. One of them was renamed alone during the English
+// pass (`.puerto` -> `.port`) and every integration test timed out.
+{
+  const anuncian = ['scripts/test-server.cjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs'];
+  const leen = ['scripts/test-cli.mjs', 'scripts/test-mcp.mjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs', 'src/test/integration/runTest.ts'];
+  const mal = [
+    ...anuncian.filter((f) => !leer(f).includes('JSON.stringify({ port: s.address().port })')),
+    ...leen.filter((f) => !leer(f).includes('JSON.parse(d.toString()).port)')),
+  ];
+  ok('los servidores de prueba y quienes los leen llaman igual al puerto', mal.length === 0, mal.join(', '));
+}
 ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
 const herramientas = leer('src/utils/lmTools.ts');
 ok('la herramienta de envio para agentes pide confirmacion', herramientas.includes('prepareInvocation') && herramientas.includes('confirmationMessages'));

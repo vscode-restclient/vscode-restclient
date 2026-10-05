@@ -42,7 +42,7 @@ const s = http.createServer((q, r) => {
     json(404, { error: 'no existe', ruta: q.url });
   });
 });
-s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ puerto: s.address().port })));`;
+s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ port: s.address().port })));`;
 
 const API_HTTP = (puerto) => `@host = http://127.0.0.1:${puerto}
 
@@ -123,7 +123,7 @@ async function main() {
     fs.writeFileSync(ficheroServidor, SERVIDOR);
     const hijo = cp.spawn(process.execPath, [ficheroServidor], { stdio: ['ignore', 'pipe', 'inherit'] });
     const puerto = await new Promise((res, rej) => {
-        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).puerto));
+        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).port));
         setTimeout(() => rej(new Error('el servidor de la demo no arrancó')), 8000);
     });
     console.log(`servidor de la demo en ${puerto}`);

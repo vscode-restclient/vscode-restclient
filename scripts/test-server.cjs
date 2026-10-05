@@ -5,7 +5,7 @@
 // y un WebSocket de eco escrito a mano (RFC 6455, tramas de texto), para no
 // meter una dependencia solo para probar.
 //
-//   node test-server.cjs [host]   -> imprime {"puerto": N}
+//   node test-server.cjs [host]   -> imprime {"port": N}
 const http = require('http');
 const crypto = require('crypto');
 
@@ -97,4 +97,4 @@ s.on('upgrade', (q, socket) => {
   socket.on('error', () => { /* el cliente se fue */ });
 });
 
-s.listen(0, host, () => console.log(JSON.stringify({ puerto: s.address().port })));
+s.listen(0, host, () => console.log(JSON.stringify({ port: s.address().port })));

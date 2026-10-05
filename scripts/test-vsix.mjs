@@ -23,7 +23,7 @@ const s = http.createServer((q, r) => {
     r.end(JSON.stringify({ token: 'tok-123', received: b }));
   });
 });
-s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ puerto: s.address().port })));`;
+s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ port: s.address().port })));`;
 
 // En Windows npx es un .cmd y hay que pasar por el shell, asi que las rutas van
 // entre comillas; en Linux y macOS no hay shell y las comillas irian literales.
@@ -60,7 +60,7 @@ async function main() {
     fs.writeFileSync(path.join(tmpServidor, 's.cjs'), SERVIDOR);
     const hijo = cp.spawn(process.execPath, [path.join(tmpServidor, 's.cjs')], { stdio: ['ignore', 'pipe', 'inherit'] });
     const puerto = await new Promise((res, rej) => {
-        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).puerto));
+        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).port));
         setTimeout(() => rej(new Error('el servidor no arranco')), 8000);
     });
 
