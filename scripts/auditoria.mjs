@@ -248,6 +248,21 @@ const mcpPrueba = correr('node scripts/probar-mcp.mjs');
 ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.codigo === 0, /(\d+) fallos/.exec(mcpPrueba.salida)?.[0] ?? '');
 ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('restclient.js'));
 ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/release.yml').includes('restclient.js'));
+// Este audit corre las pruebas unitarias (out-test/) y las del runner
+// (dist-cli/), asi que quien lo lance tiene que haber compilado las dos cosas
+// antes. El job `publish` de release-please.yml no lo hacia: en un checkout
+// limpio el audit fallaba y la publicacion se habria quedado ahi. Nadie lo vio
+// porque las dos releases que se intentaron fueron por release.yml.
+{
+  const flujos = fs.readdirSync('.github/workflows').filter((f) => /\.ya?ml$/.test(f));
+  const conAudit = flujos.filter((f) => /^\s*(-\s+)?run:\s*npm run audit\s*$/m.test(leer(`.github/workflows/${f}`)));
+  const sinCompilar = conAudit.filter((f) => {
+    const antes = leer(`.github/workflows/${f}`).split(/^\s*(?:-\s+)?run:\s*npm run audit\s*$/m)[0];
+    const paso = (...scripts) => scripts.some((s) => new RegExp(`^[ \\t]*(?:-[ \\t]+)?run:\\s*(?:xvfb-run -a )?npm run ${s}\\s*$`, 'm').test(antes));
+    return !(paso('compile-tests', 'test:unit', 'test:integration') && paso('build:cli', 'test:cli'));
+  });
+  ok('todo flujo que lanza el audit compila antes las pruebas y el runner', conAudit.length >= 3 && sinCompilar.length === 0, sinCompilar.join(', ') || conAudit.join(', '));
+}
 const npmPkg = JSON.parse(leer('npm/package.json'));
 ok('el paquete npm tiene el mismo numero de version', npmPkg.version === pkg.version, `npm ${npmPkg.version} / extension ${pkg.version}`);
 ok('el paquete npm es solo el runner', npmPkg.bin?.restclient === 'cli.js' && JSON.stringify(npmPkg.files) === JSON.stringify(['cli.js', 'README.md', 'LICENSE']) && !npmPkg.dependencies);
