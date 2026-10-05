@@ -40,6 +40,10 @@ describe('Rest Client · peticiones reales', () => {
     assert.ok(ext, 'la extensión no está cargada');
     await ext!.activate();
     await setSetting('previewResponseInUntitledDocument', true);
+    // Estas pruebas cubren la ruta por defecto, en la que la respuesta se lleva
+    // el foco. Otra suite que corra antes lo deja en false a nivel global, así
+    // que aquí se vuelve al valor por defecto en vez de heredar el suyo.
+    await setSetting('previewResponsePanelTakeFocus', undefined);
   });
 
   describe('lo básico', () => {

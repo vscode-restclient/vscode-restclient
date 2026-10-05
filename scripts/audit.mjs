@@ -72,19 +72,19 @@ ok('la licencia declarada es MIT', pkg.license === 'MIT');
 // BSD y Apache exigen reproducir el aviso en la distribucion binaria; el
 // bundle de webpack solo conserva los comentarios /*! */, asi que ademas viaja
 // un fichero con la licencia de cada paquete de produccion.
-const warnings = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
-ok('existe el fichero de avisos de terceros', warnings.length > 0);
+const notices = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
+ok('existe el fichero de avisos de terceros', notices.length > 0);
 // El fichero se genera con scripts/generate-notices.mjs: si alguien añade una
 // dependencia y no lo regenera, aqui se le dice, en vez de descubrirlo un abogado.
-ok('los avisos de terceros estan al dia (generar-notices --check)', correr('node scripts/generate-notices.mjs --check').exitCode === 0);
+ok('los avisos de terceros estan al dia (generate-notices --check)', correr('node scripts/generate-notices.mjs --check').exitCode === 0);
 const arbol = json(correr('npm ls --omit=dev --all --json').output);
 const paquetes = new Set();
 // Sin version = dependencia opcional que npm no instalo; no viaja, no cuenta.
 const recorrerArbol = (nodo) => { for (const [n, v] of Object.entries(nodo?.dependencies ?? {})) { if (v.version) { paquetes.add(`${n}@${v.version}`); recorrerArbol(v); } } };
 recorrerArbol(arbol);
-const sinAviso = [...paquetes].filter((pq) => !warnings.includes(`\n${pq}\n`));
+const sinAviso = [...paquetes].filter((pq) => !notices.includes(`\n${pq}\n`));
 ok('todo paquete de produccion tiene su aviso', paquetes.size > 0 && sinAviso.length === 0, sinAviso.length ? sinAviso.slice(0, 5).join(', ') : `${paquetes.size} paquetes`);
-const copyleft = [...warnings.matchAll(/^License: (.+)$/gm)].map((m) => m[1]).filter((l) => /GPL|SSPL|UNKNOWN|UNLICENSED|CC-BY-NC|EUPL|OSL/i.test(l));
+const copyleft = [...notices.matchAll(/^License: (.+)$/gm)].map((m) => m[1]).filter((l) => /GPL|SSPL|UNKNOWN|UNLICENSED|CC-BY-NC|EUPL|OSL/i.test(l));
 ok('ninguna licencia copyleft ni desconocida', copyleft.length === 0, copyleft.join(', '));
 
 seccion('activos propios (no se hereda la imagen de nadie)');
@@ -243,30 +243,44 @@ ok('el panel pinta text/event-stream segun llega', controlador.includes('startSt
 // During the English pass a variable rename turned `{ command: 'trozo', texto }`
 // into `{ command: 'trozo', text }` while main.js kept reading `message.texto`:
 // every streamed chunk would have rendered as "undefined", and all 68 tests
-// stayed green. So both sides are compared here, textually, on every run.
+// stayed green. So the contract is written down here and both sides are held
+// to it, textually, on every run. A new message means a new line in CONTRACT.
 {
-  const lado = leer('src/views/httpResponseWebview.ts');
-  const web = leer('webview/main.js');
+  const CONTRACT = { chunk: ['text'], end: ['note'], foldAll: [], unfoldAll: [] };
+  const sinComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+  const lado = sinComentarios(leer('src/views/httpResponseWebview.ts'));
+  const web = sinComentarios(leer('webview/main.js'));
   const enviados = [...lado.matchAll(/postMessage\(\{([^}]*)\}\)/g)].map((m) => {
     const cuerpo = m[1];
     const orden = /['"]?command['"]?\s*:\s*['"]([^'"]+)['"]/.exec(cuerpo)?.[1];
     const claves = [...cuerpo.matchAll(/(?:^|,)\s*['"]?([A-Za-z_]\w*)['"]?\s*(?=:|,|$)/g)].map((k) => k[1]).filter((k) => k !== 'command');
     return { orden, claves };
-  }).filter((e) => e.orden);
-  const atendidas = new Set([...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]));
-  const leidas = new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'));
-  const mandadas = new Set(enviados.flatMap((e) => e.claves));
+  });
+  const forma = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
+  const mandado = Object.fromEntries(enviados.map((e) => [e.orden, e.claves]));
+  // Every postMessage call has to be one this guard can read: a payload built
+  // elsewhere, or spread over several lines, would otherwise go unchecked.
+  ok('la guarda entiende todos los postMessage de la extension', enviados.length === (lado.match(/postMessage\(/g) ?? []).length && enviados.every((e) => e.orden), `${enviados.length} de ${(lado.match(/postMessage\(/g) ?? []).length}`);
+  ok('la extension manda exactamente los mensajes del contrato', forma(mandado) === forma(CONTRACT), forma(mandado));
 
-  // In this direction on purpose: the webview handles `unfoldAll` by
-  // elimination (anything that is not `foldAll`), so "everything sent is
-  // matched by name" would be a false alarm. "Everything the webview checks
-  // for is actually sent" is just as strict about a rename on either side.
-  const ordenes = new Set(enviados.map((e) => e.orden));
-  const nadieManda = [...atendidas].filter((o) => !ordenes.has(o));
-  ok('toda orden que el webview comprueba, la extension la manda', nadieManda.length === 0, nadieManda.join(', ') || [...atendidas].join(', '));
-  const sinMandar = [...leidas].filter((k) => !mandadas.has(k));
-  ok('toda clave que el webview lee, la extension la manda', sinMandar.length === 0, sinMandar.join(', ') || [...leidas].join(', '));
+  // The webview handles `unfoldAll` by elimination (anything that is not
+  // `foldAll`), so it need not name every command; but each one it does name
+  // has to exist, and the three it tells apart have to be there.
+  const atendidas = [...new Set([...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))];
+  ok('toda orden que el webview comprueba esta en el contrato', atendidas.length >= 3 && atendidas.every((o) => o in CONTRACT), atendidas.join(', '));
+  const leidas = [...new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'))].sort();
+  const delContrato = [...new Set(Object.values(CONTRACT).flat())].sort();
+  ok('el webview lee exactamente las claves del contrato', JSON.stringify(leidas) === JSON.stringify(delContrato), leidas.join(', '));
+  ok('el webview no lee el mensaje de una forma que esta guarda no ve', !/message\s*\[|switch\s*\(\s*message|message\.command\s*[!=]=[^=]|\}\s*=\s*message\b|\}\s*=\s*event\.data/.test(web));
+
+  // The same kind of contract, through the DOM: ids and attributes the
+  // extension writes into the page and main.js looks up by name.
+  ok('el <pre> del streaming se llama igual en los dos lados', lado.includes('id="stream"') && web.includes("getElementById('stream')"));
+  ok('los atributos de plegado se llaman igual en los dos lados', lado.includes(' range-start="') && lado.includes(' range-end="') && web.includes("hasAttribute('range-start')") && web.includes("getNamedItem('range-end')"));
 }
+// And through argv: the editor launches the MCP server of the bundled runner.
+ok('el editor lanza el servidor MCP con la opcion que el runner lee', leer('src/utils/lmTools.ts').includes("'mcp', '--root', root") && leer('src/cli/index.ts').includes("a === '--root'"));
+ok('el runner rechaza las opciones que no conoce', leer('src/cli/index.ts').includes('return unknownOption(a)'));
 ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
 const herramientas = leer('src/utils/lmTools.ts');
 ok('la herramienta de envio para agentes pide confirmacion', herramientas.includes('prepareInvocation') && herramientas.includes('confirmationMessages'));

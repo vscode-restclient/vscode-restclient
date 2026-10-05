@@ -11,8 +11,8 @@ const crypto = require('crypto');
 
 const host = process.argv[2] || '127.0.0.1';
 
-const json = (r, exitCode, body, extra = {}) => {
-  r.writeHead(exitCode, { 'content-type': 'application/json', ...extra });
+const json = (r, status, body, extra = {}) => {
+  r.writeHead(status, { 'content-type': 'application/json', ...extra });
   r.end(JSON.stringify(body, null, 1));
 };
 

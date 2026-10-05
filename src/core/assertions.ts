@@ -105,7 +105,7 @@ export function valueFor(subject: string, r: CheckableResponse): string {
 }
 
 /** A simple path into a JSON value: `a.b[0].c`. Not full JSONPath. */
-function byPath(body: string | undefined, filePath: string): string {
+function byPath(body: string | undefined, jsonPath: string): string {
     if (!body) {
         return '';
     }
@@ -115,10 +115,10 @@ function byPath(body: string | undefined, filePath: string): string {
     } catch {
         return '';
     }
-    if (filePath === '') {
+    if (jsonPath === '') {
         return typeof actual === 'string' ? actual : JSON.stringify(actual);
     }
-    for (const chunk of filePath.split('.')) {
+    for (const chunk of jsonPath.split('.')) {
         for (const piece of chunk.split(/\[(\d+)\]/).filter(x => x !== '')) {
             if (actual === null || actual === undefined) {
                 return '';

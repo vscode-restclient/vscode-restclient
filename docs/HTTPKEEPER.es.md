@@ -84,7 +84,7 @@ Fuera del editor, `restclient mcp` es un servidor MCP por stdio para Claude Code
   "mcpServers": {
     "restclient": {
       "command": "npx",
-      "args": ["restclient", "mcp", "--root", "."]
+      "args": ["-y", "@vscode-restclient/cli", "mcp", "--root", "."]
     }
   }
 }

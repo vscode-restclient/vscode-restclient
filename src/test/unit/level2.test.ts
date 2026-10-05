@@ -179,6 +179,6 @@ describe('runner en todas partes', () => {
         const conDatos = parseRequests('curl https://api/form -d a=1 -d b=2', '.');
         assert.deepStrictEqual([conDatos.method, conDatos.body, conDatos.headers['Content-Type']], ['POST', 'a=1&b=2', 'application/x-www-form-urlencoded']);
         assert.deepStrictEqual(splitArguments(`-H "a: b c" -d 'x y' z\\ `), ['-H', 'a: b c', '-d', 'x y', 'z\\']);
-        assert.throws(() => parseRequests('curl -X GET', '.'), /no lleva URL/);
+        assert.throws(() => parseRequests('curl -X GET', '.'), /the curl command has no URL/);
     });
 });

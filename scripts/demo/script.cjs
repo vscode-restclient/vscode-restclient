@@ -1,7 +1,7 @@
 // Guion de la demo: se ejecuta DENTRO de VS Code (extensionTestsPath) y hace
 // lo que haria una persona, con los comandos de verdad de la extension. No hay
 // nada montado para la camara: las respuestas salen del servidor local que
-// levanta lanzar.mjs.
+// levanta launch.mjs.
 //
 // Cada plano deja la escena limpia antes de posar, escribe una senal en disco
 // para que el capturador sepa como se llama el PNG, y espera.
@@ -32,7 +32,7 @@ async function abrir(file, columna = vscode.ViewColumn.One) {
     return vscode.window.showTextDocument(doc, { viewColumn: columna, preview: false });
 }
 
-/** Deja el cursor en la peticion que empieza por `texto` y la envia. */
+/** Deja el cursor en la peticion que empieza por `text` y la envia. */
 async function enviar(editor, text) {
     const line = editor.document.getText().split(/\r?\n/).findIndex((l) => l.startsWith(text));
     if (line < 0) throw new Error(`no encuentro la peticion "${text}"`);

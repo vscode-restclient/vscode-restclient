@@ -2,7 +2,7 @@
 // guionizado y el capturador de ventana en paralelo.
 //
 // Lo que sale de aqui son fotogramas crudos en media/demo/. Elegir los planos y
-// montar el GIF es cosa de montar.mjs.
+// montar el GIF es cosa de assemble.mjs.
 import cp from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -137,14 +137,14 @@ async function main() {
 
     const capturador = cp.spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', path.join(RAIZ, 'scripts', 'demo', 'capturar.ps1'),
+        '-File', path.join(RAIZ, 'scripts', 'demo', 'capture.ps1'),
         '-Salida', SALIDA,
     ], { stdio: 'inherit' });
 
     try {
         await runTests({
             extensionDevelopmentPath: RAIZ,
-            extensionTestsPath: path.join(RAIZ, 'scripts', 'demo', 'guion.cjs'),
+            extensionTestsPath: path.join(RAIZ, 'scripts', 'demo', 'script.cjs'),
             launchArgs: [
                 work,
                 `--user-data-dir=${path.join(RAIZ, '.vscode-test', 'demo-user-data')}`,
