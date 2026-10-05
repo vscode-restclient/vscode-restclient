@@ -250,7 +250,7 @@ export class SystemSettings implements IRestClientSettings {
 
     private initializeSettings() {
         const document = getCurrentTextDocument();
-        // Lee lo propio y, si el usuario no lo tocó, lo que tuviera en REST Client.
+        // Reads its own value and, if the user never set it, whatever REST Client had.
         const restClientSettings = workspace.getConfiguration('rest-client', document?.uri);
         this._followRedirect = restClientSettings.get<boolean>("followredirect", true);
         this._defaultHeaders = restClientSettings.get<RequestHeaders>('defaultHeaders', {

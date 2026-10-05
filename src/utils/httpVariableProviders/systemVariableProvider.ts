@@ -79,7 +79,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
         return this.resolveFuncs.has(SystemVariableProvider.nameOf(name));
     }
 
-    /** `$random.integer(1,9)` no lleva espacio: el nombre es lo que hay antes del paréntesis. */
+    /** `$random.integer(1,9)` has no space: the name is whatever comes before the parenthesis. */
     private static nameOf(name: string): string {
         return name.split(' ').filter(Boolean)[0].replace(/\(.*$/, '');
     }
@@ -259,7 +259,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
             if (!SecretStore.ready) {
                 return { warning: 'Secret storage is not available' };
             }
-            // La primera vez se pide y se guarda; a partir de ahí, ni se nota.
+            // Asked for the first time it is used, then stored; after that it is invisible.
             const value = (await SecretStore.get(secretName)) ?? (await SecretStore.prompt(secretName));
             if (value === undefined) {
                 return { warning: `Secret "${secretName}" is not set. Run "RestClient: Set secret"` };
@@ -268,7 +268,7 @@ export class SystemVariableProvider implements HttpVariableProvider {
         });
     }
 
-    /** Nombres de JetBrains para lo que ya existía: un fichero suyo funciona sin tocarlo. */
+    /** JetBrains names for what already existed: one of their files works untouched. */
     private registerJetBrainsAliases() {
         this.resolveFuncs.set(Constants.UuidVariableName, async () => ({ value: uuidv4() }));
         this.resolveFuncs.set(Constants.IsoTimestampVariableName, async () => ({ value: dayjs.utc().toISOString() }));

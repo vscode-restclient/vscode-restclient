@@ -104,7 +104,7 @@ export function valueFor(subject: string, r: CheckableResponse): string {
     return '';
 }
 
-/** Camino sencillo dentro de un JSON: `a.b[0].c`. Sin JSONPath completo. */
+/** A simple path into a JSON value: `a.b[0].c`. Not full JSONPath. */
 function porRuta(body: string | undefined, filePath: string): string {
     if (!body) {
         return '';

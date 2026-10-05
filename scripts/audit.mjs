@@ -237,6 +237,36 @@ const sistema = leer('src/utils/httpVariableProviders/systemVariableProvider.ts'
 ok('el editor tiene $secret y los alias de JetBrains', sistema.includes('SecretVariableName') && sistema.includes('UuidVariableName') && sistema.includes('IsoTimestampVariableName'));
 const controlador = leer('src/controllers/requestController.ts');
 ok('el panel pinta text/event-stream segun llega', controlador.includes('startStreaming') && controlador.includes('appendChunk'));
+
+// The extension and the response webview talk through postMessage, and the
+// webview side (webview/main.js) is plain JavaScript that nothing type-checks.
+// During the English pass a variable rename turned `{ command: 'trozo', texto }`
+// into `{ command: 'trozo', text }` while main.js kept reading `message.texto`:
+// every streamed chunk would have rendered as "undefined", and all 68 tests
+// stayed green. So both sides are compared here, textually, on every run.
+{
+  const lado = leer('src/views/httpResponseWebview.ts');
+  const web = leer('webview/main.js');
+  const enviados = [...lado.matchAll(/postMessage\(\{([^}]*)\}\)/g)].map((m) => {
+    const cuerpo = m[1];
+    const orden = /['"]?command['"]?\s*:\s*['"]([^'"]+)['"]/.exec(cuerpo)?.[1];
+    const claves = [...cuerpo.matchAll(/(?:^|,)\s*['"]?([A-Za-z_]\w*)['"]?\s*(?=:|,|$)/g)].map((k) => k[1]).filter((k) => k !== 'command');
+    return { orden, claves };
+  }).filter((e) => e.orden);
+  const atendidas = new Set([...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]));
+  const leidas = new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'));
+  const mandadas = new Set(enviados.flatMap((e) => e.claves));
+
+  // In this direction on purpose: the webview handles `unfoldAll` by
+  // elimination (anything that is not `foldAll`), so "everything sent is
+  // matched by name" would be a false alarm. "Everything the webview checks
+  // for is actually sent" is just as strict about a rename on either side.
+  const ordenes = new Set(enviados.map((e) => e.orden));
+  const nadieManda = [...atendidas].filter((o) => !ordenes.has(o));
+  ok('toda orden que el webview comprueba, la extension la manda', nadieManda.length === 0, nadieManda.join(', ') || [...atendidas].join(', '));
+  const sinMandar = [...leidas].filter((k) => !mandadas.has(k));
+  ok('toda clave que el webview lee, la extension la manda', sinMandar.length === 0, sinMandar.join(', ') || [...leidas].join(', '));
+}
 ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
 const herramientas = leer('src/utils/lmTools.ts');
 ok('la herramienta de envio para agentes pide confirmacion', herramientas.includes('prepareInvocation') && herramientas.includes('confirmationMessages'));

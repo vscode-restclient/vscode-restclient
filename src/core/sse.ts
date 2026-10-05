@@ -1,11 +1,11 @@
 /**
- * Server-Sent Events (`text/event-stream`), que es como responden en 2026
- * todas las API de modelos de lenguaje. Petición #493 del original (+44).
+ * Server-Sent Events (`text/event-stream`), which is how every language-model
+ * API answers in 2026. Upstream request #493 (+44).
  *
- * El formato es de líneas: `event:`, `data:`, `id:`, y un evento termina en
- * una línea en blanco. Varias líneas `data:` seguidas se unen con salto de
- * línea. Las líneas que empiezan por `:` son comentarios (latidos, casi
- * siempre). Sin `vscode`: lo usan el editor, las aserciones y el runner.
+ * The format is line-based: `event:`, `data:`, `id:`, and an event ends at a
+ * blank line. Consecutive `data:` lines are joined with a line break. Lines
+ * starting with `:` are comments (heartbeats, almost always). No `vscode`
+ * import: the editor, the assertions and the runner all use this.
  */
 export interface SseEvent {
     event?: string;

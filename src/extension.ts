@@ -50,7 +50,7 @@ export async function activate(context: ExtensionContext) {
     context.subscriptions.push(registerCommandSafely('rest-client.generate-codesnippet', () => codeSnippetController.run()));
     context.subscriptions.push(registerCommandSafely('rest-client.copy-request-as-curl', () => codeSnippetController.copyAsCurl()));
     context.subscriptions.push(registerCommandSafely('rest-client.switch-environment', (name?: string) => environmentController.switchEnvironment(typeof name === 'string' ? name : undefined)));
-    // Con argumentos no pregunta nada: lo usan las pruebas y las automatizaciones.
+    // With arguments it asks nothing: the tests and automations use this.
     context.subscriptions.push(registerCommandSafely('rest-client.set-secret', async (name?: string, value?: string) => {
         if (typeof name !== 'string') {
             name = await window.showInputBox({

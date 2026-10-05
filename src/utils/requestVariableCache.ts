@@ -10,9 +10,9 @@ type RequestVariableEvent = {
 export class RequestVariableCache {
     private static cache = new DocumentCache<Map<string, HttpResponse>>(true);
 
-    // La última respuesta de cada nombre, venga del fichero que venga: es lo
-    // que permite usar `{{login.response…}}` en un fichero que importa al que
-    // tiene `login` (#1148, #943). El documento propio sigue mandando.
+    // The latest response for each name, whichever file it came from: this is
+    // what lets `{{login.response…}}` work in a file that imports the one
+    // holding `login` (#1148, #943). The document's own still wins.
     private static byNameCache = new Map<string, HttpResponse>();
 
     private static readonly eventEmitter = new EventEmitter<RequestVariableEvent>();

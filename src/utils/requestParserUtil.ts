@@ -36,7 +36,7 @@ export function parseRequestHeaders(headerLines: string[], defaultHeaders: Reque
     return { ...defaultHeaders, ...headers };
 }
 
-/** Utilidades del editor, sólo si estamos dentro de él. */
+/** Editor utilities, only when we are running inside it. */
 function enEditor(): typeof import('./workspaceUtility') | undefined {
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -53,8 +53,8 @@ export async function resolveRequestBodyPath(refPath: string): Promise<string | 
         return (await fs.pathExists(refPath)) ? refPath : undefined;
     }
 
-    // El editor se consulta en diferido: fuera de VS Code este bloque no corre
-    // y la ruta se resuelve contra el fichero actual, más abajo.
+    // The editor is consulted lazily: outside VS Code this block does not run
+    // and the path is resolved against the current file, further down.
     const workspaceRoot = enEditor()?.getWorkspaceRootPath();
     if (workspaceRoot) {
         // eslint-disable-next-line @typescript-eslint/no-var-requires

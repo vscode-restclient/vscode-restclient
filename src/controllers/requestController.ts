@@ -211,7 +211,7 @@ export class RequestController {
                 if (enStreaming) {
                     // Cancelling is the normal way to end a stream that never
                     // finishes: what was received stays in the panel.
-                    this._webview.terminarStreaming(l10n.t('cancelled; the events above were received before'));
+                    this._webview.finishStreaming(l10n.t('cancelled; the events above were received before'));
                 }
                 return;
             }

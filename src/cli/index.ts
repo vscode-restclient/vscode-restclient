@@ -36,7 +36,7 @@ export interface Options {
     timeoutMs: number;
     /** Only the request with this name; used by the MCP server. */
     solo?: string;
-    /** Ruta del informe JUnit XML, si se pide. */
+    /** Path of the JUnit XML report, if one was asked for. */
     junit?: string;
 }
 

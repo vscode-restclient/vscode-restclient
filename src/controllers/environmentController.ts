@@ -33,8 +33,8 @@ export class EnvironmentController {
     }
 
     /**
-     * Sin argumento pregunta; con nombre cambia directamente (lo usan las
-     * pruebas y cualquier automatización). `''` vuelve a «sin entorno».
+     * With no argument it asks; with a name it switches directly (the tests
+     * and any automation use this). `''` goes back to «no environment».
      */
     @trace('Switch Environment')
     public async switchEnvironment(name?: string) {

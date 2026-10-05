@@ -89,7 +89,7 @@ export class HttpResponseWebview extends BaseWebview {
 
     private panelStreaming: WebviewPanel | undefined;
 
-    /** Abre (o reutiliza) el panel con la línea de estado y las cabeceras; el cuerpo llega por trozos. */
+    /** Opens (or reuses) the panel with the status line and the headers; the body arrives in chunks. */
     public startStreaming(request: HttpRequest, meta: ResponseMeta, column: ViewColumn) {
         const prefix = (this.settings.requestNameAsResponseTabTitle && request.name) || 'Response';
         const panel = this.getPanel(column, `${prefix} (streaming…)`);
@@ -115,12 +115,16 @@ export class HttpResponseWebview extends BaseWebview {
         this.activePanel = panel;
     }
 
+    // The keys below are a contract with webview/main.js, which is plain
+    // JavaScript outside the TypeScript program: nothing type-checks it. They
+    // are spelled out rather than written as shorthand so that renaming a
+    // variable here cannot silently rename a message key there.
     public appendChunk(text: string) {
-        this.panelStreaming?.webview.postMessage({ command: 'trozo', text });
+        this.panelStreaming?.webview.postMessage({ command: 'chunk', text: text });
     }
 
-    public terminarStreaming(nota: string) {
-        this.panelStreaming?.webview.postMessage({ command: 'fin', nota });
+    public finishStreaming(note: string) {
+        this.panelStreaming?.webview.postMessage({ command: 'end', note: note });
         this.panelStreaming = undefined;
     }
 

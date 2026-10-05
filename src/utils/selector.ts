@@ -21,7 +21,7 @@ interface PromptVariableDefinition {
 export class Selector {
     private static readonly responseStatusLineRegex = /^\s*HTTP\/[\d.]+/;
 
-    /** Lee una petición a partir de su texto (p. ej. `run #login`), resolviendo variables contra el documento dado. */
+    /** Reads a request from its text (e.g. `run #login`), resolving variables against the given document. */
     public static async getRequestFromText(document: TextDocument, text: string): Promise<SelectedRequest | null> {
         return this.readRequest(document, text);
     }
@@ -59,8 +59,8 @@ export class Selector {
     }
 
     private static async readRequest(document: TextDocument, selectedText: string): Promise<SelectedRequest | null> {
-        // `run #nombre`: se sustituye por la petición con ese nombre, de este
-        // fichero o de uno importado, antes de leer nada más.
+        // `run #name`: replaced by the request with that name, from this file
+        // or an imported one, before anything else is read.
         if (RUN.test(selectedText)) {
             try {
                 selectedText = Selector.resolveRun(document, selectedText);
@@ -200,7 +200,7 @@ export class Selector {
         return Constants.FileVariableDefinitionRegex.test(line);
     }
 
-    /** `import ./otro.http`: no es una petición, es una declaración. */
+    /** `import ./other.http`: not a request, a declaration. */
     public static isImportLine(line: string): boolean {
         return IMPORT_LINE.test(line);
     }

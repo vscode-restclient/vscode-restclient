@@ -23,8 +23,8 @@ export enum RequestMetadata {
     Prompt = 'prompt',
 
     /**
-     * Tiempo máximo en milisegundos para esta petición; en un WebSocket, lo
-     * que se escucha antes de cerrar.
+     * Maximum time in milliseconds for this request; for a WebSocket, how
+     * long to listen before closing.
      */
     Timeout = 'timeout',
 }

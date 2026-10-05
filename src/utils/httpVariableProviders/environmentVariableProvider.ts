@@ -8,15 +8,14 @@ import { fileEnvironments } from '../editorEnvironments';
 import { HttpVariable, HttpVariableProvider } from './httpVariableProvider';
 
 /**
- * Variables del entorno elegido. Vienen de dos sitios que se suman:
+ * Variables of the selected environment. They come from two places, combined:
  *
- * - los ajustes (`rest-client.environmentVariables`, o los heredados de la
- *   sección antigua), como siempre;
- * - los ficheros `http-client.env.json` / `http-client.private.env.json` que
- *   haya junto al `.http` o más arriba, que es el formato de JetBrains.
+ * - the settings (`rest-client.environmentVariables`), as always;
+ * - the `http-client.env.json` / `http-client.private.env.json` files next to
+ *   the `.http` file or further up, which is the JetBrains format.
  *
- * Para el mismo entorno y la misma variable manda el fichero: lo que está en
- * el repositorio es lo que ve todo el equipo. `$shared` se conserva.
+ * For the same environment and the same variable the file wins: what is in
+ * the repository is what the whole team sees. `$shared` is preserved.
  */
 export class EnvironmentVariableProvider implements HttpVariableProvider {
     private static _instance: EnvironmentVariableProvider;
@@ -62,8 +61,8 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
             environmentName = EnvironmentController.sharedEnvironmentName;
         }
         const variables = this._settings.environmentVariables;
-        // Copias: el mapeo de `{{$shared x}}` de abajo escribe sobre el objeto,
-        // y el original escribía sobre los propios ajustes.
+        // Copies: the `{{$shared x}}` mapping below writes into the object,
+        // and the original used to write into the settings themselves.
         const currentEnvironmentVariables = { ...(variables[environmentName] ?? {}) };
         const sharedEnvironmentVariables = { ...(variables[EnvironmentController.sharedEnvironmentName] ?? {}) };
 

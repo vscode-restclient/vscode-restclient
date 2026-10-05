@@ -129,8 +129,8 @@ export interface RequestSummary {
 }
 
 /**
- * Qué peticiones hay en un fichero, sin resolver variables ni enviar nada:
- * lo que un agente necesita para decidir cuál lanzar.
+ * Which requests a file contains, without resolving variables or sending
+ * anything: what an agent needs in order to decide which one to run.
  */
 export function requestSummaries(text: string): RequestSummary[] {
     return splitBlocks(text).filter(isRequest).map(b => {

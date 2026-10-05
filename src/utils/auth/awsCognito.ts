@@ -2,14 +2,14 @@ import got from 'got';
 import type { BeforeRequestHook } from 'got';
 
 /**
- * Autenticación con AWS Cognito.
+ * AWS Cognito authentication.
  *
- * La implementación original importaba `aws-amplify` entero —GraphQL, DataStore,
- * predicciones de aprendizaje automático, pubsub, notificaciones— para hacer un
- * inicio de sesión: 17 MB en disco y 41 paquetes con vulnerabilidades conocidas.
+ * The original implementation imported the whole of `aws-amplify` — GraphQL,
+ * DataStore, machine-learning predictions, pubsub, notifications — to perform
+ * one sign-in: 17 MB on disk and 41 packages with known vulnerabilities.
  *
- * Cognito es una API HTTP normal, así que aquí se llama directamente. Mismo
- * comportamiento, misma sintaxis en el fichero `.http`, sin el SDK.
+ * Cognito is an ordinary HTTP API, so here it is called directly. Same
+ * behaviour, same syntax in the `.http` file, no SDK.
  */
 
 const OBJETIVO = 'AWSCognitoIdentityProviderService.InitiateAuth';
@@ -54,7 +54,7 @@ async function login(
 
   const r = body.AuthenticationResult;
   if (!r?.AccessToken || !r?.IdToken) {
-    // Un desafío pendiente (cambio de contraseña, MFA) no se puede resolver aquí.
+    // A pending challenge (password change, MFA) cannot be resolved here.
     const motivo = body.ChallengeName
       ? `Cognito pide resolver "${body.ChallengeName}" antes de dar un token`
       : body.message || body.__type || 'respuesta sin tokens';

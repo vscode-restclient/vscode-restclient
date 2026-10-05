@@ -77,8 +77,8 @@ export class FileVariableProvider implements HttpVariableProvider {
 
         const fileContent = document.getText();
         const variables = new Map<string, FileVariableValue>();
-        // Primero las de los ficheros importados (`import ./comun.http`), en
-        // orden; después las propias, que por tanto mandan.
+        // First those of the imported files (`import ./common.http`), in
+        // order; then the file's own, which therefore win.
         const textos = document.uri.scheme === 'file'
             ? [...closeImports(document.fileName, fileContent).imported.map(i => i.text), fileContent]
             : [fileContent];

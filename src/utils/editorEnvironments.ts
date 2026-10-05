@@ -4,9 +4,9 @@ import { environmentsFolder, Environments, readEnvironments } from '../core/jetB
 import { getCurrentTextDocument } from './workspaceUtility';
 
 /**
- * Dónde están los `http-client.env.json` que le tocan a un documento: desde su
- * carpeta hacia arriba, sin salir del espacio de trabajo. Un documento sin
- * guardar mira desde la raíz del espacio de trabajo.
+ * Where the `http-client.env.json` files that apply to a document live: from
+ * its folder upwards, without leaving the workspace. An unsaved document looks
+ * from the workspace root.
  */
 export function environmentsFolderOf(document?: TextDocument): string | undefined {
     const doc = document ?? getCurrentTextDocument();
@@ -19,14 +19,14 @@ export function environmentsFolderOf(document?: TextDocument): string | undefine
     return environmentsFolder(inicio, raizCualquiera);
 }
 
-/** Entornos de fichero que ve un documento (`{}` si no hay ficheros). */
+/** The file environments a document sees (`{}` if there are no files). */
 export function fileEnvironments(document?: TextDocument): Environments {
     const folder = environmentsFolderOf(document);
     return folder ? readEnvironments(folder, warnOnce) : {};
 }
 
-// Un JSON roto se resuelve en cada variable de cada petición: avisar cada vez
-// sería una lluvia de avisos por un solo error de escritura.
+// Broken JSON is hit on every variable of every request: warning each time
+// would be a shower of warnings for a single typo.
 let ultimoAviso = '';
 let ultimoAvisoEn = 0;
 function warnOnce(message: string) {

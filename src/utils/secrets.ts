@@ -1,12 +1,12 @@
 import { l10n, Memento, SecretStorage, window } from 'vscode';
 
 /**
- * `{{$secret NOMBRE}}`: el valor vive en el almacén de secretos de VS Code
- * (cifrado por el sistema operativo), nunca en el fichero `.http`. Así un
- * fichero de peticiones se puede commitear entero, que es lo que pedía #279.
+ * `{{$secret NAME}}`: the value lives in VS Code's secret storage (encrypted
+ * by the operating system), never in the `.http` file. That way a request file
+ * can be committed whole, which is what #279 asked for.
  *
- * El almacén no sabe listar sus claves, así que los nombres se apuntan aparte
- * en el estado global; sólo los nombres, nunca los valores.
+ * The storage cannot list its keys, so the names are tracked separately in
+ * global state; only the names, never the values.
  */
 export class SecretStore {
     private static almacen: SecretStorage | undefined;
@@ -43,9 +43,9 @@ export class SecretStore {
     }
 
     /**
-     * Pide el valor con un cuadro de contraseña y lo guarda. Es lo que pasa la
-     * primera vez que una petición usa un secreto que aún no existe: en vez de
-     * fallar, se pregunta.
+     * Asks for the value with a password box and stores it. This is what
+     * happens the first time a request uses a secret that does not exist yet:
+     * instead of failing, it asks.
      */
     public static async prompt(name: string): Promise<string | undefined> {
         const value = await window.showInputBox({

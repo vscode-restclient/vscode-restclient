@@ -4,12 +4,12 @@ import { LogLevel } from '../models/logLevel';
 import { PreviewOption } from '../models/previewOption';
 
 /**
- * Ajustes para ejecutar fuera del editor.
+ * Settings for running outside the editor.
  *
- * Toma los valores por defecto de la extensión, salvo lo que no tiene sentido
- * en una terminal (columnas de vista previa, tipografías). Se declara aquí, y
- * no se lee de ningún sitio, porque un fichero que se ejecuta en integración
- * continua debe comportarse igual en todas las máquinas.
+ * Takes the extension's defaults, minus what makes no sense in a terminal
+ * (preview columns, fonts). Declared here, and read from nowhere, because a
+ * file that runs in continuous integration has to behave the same on every
+ * machine.
  */
 export function minimalSettings(): IRestClientSettings {
     return {

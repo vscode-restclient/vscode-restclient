@@ -1,22 +1,22 @@
 import * as path from 'path';
 
 /**
- * Lo único que el núcleo necesita del mundo exterior.
+ * The only thing the core needs from the outside world.
  *
- * En VS Code lo implementa la extensión; en la terminal, el runner. El parser
- * y el cliente HTTP ya son código puro, así que con esto el mismo fichero
- * `.http` se ejecuta en el editor y en un servidor de integración continua.
+ * In VS Code the extension implements it; in the terminal, the runner. The
+ * parser and the HTTP client are already pure code, so with this the same
+ * `.http` file runs in the editor and on a continuous integration server.
  */
 export interface EnvironmentData {
-    /** Avisos al usuario: un diálogo en el editor, una línea en stderr fuera. */
+    /** Warnings for the user: a dialog in the editor, a line on stderr outside it. */
     warn(message: string): void;
-    /** Raíz desde la que se resuelven las rutas relativas. */
+    /** Root that relative paths are resolved against. */
     root(): string | undefined;
-    /** Fichero .http en curso, si lo hay: último recurso para rutas relativas. */
+    /** The .http file in play, if any: the last resort for relative paths. */
     currentFile(): string | undefined;
 }
 
-/** Entorno de terminal: los avisos van a stderr para no ensuciar la salida. */
+/** Terminal environment: warnings go to stderr so they do not pollute the output. */
 export function terminalEnvironment(root: string, currentFile?: string): EnvironmentData {
     return {
         warn: (message: string) => process.stderr.write(`aviso: ${message}\n`),
