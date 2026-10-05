@@ -261,7 +261,12 @@ ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/relea
     const paso = (...scripts) => scripts.some((s) => new RegExp(`^[ \\t]*(?:-[ \\t]+)?run:\\s*(?:xvfb-run -a )?npm run ${s}\\s*$`, 'm').test(antes));
     return !(paso('compile-tests', 'test:unit', 'test:integration') && paso('build:cli', 'test:cli'));
   });
-  ok('todo flujo que lanza el audit compila antes las pruebas y el runner', conAudit.length >= 3 && sinCompilar.length === 0, sinCompilar.join(', ') || conAudit.join(', '));
+  // Es una comprobacion por texto: reconoce un paso `run: npm run <script>` en
+  // su propia linea, y mira lo que hay antes del audit en el fichero, no en el
+  // job. Si un flujo deja de lanzar el audit de esa forma, tambien falla.
+  const detalle = conAudit.length < 3 ? `solo ${conAudit.length} flujos lanzan el audit de una forma que esta guarda reconoce: ${conAudit.join(', ')}`
+    : sinCompilar.length ? `sin compilar antes: ${sinCompilar.join(', ')}` : conAudit.join(', ');
+  ok('todo flujo que lanza el audit compila antes las pruebas y el runner', conAudit.length >= 3 && sinCompilar.length === 0, detalle);
 }
 const npmPkg = JSON.parse(leer('npm/package.json'));
 ok('el paquete npm tiene el mismo numero de version', npmPkg.version === pkg.version, `npm ${npmPkg.version} / extension ${pkg.version}`);
