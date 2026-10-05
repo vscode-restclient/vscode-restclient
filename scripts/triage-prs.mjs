@@ -1,9 +1,10 @@
-// Triaje de los pull requests abiertos del proyecto original.
+// Triage of the pull requests still open in the original project.
 //
-// Sesenta y un parches de desconocidos, algunos de 2020. Leerlos a mano es la
-// razón por la que llevan años ahí: esto los ordena por si aún aplican y por
-// cuánta gente los pidió, para atacar primero lo que más vale y menos cuesta.
-import { execSync } from 'node:child_process';
+// Sixty-one patches from strangers, some from 2020. Reading them by hand is
+// why they have sat there for years: this sorts them by whether they still
+// apply and by how many people asked for them, so the ones worth the most and
+// costing the least come first.
+import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 
 const REPO = 'Huachao/vscode-restclient';
@@ -11,71 +12,74 @@ const token = execSync('printf "protocol=https\\nhost=github.com\\n\\n" | git cr
   shell: 'C:/Program Files/Git/bin/bash.exe', encoding: 'utf8'
 }).split('\n').find(l => l.startsWith('password='))?.slice(9).trim();
 
-const api = async (filePath) => {
-  const r = await fetch(`https://api.github.com/repos/${REPO}${filePath}`, {
+const api = async (route) => {
+  const r = await fetch(`https://api.github.com/repos/${REPO}${route}`, {
     headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' }
   });
-  if (!r.ok) throw new Error(`${filePath}: HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`${route}: HTTP ${r.status}`);
   return r.json();
 };
 
-const correr = (cmd) => {
-  try { return { ok: true, output: execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
+// No shell: the arguments go as an array, so nothing that comes from the API
+// (a PR number, a title) can turn into a command.
+const git = (args) => {
+  try { return { ok: true, output: execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
   catch (e) { return { ok: false, output: (e.stdout ?? '') + (e.stderr ?? '') }; }
 };
 
-console.log('trayendo los pull requests abiertos...');
+console.log('fetching the open pull requests...');
 const prs = [];
-for (let pagina = 1; pagina <= 3; pagina++) {
-  const lote = await api(`/pulls?state=open&per_page=100&page=${pagina}`);
-  if (!lote.length) break;
-  prs.push(...lote);
+for (let page = 1; page <= 3; page++) {
+  const batch = await api(`/pulls?state=open&per_page=100&page=${page}`);
+  if (!batch.length) break;
+  prs.push(...batch);
 }
-console.log(`${prs.length} abiertos\n`);
+console.log(`${prs.length} open\n`);
 
 const base = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-const filas = [];
+const rows = [];
 
 for (const pr of prs) {
-  const votos = (await api(`/issues/${pr.number}`)).reactions?.total_count ?? 0;
-  const files = (await api(`/pulls/${pr.number}/files?per_page=100`)).map(f => f.filename);
-  const soloDocs = files.length > 0 && files.every(f => /\.md$|^images\/|^docs\//.test(f));
+  const votes = (await api(`/issues/${pr.number}`)).reactions?.total_count ?? 0;
+  const paths = (await api(`/pulls/${pr.number}/files?per_page=100`)).map(f => f.filename);
+  const docsOnly = paths.length > 0 && paths.every(f => /\.md$|^images\/|^docs\//.test(f));
 
-  // ¿Aplica todavía sobre nuestro main?
-  correr(`git fetch origin pull/${pr.number}/head:pr-${pr.number} --quiet`);
-  const existe = correr(`git rev-parse --verify pr-${pr.number}`).ok;
-  let status = 'sin rama';
-  if (existe) {
-    const merge = correr(`git merge-tree --write-tree ${base} pr-${pr.number}`);
-    status = merge.ok ? 'aplica' : 'conflicto';
+  // Does it still apply on top of our main branch?
+  const n = Number(pr.number);
+  git(['fetch', 'origin', `pull/${n}/head:pr-${n}`, '--quiet']);
+  const exists = git(['rev-parse', '--verify', `pr-${n}`]).ok;
+  let status = 'no branch';
+  if (exists) {
+    const merge = git(['merge-tree', '--write-tree', base, `pr-${n}`]);
+    status = merge.ok ? 'applies' : 'conflict';
   }
 
-  filas.push({
+  rows.push({
     n: pr.number,
-    titulo: pr.title.replace(/\s+/g, ' ').slice(0, 68),
-    autor: pr.user?.login ?? '?',
-    fecha: pr.created_at.slice(0, 10),
-    votos,
-    files: files.length,
-    soloDocs,
+    title: pr.title.replace(/\s+/g, ' ').slice(0, 68),
+    author: pr.user?.login ?? '?',
+    date: pr.created_at.slice(0, 10),
+    votes,
+    files: paths.length,
+    docsOnly,
     status,
-    filePaths: files.slice(0, 6)
+    paths: paths.slice(0, 6)
   });
   process.stdout.write('.');
 }
 console.log('\n');
 
-const orden = (f) => (f.status === 'aplica' ? 0 : 1) * 1000 - f.votos;
-filas.sort((a, b) => orden(a) - orden(b));
+const order = (r) => (r.status === 'applies' ? 0 : 1) * 1000 - r.votes;
+rows.sort((a, b) => order(a) - order(b));
 
-const mark = { applies: 'APLICA  ', conflict: 'conflicto', 'sin rama': 'sin rama ' };
-console.log('estado     votos  fich  fecha       #     título');
-for (const f of filas) {
-  console.log(`${mark[f.status]} ${String(f.votos).padStart(5)} ${String(f.files).padStart(5)}  ${f.fecha}  ${String(f.n).padStart(5)}  ${f.titulo}${f.soloDocs ? '  [solo docs]' : ''}`);
+const mark = { applies: 'APPLIES  ', conflict: 'conflict ', 'no branch': 'no branch' };
+console.log('status    votes files  date        #     title');
+for (const r of rows) {
+  console.log(`${mark[r.status]} ${String(r.votes).padStart(5)} ${String(r.files).padStart(5)}  ${r.date}  ${String(r.n).padStart(5)}  ${r.title}${r.docsOnly ? '  [docs only]' : ''}`);
 }
 
-const aplican = filas.filter(f => f.status === 'aplica');
-console.log(`\naplican limpio: ${aplican.length} de ${filas.length}`);
-console.log(`de esos, con votos: ${aplican.filter(f => f.votos > 0).length}`);
-fs.writeFileSync('docs/triage-prs.json', JSON.stringify(filas, null, 2));
-console.log('detalle en docs/triage-prs.json');
+const applying = rows.filter(r => r.status === 'applies');
+console.log(`\napply cleanly: ${applying.length} of ${rows.length}`);
+console.log(`of those, with votes: ${applying.filter(r => r.votes > 0).length}`);
+fs.writeFileSync('docs/triage-prs.json', JSON.stringify(rows, null, 2));
+console.log('details in docs/triage-prs.json');
