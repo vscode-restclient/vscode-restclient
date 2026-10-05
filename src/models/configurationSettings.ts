@@ -1,5 +1,6 @@
 import { CharacterPair, Event, EventEmitter, languages, ViewColumn, window, workspace } from 'vscode';
 import configuration from '../../language-configuration.json';
+import type { HostCertificateSettings } from '../core/hostCertificateMatcher';
 import { getCurrentTextDocument } from '../utils/workspaceUtility';
 import { RequestHeaders } from './base';
 import { FormParamEncodingStrategy, fromString as ParseFormParamEncodingStr } from './formParamEncodingStrategy';
@@ -8,12 +9,7 @@ import { fromString as ParsePreviewOptionStr, PreviewOption } from './previewOpt
 import { RequestMetadata } from './requestMetadata';
 
 export type HostCertificates = {
-    [key: string]: {
-        cert?: string;
-        key?: string;
-        pfx?: string;
-        passphrase?: string;
-    }
+    [key: string]: HostCertificateSettings;
 };
 
 export interface IRestClientSettings {

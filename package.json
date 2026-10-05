@@ -543,13 +543,16 @@
                     "default": {},
                     "scope": "resource",
                     "description": "%cfg.certificates%",
-                    "pattern": "^(?!http(s?)://)",
+                    "propertyNames": {
+                        "pattern": "^(?:[^*]+|\\*\\*?\\.[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*(?::(?:\\*|[0-9]+))?|(?:\\[[0-9a-fA-F:.]+\\]|[^*:\\s/?#\\[\\]]+):\\*)$",
+                        "patternErrorMessage": "%cfg.certificates.invalidKey%"
+                    },
                     "additionalProperties": {
                         "anyOf": [
                             {
                                 "type": "object",
                                 "default": {},
-                                "description": "Certifcate paths for specific host(e.g., foo.com, bar.org:8081), port is optional",
+                                "description": "%cfg.certificates.host%",
                                 "properties": {
                                     "cert": {
                                         "type": "string",

@@ -3,6 +3,7 @@ import * as iconv from 'iconv-lite';
 import * as path from 'path';
 import { CookieJar, Store } from 'tough-cookie';
 import * as url from 'url';
+import { findHostCertificate } from '../core/hostCertificateMatcher';
 import { RequestHeaders, ResponseHeaders } from '../models/base';
 import type { IRestClientSettings } from '../models/configurationSettings';
 import { HttpRequest } from '../models/httpRequest';
@@ -27,6 +28,10 @@ function ajustesDelEditor(): IRestClientSettings {
  * llegue a importarlo.
  */
 const ENTORNO_EDITOR: Entorno = {
+    logWarning: (message: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        require('../logger').default.warn(message);
+    },
     avisar: (mensaje: string) => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { window } = require('vscode');
@@ -289,16 +294,31 @@ export class HttpClient {
     }
 
     private getRequestCertificate(requestUrl: string, settings: IRestClientSettings): Certificate | null {
-        const host = url.parse(requestUrl).host;
-        if (!host || !(host in settings.hostCertificates)) {
+        const match = findHostCertificate(requestUrl, settings.hostCertificates, key => this.warnInvalidCertificateKey(key));
+        if (!match) {
             return null;
         }
 
-        const { cert: certPath, key: keyPath, pfx: pfxPath, passphrase } = settings.hostCertificates[host];
+        const { cert: certPath, key: keyPath, pfx: pfxPath, passphrase } = match.value;
         const cert = this.resolveCertificate(certPath);
         const key = this.resolveCertificate(keyPath);
         const pfx = this.resolveCertificate(pfxPath);
         return { cert, key, pfx, passphrase };
+    }
+
+    private static readonly warnedInvalidCertificateKeys = new Set<string>();
+
+    private warnInvalidCertificateKey(key: string): void {
+        if (HttpClient.warnedInvalidCertificateKeys.has(key)) {
+            return;
+        }
+        HttpClient.warnedInvalidCertificateKeys.add(key);
+        const message = `Ignoring invalid key ${JSON.stringify(key)} in rest-client.certificates. A wildcard must be a leading "*." or "**." label, or a ":*" port.`;
+        if (this.entorno.logWarning) {
+            this.entorno.logWarning(message);
+        } else {
+            console.warn(message);
+        }
     }
 
     private static ignoreProxy(requestUrl: string, excludeHostsForProxy: string[]): Boolean {

@@ -1,4 +1,5 @@
 import { ExtensionContext, l10n, Range, TextDocument, Uri, ViewColumn, window, workspace } from 'vscode';
+import { HostCertificateConflictError } from '../core/hostCertificateMatcher';
 import { bloqueLlamado, cerrarImportaciones } from '../core/importaciones';
 import { esPeticion, trocear } from '../core/secuencia';
 import Logger from '../logger';
@@ -216,7 +217,9 @@ export class RequestController {
                 return;
             }
 
-            if (error.code === 'ETIMEDOUT') {
+            if (error instanceof HostCertificateConflictError) {
+                error.message = l10n.t('Conflicting entries in rest-client.certificates: {0}. Case-equivalent keys must have identical cert, key, pfx and passphrase settings.', error.keys.map(key => JSON.stringify(key)).join(', '));
+            } else if (error.code === 'ETIMEDOUT') {
                 error.message = `Request timed out. Double-check your network connection and/or raise the timeout duration (currently set to ${settings.timeoutInMilliseconds}ms) as needed: 'rest-client.timeoutinmilliseconds'. Details: ${error}.`;
             } else if (error.code === 'ECONNREFUSED') {
                 error.message = `The connection was rejected. Either the requested service isn’t running on the requested server/port, the proxy settings in vscode are misconfigured, or a firewall is blocking requests. Details: ${error}.`;
