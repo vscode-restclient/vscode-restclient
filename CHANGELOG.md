@@ -14,6 +14,7 @@ First release of the community continuation, published as `vscode-restclient.res
 
 ### Fixed
 
+- **Requests through a proxy** (#32): with `http.proxy` set, no request got out (`Expected the options.agent properties to be http, https or http2`). The proxy agent was handed to got in a form got 11 rejects. And the agents themselves, `http-proxy-agent` and `https-proxy-agent` 2.x, replaced `https.request` with a version that broke every https request this extension sent afterwards, proxied or not. Both are now 7.x, which patches nothing. Where this extension's agent is the one in use (VS Code's own proxy layer, `http.proxySupport`, discards it for anything that is not a loopback address unless it is set to `off` or `fallback`): credentials in the proxy URL are sent to the proxy, a redirect between http and https stays behind it, and an `https://` proxy is reached over TLS, with `http.proxyStrictSSL` deciding whether its certificate is checked. Upstream's master still has the bug.
 - **Basic auth with `:` or spaces in the password** (upstream #1419): `Authorization: Basic admin:it's a total eclipse` used to arrive truncated, and the header is now built here instead of letting `got` put the credentials in the URL, which escaped them (`it's%20a%20total%3A%20eclipse`). Ported from rest-client-next.
 - **Completion inside `{{ }}`**: picking a variable after typing `{{` produced `{{{{variable}}}}`. The proposal now replaces what is between the braces, and system variables can be filtered with or without the `$`. Ported from rest-client-next.
 
