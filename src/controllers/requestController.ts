@@ -78,10 +78,10 @@ export class RequestController {
     }
 
     /**
-     * Envía una petición de un fichero por su nombre (o la primera) y devuelve
-     * la respuesta. Es lo que usan las herramientas para agentes: pasa por el
-     * mismo camino que «Send Request», así que variables, entornos, secretos y
-     * el panel se comportan igual que si lo hiciera una persona.
+     * Sends a request from a file by its name (or the first one) and returns
+     * the response. This is what the agent tools use: it goes down the same
+     * path as «Send Request», so variables, environments, secrets and the
+     * panel behave exactly as if a person had done it.
      */
     public async sendFromFile(uri: Uri, requestName?: string): Promise<HttpResponse> {
         const document = await workspace.openTextDocument(uri);
@@ -89,7 +89,7 @@ export class RequestController {
         const blocks = splitBlocks(documentText).filter(isRequest);
         let block = requestName ? blocks.find(b => b.name === requestName) : blocks[0];
         if (!block && requestName && document.uri.scheme === 'file') {
-            // Puede estar en un fichero importado: se ejecuta como `run #nombre`.
+            // It may live in an imported file, in which case it runs as `run #name`.
             const { imported } = closeImports(document.fileName, documentText);
             if (namedBlock(requestName, documentText, imported)) {
                 block = { text: `run #${requestName}`, line: blocks[0]?.line ?? 0 };
@@ -153,16 +153,16 @@ export class RequestController {
         this._lastPendingRequest = httpRequest;
         this._lastRequestSettingTuple = [httpRequest, settings];
 
-        // Un text/event-stream se pinta según llega: el panel se abre con el
-        // primer trozo y va creciendo. Al terminar se renderiza entero como
-        // cualquier otra respuesta, así que historial y variables no cambian.
+        // A text/event-stream is painted as it arrives: the panel opens with
+        // the first chunk and grows. When it ends it is rendered whole like any
+        // other response, so history and variables are unaffected.
         let enStreaming = false;
         const onReceive: OnReceive = (chunk, meta) => {
             if (settings.previewResponseInUntitledDocument || !isEventStream(getHeader(meta.headers, 'content-type') as string | undefined)) {
                 return;
             }
-            // Un fallo al pintar el stream no puede tumbar la petición: se
-            // anota y la respuesta completa llega igual al final.
+            // A failure while painting the stream must not bring the request
+            // down: it is logged and the full response still arrives at the end.
             try {
                 if (!enStreaming) {
                     enStreaming = true;
@@ -209,8 +209,8 @@ export class RequestController {
             // check cancel
             if (httpRequest.isCancelled) {
                 if (enStreaming) {
-                    // Cancelar es la forma normal de terminar con un stream que
-                    // no acaba: lo recibido se queda en el panel.
+                    // Cancelling is the normal way to end a stream that never
+                    // finishes: what was received stays in the panel.
                     this._webview.terminarStreaming(l10n.t('cancelled; the events above were received before'));
                 }
                 return;
@@ -235,10 +235,10 @@ export class RequestController {
     }
 
     /**
-     * WEBSOCKET url: abre, envía los mensajes del cuerpo (separados por ===),
-     * escucha `@timeout` ms (3 s por omisión) y cierra. La respuesta es la
-     * transcripción, con estado 101, para que el panel, el historial y las
-     * aserciones la traten como a cualquier otra.
+     * WEBSOCKET url: opens, sends the messages in the body (separated by ===),
+     * listens for `@timeout` ms (3 s by default) and closes. The response is
+     * the transcript, with status 101, so the panel, the history and the
+     * assertions treat it like any other.
      */
     private async runWebSocket(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument): Promise<HttpResponse | undefined> {
         this._requestStatusEntry.update({ state: RequestState.Pending });

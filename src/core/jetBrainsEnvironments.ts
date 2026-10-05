@@ -1,14 +1,14 @@
 /**
- * Ficheros de entorno del formato JetBrains: `http-client.env.json` y
+ * JetBrains-format environment files: `http-client.env.json` and
  * `http-client.private.env.json`.
  *
- * Es la familia de peticiones más votada del proyecto original (#229, #627:
- * +83 votos): entornos que viven en el repositorio, junto a los ficheros
- * `.http`, en vez de en los ajustes del editor. El privado va en `.gitignore`
- * y manda sobre el público, así que el equipo comparte el público y cada uno
- * pone sus claves en el privado.
+ * The most upvoted family of requests in the original project (#229, #627:
+ * +83 votes): environments that live in the repository, next to the `.http`
+ * files, instead of in the editor's settings. The private file goes in
+ * `.gitignore` and wins over the public one, so the team shares the public
+ * file and everyone keeps their own keys in the private one.
  *
- * Sin `vscode`: lo usan el editor y el runner.
+ * No `vscode` import: both the editor and the runner use this.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,13 +19,13 @@ export const PRIVATE_FILE = 'http-client.private.env.json';
 export type Environments = Record<string, Record<string, string>>;
 
 /**
- * Sube carpeta a carpeta desde `desde` y devuelve la primera que tenga alguno
- * de los dos ficheros. `tope` (la raíz del espacio de trabajo, normalmente)
- * frena la búsqueda: más arriba no es del proyecto.
+ * Walks up folder by folder from `start` and returns the first one holding
+ * either of the two files. `ceiling` (normally the workspace root) stops the
+ * search: anything above it is not part of the project.
  */
-export function environmentsFolder(desde: string, tope?: string): string | undefined {
-    let dir = path.resolve(desde);
-    const limit = tope ? path.resolve(tope) : undefined;
+export function environmentsFolder(start: string, ceiling?: string): string | undefined {
+    let dir = path.resolve(start);
+    const limit = ceiling ? path.resolve(ceiling) : undefined;
     for (;;) {
         if (fs.existsSync(path.join(dir, PUBLIC_FILE)) || fs.existsSync(path.join(dir, PRIVATE_FILE))) {
             return dir;
@@ -42,9 +42,9 @@ export function environmentsFolder(desde: string, tope?: string): string | undef
 }
 
 /**
- * Público + privado, el privado encima. Un JSON roto no tumba nada: se avisa
- * y se sigue con lo que haya, que es lo que uno quiere mientras edita el
- * fichero.
+ * Public plus private, the private one on top. Broken JSON brings nothing
+ * down: it warns and carries on with whatever is there, which is what you want
+ * while you are still editing the file.
  */
 export function readEnvironments(folder: string, warn: (message: string) => void = () => { /* silencio */ }): Environments {
     const fuera: Environments = {};
@@ -80,6 +80,6 @@ export function environmentVariables(folder: string | undefined, environment: st
     return readEnvironments(folder, warn)[environment] ?? {};
 }
 
-/** Un valor que no sea texto (número, objeto) se usa tal cual se escribiría en la petición. */
+/** A value that is not text (a number, an object) is used as it would be written in the request. */
 const aTexto = (o: Record<string, unknown>): Record<string, string> =>
     Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]));

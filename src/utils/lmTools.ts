@@ -4,19 +4,19 @@ import { requestSummaries } from '../core/sequence';
 import { RequestController } from '../controllers/requestController';
 
 /**
- * RestClient como herramienta de los agentes que viven en el editor.
+ * RestClient as a tool for the agents that live in the editor.
  *
- * Dos vías, las dos con guarda porque los tipos de `vscode` son los de 1.81:
+ * Two routes, both guarded because the `vscode` typings are those of 1.81:
  *
- * - Herramientas de modelo de lenguaje (VS Code ≥ 1.95): Copilot Chat o
- *   cualquier participante puede listar las peticiones de un `.http` y enviar
- *   una. Enviar pide confirmación al usuario; listar no toca la red.
- * - Definición del servidor MCP (VS Code ≥ 1.101): el modo agente descubre
- *   `restclient mcp` sin que nadie configure nada, apuntando al runner que
- *   viaja dentro de la propia extensión.
+ * - Language model tools (VS Code >= 1.95): Copilot Chat or any participant
+ *   can list the requests in a `.http` file and send one. Sending asks the
+ *   user for confirmation; listing never touches the network.
+ * - MCP server definition (VS Code >= 1.101): agent mode discovers
+ *   `restclient mcp` with nobody configuring anything, pointing at the runner
+ *   that ships inside the extension itself.
  *
- * Un fichero fuera del espacio de trabajo se rechaza: el agente sólo ve el
- * proyecto que el usuario tiene abierto.
+ * A file outside the workspace is refused: the agent only sees the project
+ * the user has open.
  */
 export function registerTools(context: vscode.ExtensionContext, controller: RequestController) {
     const api = vscode as unknown as ApiLm;
@@ -70,15 +70,15 @@ export function registerTools(context: vscode.ExtensionContext, controller: Requ
                 if (!root) {
                     return [];
                 }
-                // El propio ejecutable del editor hace de Node con ELECTRON_RUN_AS_NODE:
-                // así no hace falta que haya un `node` en el PATH.
+                // The editor's own executable acts as Node via ELECTRON_RUN_AS_NODE,
+                // so there is no need for a `node` on the PATH.
                 return [new api.McpStdioServerDefinition!('RestClient', process.execPath, [cli, 'mcp', '--root', root], { ELECTRON_RUN_AS_NODE: '1' })];
             },
         }));
     }
 }
 
-/** Resuelve la ruta contra el espacio de trabajo y rechaza lo que quede fuera. */
+/** Resolves the path against the workspace and refuses anything that falls outside it. */
 export function workspaceFile(file: string | undefined): vscode.Uri {
     if (!file) {
         throw new Error('file is required');

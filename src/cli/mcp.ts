@@ -1,18 +1,17 @@
 /**
- * `restclient mcp [--root carpeta]`: servidor MCP por stdio, sin dependencias.
+ * `restclient mcp [--root folder]`: an MCP server over stdio, no dependencies.
  *
- * Lo que un agente (Claude Code, Cursor, el modo agente de Copilot) necesita
- * para usar los ficheros `.http` como herramienta: listar peticiones, enviar
- * una, ejecutar un fichero entero con sus aserciones. Todo lo que devuelve es
- * lo mismo que imprime `--json`, así que lo que ve el agente es lo que vería
- * una persona en la terminal.
+ * What an agent (Claude Code, Cursor, Copilot's agent mode) needs in order to
+ * use `.http` files as a tool: list requests, send one, run a whole file with
+ * its assertions. Everything it returns is what `--json` prints, so what the
+ * agent sees is what a person would see in the terminal.
  *
- * Seguridad: sólo se leen ficheros dentro de la raíz (el directorio actual si
- * no se indica otra). Un agente no lee lo que no le toca. Y este servidor no
- * escribe nada en disco.
+ * Security: only files inside the root are read (the current directory unless
+ * told otherwise). An agent does not read what is not its business. And this
+ * server writes nothing to disk.
  *
- * Protocolo: JSON-RPC 2.0, un mensaje por línea. Métodos: initialize, ping,
- * tools/list, tools/call; las notificaciones no se contestan.
+ * Protocol: JSON-RPC 2.0, one message per line. Methods: initialize, ping,
+ * tools/list, tools/call; notifications get no reply.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -126,7 +125,7 @@ async function handle(msg: Request, root: string): Promise<unknown> {
     }
 }
 
-/** El resultado de una herramienta va como texto; un error de uso va con isError, no como error de protocolo. */
+/** A tool's result goes back as text; a usage error goes with isError, not as a protocol error. */
 async function llamar(params: Record<string, unknown>, root: string): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
     const name = params.name as string;
     const args = (params.arguments ?? {}) as Record<string, unknown>;
@@ -170,7 +169,7 @@ async function llamar(params: Record<string, unknown>, root: string): Promise<{ 
     }
 }
 
-/** Una ruta fuera de la raíz se rechaza: el agente sólo ve el proyecto que le han abierto. */
+/** A path outside the root is refused: the agent only sees the project it was opened on. */
 export function insideRoot(file: string, root: string): string {
     if (!file) {
         throw new Error('file is required');

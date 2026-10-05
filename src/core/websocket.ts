@@ -1,12 +1,13 @@
 /**
- * WebSocket básico (#173 del original, +28 votos), con la sintaxis de
- * JetBrains: `WEBSOCKET wss://host/ruta`, cabeceras, y los mensajes en el
- * cuerpo separados por líneas `===`.
+ * Basic WebSocket (#173 upstream, +28 votes), with the JetBrains syntax:
+ * `WEBSOCKET wss://host/path`, headers, and the messages in the body separated
+ * by `===` lines.
  *
- * Abre, envía los mensajes en orden, escucha durante `ms` y cierra. Lo que
- * devuelve es una transcripción: `>> ` lo enviado, `<< ` lo recibido. Usa el
- * `WebSocket` global de Node ≥ 22: sin dependencias, y sin él se dice claro.
- * Sin `vscode`: lo usan el editor y el runner.
+ * Opens, sends the messages in order, listens for `ms` and closes. What comes
+ * back is a transcript: `>> ` for what was sent, `<< ` for what was received.
+ * Uses the global `WebSocket` of Node >= 22: no dependencies, and without it
+ * the error says so plainly. No `vscode` import: the editor and the runner
+ * both use this.
  */
 export interface WsResult {
     transcript: string;
@@ -18,7 +19,7 @@ export interface WsResult {
 
 export const DEFAULT_LISTEN_MS = 3000;
 
-/** Los mensajes del cuerpo: separados por líneas `===`; los vacíos no se envían. */
+/** The messages in the body: separated by `===` lines; empty ones are not sent. */
 export function bodyMessages(body: string | undefined): string[] {
     if (!body) {
         return [];
@@ -55,7 +56,7 @@ export function talk(url: string, headers: Record<string, string>, messages: str
         const timer = setTimeout(() => close('timeout', `closed after ${ms} ms`), ms);
 
         try {
-            // undici admite cabeceras propias como extensión de la API estándar.
+            // undici accepts custom headers as an extension to the standard API.
             socket = new Ws(url, { headers: headers });
         } catch (e) {
             clearTimeout(timer);
@@ -79,7 +80,7 @@ export function talk(url: string, headers: Record<string, string>, messages: str
     });
 }
 
-/** Lo que las aserciones necesitan de una transcripción: cuántos mensajes llegaron y cuál fue el último. */
+/** What assertions need from a transcript: how many messages arrived and which was the last. */
 export function readTranscript(text: string): { received: string[]; sent: string[] } {
     const received: string[] = [];
     const sent: string[] = [];
