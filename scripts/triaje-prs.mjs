@@ -3,7 +3,7 @@
 // Sesenta y un parches de desconocidos, algunos de 2020. Leerlos a mano es la
 // razón por la que llevan años ahí: esto los ordena por si aún aplican y por
 // cuánta gente los pidió, para atacar primero lo que más vale y menos cuesta.
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 
 const REPO = 'Huachao/vscode-restclient';
@@ -19,8 +19,10 @@ const api = async (ruta) => {
   return r.json();
 };
 
-const correr = (cmd) => {
-  try { return { ok: true, salida: execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
+// Sin shell: los argumentos van como array, asi que nada que venga de la API
+// (un numero de PR, un titulo) puede convertirse en una orden.
+const correr = (args) => {
+  try { return { ok: true, salida: execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
   catch (e) { return { ok: false, salida: (e.stdout ?? '') + (e.stderr ?? '') }; }
 };
 
@@ -42,11 +44,12 @@ for (const pr of prs) {
   const soloDocs = ficheros.length > 0 && ficheros.every(f => /\.md$|^images\/|^docs\//.test(f));
 
   // ¿Aplica todavía sobre nuestro main?
-  correr(`git fetch origin pull/${pr.number}/head:pr-${pr.number} --quiet`);
-  const existe = correr(`git rev-parse --verify pr-${pr.number}`).ok;
+  const n = Number(pr.number);
+  correr(['fetch', 'origin', `pull/${n}/head:pr-${n}`, '--quiet']);
+  const existe = correr(['rev-parse', '--verify', `pr-${n}`]).ok;
   let estado = 'sin rama';
   if (existe) {
-    const merge = correr(`git merge-tree --write-tree ${base} pr-${pr.number}`);
+    const merge = correr(['merge-tree', '--write-tree', base, `pr-${n}`]);
     estado = merge.ok ? 'aplica' : 'conflicto';
   }
 
