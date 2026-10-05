@@ -245,6 +245,12 @@ ok('el panel pinta text/event-stream segun llega', controlador.includes('startSt
 // every streamed chunk would have rendered as "undefined", and all 68 tests
 // stayed green. So the contract is written down here and both sides are held
 // to it, textually, on every run. A new message means a new line in CONTRACT.
+//
+// It is a textual guard and it is strict on purpose: it knows one way of
+// sending (`postMessage({ command: '…', key: value })`) and one way of reading
+// (`message.command === '…'`, `message.key`), and anything else fails it rather
+// than slipping past. What it cannot see is WHICH command a key is read under:
+// swapping `message.text` and `message.note` in main.js would pass.
 {
   const CONTRACT = { chunk: ['text'], end: ['note'], foldAll: [], unfoldAll: [] };
   const sinComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
@@ -254,33 +260,52 @@ ok('el panel pinta text/event-stream segun llega', controlador.includes('startSt
     const cuerpo = m[1];
     const orden = /['"]?command['"]?\s*:\s*['"]([^'"]+)['"]/.exec(cuerpo)?.[1];
     const claves = [...cuerpo.matchAll(/(?:^|,)\s*['"]?([A-Za-z_]\w*)['"]?\s*(?=:|,|$)/g)].map((k) => k[1]).filter((k) => k !== 'command');
-    return { orden, claves };
+    return { orden, claves, raro: /\.\.\.|\[/.test(cuerpo) };
   });
   const forma = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
   const mandado = Object.fromEntries(enviados.map((e) => [e.orden, e.claves]));
-  // Every postMessage call has to be one this guard can read: a payload built
-  // elsewhere, or spread over several lines, would otherwise go unchecked.
-  ok('la guarda entiende todos los postMessage de la extension', enviados.length === (lado.match(/postMessage\(/g) ?? []).length && enviados.every((e) => e.orden), `${enviados.length} de ${(lado.match(/postMessage\(/g) ?? []).length}`);
+  const nPost = (lado.match(/postMessage\(/g) ?? []).length;
+  // Every postMessage call has to be one this guard can read: an object
+  // literal with a literal command, no spread, no computed key, and no command
+  // sent from two places (the second would hide the first).
+  ok('la guarda entiende todos los postMessage de la extension', enviados.length === nPost && enviados.every((e) => e.orden && !e.raro) && new Set(enviados.map((e) => e.orden)).size === enviados.length, `${enviados.length} de ${nPost}`);
   ok('la extension manda exactamente los mensajes del contrato', forma(mandado) === forma(CONTRACT), forma(mandado));
 
   // The webview handles `unfoldAll` by elimination (anything that is not
   // `foldAll`), so it need not name every command; but each one it does name
   // has to exist, and the three it tells apart have to be there.
-  const atendidas = [...new Set([...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))];
-  ok('toda orden que el webview comprueba esta en el contrato', atendidas.length >= 3 && atendidas.every((o) => o in CONTRACT), atendidas.join(', '));
+  const comparadas = [...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  const atendidas = [...new Set(comparadas)];
+  ok('toda orden que el webview comprueba esta en el contrato', atendidas.length >= 3 && atendidas.every((o) => Object.hasOwn(CONTRACT, o)), atendidas.join(', '));
+  // Every mention of message.command has to be one of those comparisons: a
+  // `!==`, a `switch` or a lookup table would name a command unseen.
+  const menciones = (web.match(/message\s*\??\.\s*command/g) ?? []).length;
+  ok('el webview solo compara la orden con === y un literal', menciones === comparadas.length, `${comparadas.length} de ${menciones}`);
   const leidas = [...new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'))].sort();
   const delContrato = [...new Set(Object.values(CONTRACT).flat())].sort();
   ok('el webview lee exactamente las claves del contrato', JSON.stringify(leidas) === JSON.stringify(delContrato), leidas.join(', '));
-  ok('el webview no lee el mensaje de una forma que esta guarda no ve', !/message\s*\[|switch\s*\(\s*message|message\.command\s*[!=]=[^=]|\}\s*=\s*message\b|\}\s*=\s*event\.data/.test(web));
+  // The message is read as `const message = event.data;` and then `message.x`,
+  // nothing else: no alias, no destructuring, no bracket or optional access.
+  const otraForma = /message\s*\[|message\?\.|switch\s*\(\s*message|\}\s*=\s*message\b|\}\s*=\s*event\.data|event\.data\s*[.[?]|[^=!]=\s*message\s*[;,)\n]/.test(web);
+  ok('el webview no lee el mensaje de una forma que esta guarda no ve', !otraForma && (web.match(/event\.data/g) ?? []).length === 1);
 
-  // The same kind of contract, through the DOM: ids and attributes the
-  // extension writes into the page and main.js looks up by name.
-  ok('el <pre> del streaming se llama igual en los dos lados', lado.includes('id="stream"') && web.includes("getElementById('stream')"));
-  ok('los atributos de plegado se llaman igual en los dos lados', lado.includes(' range-start="') && lado.includes(' range-end="') && web.includes("hasAttribute('range-start')") && web.includes("getNamedItem('range-end')"));
+  // The same kind of contract, through the DOM: every id and attribute that
+  // main.js looks up by name has to be written into the page by the extension.
+  // The lists are exact, so a new lookup has to be added here knowingly.
+  const escribe = (atributo) => new RegExp(`(?<![\\w-])${atributo}="`).test(lado);
+  const atributos = [...new Set([...web.matchAll(/(?:hasAttribute|getAttribute|getNamedItem)\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
+  const ids = [...new Set([...web.matchAll(/getElementById\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
+  const sinEscribir = [...atributos.filter((a) => !escribe(a)), ...ids.filter((i) => !lado.includes(`id="${i}"`))];
+  ok('todo id y atributo que el webview busca, la extension lo escribe',
+    sinEscribir.length === 0 && JSON.stringify(atributos) === JSON.stringify(['range-end', 'range-start', 'start']) && JSON.stringify(ids) === JSON.stringify(['stream']),
+    sinEscribir.length ? `sin escribir: ${sinEscribir.join(', ')}` : [...atributos, ...ids].join(', '));
 }
 // And through argv: the editor launches the MCP server of the bundled runner.
-ok('el editor lanza el servidor MCP con la opcion que el runner lee', leer('src/utils/lmTools.ts').includes("'mcp', '--root', root") && leer('src/cli/index.ts').includes("a === '--root'"));
-ok('el runner rechaza las opciones que no conoce', leer('src/cli/index.ts').includes('return unknownOption(a)'));
+ok('el editor lanza el servidor MCP con la opcion que el runner lee', leer('src/utils/lmTools.ts').includes("'mcp', '--root'") && leer('src/cli/index.ts').includes("=== '--root'"));
+// And through the environment: the audit points the runner's own test at the
+// published bundle. If the test stopped reading the variable it would quietly
+// test the other build and come back green.
+ok('las pruebas del runner leen la ruta que el audit les pasa', leer('scripts/test-cli.mjs').includes('process.env.CLI_RUTA') && leer('scripts/test-mcp.mjs').includes('process.env.CLI_RUTA'));
 // And through stdout: the test servers announce their port as JSON and five
 // readers parse it untyped. One of them was renamed alone during the English
 // pass (`.puerto` -> `.port`) and every integration test timed out.
@@ -301,7 +326,7 @@ ok('las herramientas van declaradas en el manifiesto', (pkg.contributes.language
 const mcp = leer('src/cli/mcp.ts');
 ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('insideRoot') && !/fs\.write|writeFileSync/.test(mcp));
 const mcpPrueba = correr('node scripts/test-mcp.mjs');
-ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.exitCode === 0, /(\d+) failures/.exec(mcpPrueba.output)?.[0] ?? '');
+ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.exitCode === 0, /===== (\d+) failures/.exec(mcpPrueba.output)?.[0] ?? '');
 ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('restclient.js'));
 ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/release.yml').includes('restclient.js'));
 const npmPkg = JSON.parse(leer('npm/package.json'));
@@ -342,9 +367,9 @@ const unit = correr('npx mocha "out-test/test/unit/**/*.test.js"');
 const nUnit = /(\d+) passing/.exec(unit.output)?.[1] ?? '0';
 ok('pruebas unitarias en verde', unit.exitCode === 0 && Number(nUnit) >= 15, `${nUnit} pruebas`);
 const cli = correr('node scripts/test-cli.mjs');
-ok('el runner pasa su prueba de punta a punta', cli.exitCode === 0, /(\d+) failures/.exec(cli.output)?.[0] ?? '');
+ok('el runner pasa su prueba de punta a punta', cli.exitCode === 0, /===== (\d+) failures/.exec(cli.output)?.[0] ?? '');
 const cliPub = correr('node scripts/test-cli.mjs', { CLI_RUTA: 'dist/cli.js' });
-ok('el runner publicado pasa la misma prueba', cliPub.exitCode === 0, /(\d+) failures/.exec(cliPub.output)?.[0] ?? '');
+ok('el runner publicado pasa la misma prueba', cliPub.exitCode === 0, /===== (\d+) failures/.exec(cliPub.output)?.[0] ?? '');
 
 seccion('compatibilidad con REST Client');
 const troceo = leer('src/core/sequence.ts');

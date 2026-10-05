@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **68** (32 unit, 36 integration against a real server) |
+| Tests                              | 0                    | **70** (34 unit, 36 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -97,7 +97,7 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit rep
   ok   login                200  184 ms
   ok   invoices             200    9 ms
 
-2 peticiones, todo en verde
+2 requests, all green
 ```
 
 Exit code 0 when every assertion passes, 1 when one fails, `--json` for machines, `--junit` for the test dashboards of GitHub and GitLab. Pasted `curl` commands and multipart bodies with `< file` work in the runner too. In GitHub Actions:

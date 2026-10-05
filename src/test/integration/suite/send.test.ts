@@ -254,14 +254,14 @@ describe('Rest Client · variables de petición', () => {
     // El servidor marca cada respuesta con `x-path`, así que se espera a la de
     // ESTA petición y no a un 200 que dejó una prueba anterior.
     const filePath = '/' + lines[first + 1].split('/').pop()!;
-    let list = false;
-    for (let i = 0; i < 60 && !list; i++) {
+    let ready = false;
+    for (let i = 0; i < 60 && !ready; i++) {
       await esperar(250);
-      list = vscode.workspace.textDocuments.some(
+      ready = vscode.workspace.textDocuments.some(
         (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes('HTTP/1.1 200') && d.getText().includes('x-path: ' + filePath),
       );
     }
-    assert.ok(list, 'la primera petición no llegó a responder');
+    assert.ok(ready, 'la primera petición no llegó a responder');
 
     // Segunda: se recupera el foco del .http y se pone el cursor en su línea.
     // Hay que quedarse con el editor que DEVUELVE showTextDocument: el de

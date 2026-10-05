@@ -182,3 +182,67 @@ describe('runner en todas partes', () => {
         assert.throws(() => parseRequests('curl -X GET', '.'), /the curl command has no URL/);
     });
 });
+
+import { readArguments, readMcpArguments, USAGE, MCP_USAGE } from '../../cli/index';
+
+describe('argumentos del runner', () => {
+    const rechazo = (...argv: string[]): string => {
+        const r = readArguments(argv);
+        assert.strictEqual(typeof r, 'string', `debia rechazarse: ${argv.join(' ')}`);
+        return r as string;
+    };
+
+    it('P-67 · lo que el runner no entiende es un error, no algo que se ignora', () => {
+        assert.deepStrictEqual(
+            readArguments(['a.http', '--env', 'dev', '--var', 'k=v', '-s', 'S=1', '--continue', '--json', '--junit', 'r.xml', '--timeout', '500']),
+            { file: 'a.http', variables: { k: 'v' }, secrets: { S: '1' }, environment: 'dev', continueOnFailure: true, json: true, timeoutMs: 500, junit: 'r.xml' });
+
+        // Opciones desconocidas, con pista solo para la que cambio de nombre AQUI.
+        assert.strictEqual(rechazo('a.http', '--continuar'), 'unknown option --continuar: it is called --continue now');
+        assert.strictEqual(rechazo('a.http', '--nope'), 'unknown option --nope\n' + USAGE);
+        assert.strictEqual(rechazo('a.http', '-x'), 'unknown option -x\n' + USAGE);
+        assert.strictEqual(rechazo('a.http', '-'), 'unknown option -\n' + USAGE);
+        assert.strictEqual(rechazo('a.http', '--raiz', 'x'), 'unknown option --raiz\n' + USAGE);
+        assert.strictEqual(rechazo('a.http', '--root', 'x'), 'unknown option --root\n' + USAGE);
+        assert.strictEqual(rechazo('a.http', '--continue=true'), 'unknown option --continue=true\n' + USAGE);
+
+        // Una opcion no es el valor de otra: `--junit --json` escribia el informe en un fichero llamado --json.
+        assert.strictEqual(rechazo('a.http', '--junit', '--json'), '--junit needs the path of the XML report, got "--json"');
+        assert.strictEqual(rechazo('a.http', '--junit'), '--junit needs the path of the XML report');
+        assert.strictEqual(rechazo('a.http', '--env', '--json'), '--env needs the name of an environment from http-client.env.json, got "--json"');
+        assert.strictEqual(rechazo('a.http', '-e'), '-e needs the name of an environment from http-client.env.json');
+        assert.strictEqual(rechazo('a.http', '--timeout', '0'), '--timeout needs a number of milliseconds greater than 0');
+        assert.strictEqual(rechazo('a.http', '--timeout'), '--timeout needs a number of milliseconds greater than 0');
+        assert.strictEqual(rechazo('a.http', '--var', 'sin-igual'), 'malformed variable: "sin-igual". Expected key=value');
+        assert.strictEqual(rechazo('a.http', '--var', '=v'), 'malformed variable: "=v". Expected key=value');
+        assert.strictEqual(rechazo('a.http', '--secret'), 'malformed secret: "". Expected key=value');
+
+        // Un segundo fichero no se pierde en silencio: antes solo corria el ultimo.
+        assert.strictEqual(rechazo('a.http', 'b.http'), 'only one file per run, got 2: "a.http", "b.http"');
+        assert.strictEqual(rechazo('a.http', ''), 'only one file per run, got 2: "a.http", ""');
+        assert.strictEqual(rechazo(), USAGE);
+        assert.strictEqual(rechazo('--json'), USAGE);
+        assert.strictEqual(rechazo('a.http', '--help'), USAGE);
+
+        // Tras `--` todo es fichero, aunque empiece por guion.
+        const dash = readArguments(['--json', '--', '-raro.http']);
+        assert.ok(typeof dash !== 'string' && dash.file === '-raro.http' && dash.json === true, JSON.stringify(dash));
+        assert.strictEqual(rechazo('--', 'a.http', '--json'), 'only one file per run, got 2: "a.http", "--json"');
+    });
+
+    it('P-68 · mcp: un argumento que no entiende detiene el servidor en vez de dejarlo en el directorio actual', () => {
+        assert.deepStrictEqual(readMcpArguments(['--root', './api']), { root: './api' });
+        assert.deepStrictEqual(readMcpArguments([]), { root: process.cwd() });
+        assert.strictEqual(readMcpArguments(['--raiz', './api']), 'unknown option --raiz: it is called --root now');
+        assert.strictEqual(readMcpArguments(['--root']), '--root needs a folder');
+        assert.strictEqual(readMcpArguments(['--root', '']), '--root needs a folder');
+        assert.strictEqual(readMcpArguments(['--root', '--x']), '--root needs a folder, got "--x"');
+        assert.strictEqual(readMcpArguments(['--root=./api']), 'unknown option --root=./api\n' + MCP_USAGE);
+        assert.strictEqual(readMcpArguments(['--root', 'a', '--root', 'b']), '--root given twice');
+        assert.strictEqual(readMcpArguments(['./api']), 'unexpected argument "./api"\n' + MCP_USAGE);
+        assert.strictEqual(readMcpArguments(['--root', 'a', 'b']), 'unexpected argument "b"\n' + MCP_USAGE);
+        // --continuar es del runner: aqui no se sugiere.
+        assert.strictEqual(readMcpArguments(['--continuar']), 'unknown option --continuar\n' + MCP_USAGE);
+        assert.strictEqual(readMcpArguments(['--help']), 'unknown option --help\n' + MCP_USAGE);
+    });
+});

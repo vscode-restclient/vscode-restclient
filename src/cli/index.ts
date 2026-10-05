@@ -43,33 +43,52 @@ export interface Options {
 
 export const USAGE = 'usage: restclient <file.http> [--env name] [--var key=value] [--secret NAME=value] [--continue] [--json] [--junit report.xml] [--timeout ms]';
 
-/** Flags that existed under these names in httpkeeper-cli, and what they are called now. */
-const RENAMED_OPTIONS: Record<string, string> = { '--continuar': '--continue', '--raiz': '--root' };
+export const MCP_USAGE = 'usage: restclient mcp [--root folder]';
 
-function unknownOption(option: string): string {
-    const now = Object.prototype.hasOwnProperty.call(RENAMED_OPTIONS, option) ? RENAMED_OPTIONS[option] : undefined;
-    return now ? `unknown option ${option}: it is called ${now} now` : `unknown option ${option}\n${USAGE}`;
+/** Flags that existed under these names in httpkeeper-cli, and what they are called now. */
+const RENAMED_OPTIONS: Record<string, string> = { '--continuar': '--continue' };
+const RENAMED_MCP_OPTIONS: Record<string, string> = { '--raiz': '--root' };
+
+function unknownOption(option: string, renamed: Record<string, string>, usage: string): string {
+    const now = Object.prototype.hasOwnProperty.call(renamed, option) ? renamed[option] : undefined;
+    return now ? `unknown option ${option}: it is called ${now} now` : `unknown option ${option}\n${usage}`;
+}
+
+/**
+ * The value that follows an option, or an error. Another option is not a
+ * value: `--junit --json` used to write a report into a file called `--json`.
+ * A value that really starts with a dash can be written `./-name`.
+ */
+function valueOf(option: string, value: string | undefined, what: string): { value: string } | string {
+    if (!value || value.startsWith('-')) {
+        return `${option} needs ${what}` + (value ? `, got "${value}"` : '');
+    }
+    return { value };
 }
 
 /**
  * `restclient mcp [--root folder]`. Returns the root, or an error message.
  *
- * Strict on purpose: the root is the boundary of what an agent may read, so an
- * argument we do not understand must stop the server rather than fall back to
- * the current directory. `mcp --raiz ./api` used to be the documented form;
- * read loosely, it would start a server rooted somewhere wider than asked.
+ * Strict on purpose: the root decides which `.http` files an agent may name,
+ * so an argument we do not understand must stop the server rather than fall
+ * back to the current directory. `mcp --raiz ./api` used to be the documented
+ * form; read loosely, it would start a server rooted somewhere wider than asked.
  */
 export function readMcpArguments(argv: string[]): { root: string } | string {
     let root: string | undefined;
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '--root') {
-            root = argv[++i];
-            if (!root) {
-                return '--root needs a folder';
+            if (root !== undefined) {
+                return '--root given twice';
             }
+            const r = valueOf(a, argv[++i], 'a folder');
+            if (typeof r === 'string') {
+                return r;
+            }
+            root = r.value;
         } else {
-            return a.startsWith('-') ? unknownOption(a) : `unexpected argument "${a}"\nusage: restclient mcp [--root folder]`;
+            return a.startsWith('-') ? unknownOption(a, RENAMED_MCP_OPTIONS, MCP_USAGE) : `unexpected argument "${a}"\n${MCP_USAGE}`;
         }
     }
     return { root: root ?? process.cwd() };
@@ -78,7 +97,8 @@ export function readMcpArguments(argv: string[]): { root: string } | string {
 export function readArguments(argv: string[]): Options | string {
     const variables: Record<string, string> = {};
     const secrets: Record<string, string> = {};
-    let file = '';
+    const files: string[] = [];
+    let onlyFiles = false;
     let environment: string | undefined;
     let continueOnFailure = false;
     let json = false;
@@ -95,7 +115,12 @@ export function readArguments(argv: string[]): Options | string {
 
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
-        if (a === '--var' || a === '-v') {
+        if (onlyFiles || !a.startsWith('-')) {
+            files.push(a);
+        } else if (a === '--') {
+            // Everything after `--` is a file, even if it starts with a dash.
+            onlyFiles = true;
+        } else if (a === '--var' || a === '-v') {
             const r = keyValuePair(argv[++i] ?? '', 'variable');
             if (typeof r === 'string') {
                 return r;
@@ -108,10 +133,11 @@ export function readArguments(argv: string[]): Options | string {
             }
             secrets[r[0]] = r[1];
         } else if (a === '--env' || a === '-e') {
-            environment = argv[++i];
-            if (!environment) {
-                return '--env needs the name of an environment from http-client.env.json';
+            const r = valueOf(a, argv[++i], 'the name of an environment from http-client.env.json');
+            if (typeof r === 'string') {
+                return r;
             }
+            environment = r.value;
         } else if (a === '--timeout') {
             timeoutMs = Number(argv[++i]);
             if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -122,19 +148,26 @@ export function readArguments(argv: string[]): Options | string {
         } else if (a === '--json') {
             json = true;
         } else if (a === '--junit') {
-            junit = argv[++i];
-            if (!junit) {
-                return '--junit needs the path of the XML report';
+            const r = valueOf(a, argv[++i], 'the path of the XML report');
+            if (typeof r === 'string') {
+                return r;
             }
-        } else if (!a.startsWith('-')) {
-            file = a;
+            junit = r.value;
+        } else if (a === '--help' || a === '-h') {
+            return USAGE;
         } else {
             // An option we do not know is an error, never a no-op. Ignoring it
             // silently is what would have let a stale `--continuar` stop a CI
             // run at the first request that errors, with nothing to say why.
-            return unknownOption(a);
+            return unknownOption(a, RENAMED_OPTIONS, USAGE);
         }
     }
+    // Same reasoning for a second file: only one would run, and a green
+    // `restclient tests/*.http` would have covered a single file of the glob.
+    if (files.length > 1) {
+        return `only one file per run, got ${files.length}: ${files.map(f => `"${f}"`).join(', ')}`;
+    }
+    const file = files[0];
     if (!file) {
         return USAGE;
     }
@@ -151,8 +184,8 @@ function onlyBlock(blocks: Block[], name: string): Block[] {
 }
 
 /**
- * Variables de fichero: `@nombre = valor`, declaradas normalmente al principio
- * and apply to the whole file. They are read from the full text rather than
+ * File variables: `@name = value`, usually declared at the top, and they
+ * apply to the whole file. They are read from the full text rather than
  * the block, because that is how they work in the editor.
  */
 export function fileVariables(text: string): Record<string, string> {
@@ -230,7 +263,7 @@ export async function execute(options: Options, output: (line: string) => void):
         environment.warn(`import: ${f} does not exist`);
     }
 
-    // Prioridad de menor a mayor: entorno de fichero -> @variables (importadas,
+    // Precedence, lowest to highest: file environment -> @variables (imported,
     // then the file's own) -> --var. The command line wins: that is what lets
     // the same file be pointed somewhere else from a CI server.
     const variables = {

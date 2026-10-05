@@ -47,9 +47,9 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
     /** The gap between `{{` and `}}` if the cursor is inside it; `undefined` otherwise. */
     private static rangeInsideBraces(document: TextDocument, position: Position): Range | undefined {
         const line = document.lineAt(position.line).text;
-        const before = line.substring(0, position.character);
-        const opens = before.lastIndexOf('{{');
-        if (opens < 0 || opens < before.lastIndexOf('}}')) {
+        const beforeCursor = line.substring(0, position.character);
+        const opens = beforeCursor.lastIndexOf('{{');
+        if (opens < 0 || opens < beforeCursor.lastIndexOf('}}')) {
             return undefined;
         }
         const closes = line.indexOf('}}', position.character);

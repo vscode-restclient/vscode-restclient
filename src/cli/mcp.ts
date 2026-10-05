@@ -192,7 +192,7 @@ function version(): string {
     for (const candidate of [path.join(__dirname, '..', '..', 'package.json'), path.join(__dirname, '..', 'package.json')]) {
         try {
             return JSON.parse(fs.readFileSync(candidate, 'utf8')).version ?? '0.0.0';
-        } catch { /* siguiente */ }
+        } catch { /* try the next one */ }
     }
     return '0.0.0';
 }

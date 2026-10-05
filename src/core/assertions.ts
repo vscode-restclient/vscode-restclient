@@ -8,7 +8,7 @@
  *
  *   # @assert status == 200
  *   # @assert body.$.token exists
- *   # @assert headers.content-type contains json   (o `header.`, da igual)
+ *   # @assert headers.content-type contains json   (or `header.`, either works)
  *   # @assert time < 2000
  *   # @assert sse.count == 3            (respuestas text/event-stream)
  *   # @assert ws.last contains eco      (transcripciones WebSocket)

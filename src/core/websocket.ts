@@ -47,7 +47,7 @@ export function talk(url: string, headers: Record<string, string>, messages: str
             clearTimeout(timer);
             try {
                 socket.close();
-            } catch { /* ya cerrado */ }
+            } catch { /* already closed */ }
             if (detail) {
                 lines.push(`-- ${detail}`);
             }

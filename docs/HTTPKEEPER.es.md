@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **68** (32 unitarias, 36 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **70** (34 unitarias, 36 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -97,7 +97,7 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit inf
   ok   login                200  184 ms
   ok   facturas             200    9 ms
 
-2 peticiones, todo en verde
+2 requests, all green
 ```
 
 Devuelve 0 si todas las comprobaciones pasan y 1 si falla alguna; `--json` para las máquinas y `--junit` para los paneles de pruebas de GitHub y GitLab. El cURL pegado y los cuerpos multiparte con `< fichero` también funcionan en la terminal. En GitHub Actions:

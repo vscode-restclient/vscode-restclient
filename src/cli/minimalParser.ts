@@ -88,7 +88,7 @@ const typeOf = (headers: Record<string, string>) =>
  * order to read the last boundary.
  */
 function readBody(lines: string[], headers: Record<string, string>, base: string, substitute: (t: string) => string): string | Buffer | undefined {
-    // Sin ficheros: texto tal cual, recortado.
+    // No files: the text as it is, trimmed.
     if (!lines.some(l => FILE_IN_BODY.test(l))) {
         const text = lines.join('\n').trim();
         return text === '' ? undefined : text;
@@ -118,7 +118,7 @@ function readBody(lines: string[], headers: Record<string, string>, base: string
 }
 
 /**
- * Una orden `curl` pegada: `-X`, `-H`, `-d`/`--data*`, `-u`, `--url`, y las
+ * A pasted `curl` command: `-X`, `-H`, `-d`/`--data*`, `-u`, `--url`, and
  * continuations with `\` at the end of a line. What curl would do with it is
  * what gets sent.
  */
@@ -144,7 +144,7 @@ export function parseCurl(lines: string[], base: string): MinimalRequest {
         else if (a === '-u' || a === '--user') { user = value(); }
         else if (a === '--url') { url = value(); }
         else if (a === '-I' || a === '--head') { method = 'HEAD'; }
-        else if (a === '-L' || a === '--location' || a === '--compressed' || a === '-s' || a === '-k' || a === '--insecure' || a === '-i') { /* sin efecto aquí */ }
+        else if (a === '-L' || a === '--location' || a === '--compressed' || a === '-s' || a === '-k' || a === '--insecure' || a === '-i') { /* no effect here */ }
         else if (!a.startsWith('-') && !url) { url = a; }
     }
     if (!url) {

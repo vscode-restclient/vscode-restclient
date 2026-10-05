@@ -39,11 +39,11 @@ export function closeImports(
 ): { imported: Imported[]; missing: string[] } {
     const root = path.resolve(file);
     const seen = new Set<string>([root]);
-    const tail = importedPaths(text ?? read(root), root);
+    const queue = importedPaths(text ?? read(root), root);
     const imported: Imported[] = [];
     const missing: string[] = [];
-    while (tail.length) {
-        const f = tail.shift()!;
+    while (queue.length) {
+        const f = queue.shift()!;
         if (seen.has(f)) {
             continue;
         }
@@ -54,7 +54,7 @@ export function closeImports(
         }
         const t = read(f);
         imported.push({ file: f, text: t });
-        tail.push(...importedPaths(t, f));
+        queue.push(...importedPaths(t, f));
     }
     return { imported, missing };
 }

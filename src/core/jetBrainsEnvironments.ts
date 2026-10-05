@@ -72,7 +72,7 @@ export function readEnvironments(folder: string, warn: (message: string) => void
     return out;
 }
 
-/** Variables del entorno pedido, o `{}` si no existe. */
+/** Variables of the requested environment, or `{}` if it does not exist. */
 export function environmentVariables(folder: string | undefined, environment: string | undefined, warn?: (m: string) => void): Record<string, string> {
     if (!folder || !environment) {
         return {};

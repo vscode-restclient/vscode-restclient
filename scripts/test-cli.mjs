@@ -140,7 +140,7 @@ const r9 = await new Promise((res) => {
 });
 ok('el secreto también llega por RESTCLIENT_SECRET*', r9.exitCode === 0, r9.output.split(BR)[1] ?? '');
 const r10 = await correr([jet, '--env', 'no-existe', '--secret', 'API_KEY=x', '--continue']);
-ok('un entorno que no existe avisa y no revienta', r10.exitCode !== 2 && r10.error.includes('--env no-existe'), r10.error.split(BR)[0]);
+ok('un entorno que no existe avisa, dice cuáles hay y no revienta', r10.exitCode !== 2 && r10.error.includes('--env no-existe: no such environment') && r10.error.includes('Available: dev'), r10.error.split(BR)[0]);
 
 console.log(BR + '== streaming: SSE y WebSocket');
 const sse = escribir('sse.http', [
@@ -251,6 +251,29 @@ const r21 = await correr(['mcp', '--root']);
 ok('mcp --root sin carpeta no arranca', r21.exitCode === 2 && r21.error.includes('--root needs a folder'), r21.error.trim());
 const r22 = await correr(['mcp', tmp]);
 ok('mcp con un argumento suelto no arranca', r22.exitCode === 2 && r22.error.includes('unexpected argument'), r22.error.trim().split(BR)[0]);
+const r26 = await correr(['mcp', '--root', '']);
+ok('mcp --root vacío no arranca (una variable sin definir no ensancha la raíz)', r26.exitCode === 2 && r26.output === '' && r26.error.includes('--root needs a folder'), r26.error.trim());
+const r27 = await correr(['mcp', '--root', tmp, '--root', tmp]);
+ok('mcp con --root repetido no arranca', r27.exitCode === 2 && r27.output === '' && r27.error.includes('--root given twice'), r27.error.trim());
+const dosFallos = escribir('dos-fallos.http', [
+  `GET http://127.0.0.1:${puerto}/not-found`,
+  '',
+  '# @assert status == 200',
+  '',
+  '###',
+  '',
+  `GET http://127.0.0.1:${puerto}/not-found`,
+  '',
+  '# @assert status == 200',
+]);
+const r23 = await correr([dosFallos]);
+ok('una aserción que falla no detiene la secuencia, y el resumen va en plural', r23.exitCode === 1 && r23.output.includes('2 requests, 2 failures'), r23.output.trim().split(BR).pop());
+const r24 = await correr([malo, bueno]);
+ok('dos ficheros se rechazan en vez de ejecutar solo el último', r24.exitCode === 2 && r24.output === '' && r24.error.includes('only one file per run, got 2'), r24.error.trim().slice(0, 40));
+const r25 = await correr([bueno, '--junit', '--json']);
+ok('una opción no vale como valor de otra', r25.exitCode === 2 && r25.output === '' && r25.error.includes('--junit needs the path of the XML report, got "--json"'), r25.error.trim());
+const r28 = await correr(['--json', '--', bueno]);
+ok('tras -- lo que sigue es el fichero', r28.exitCode === 0 && pasos(r28) === 2, `${pasos(r28)} pasos`);
 
 hijo.kill();
 fs.rmSync(tmp, { recursive: true, force: true });
