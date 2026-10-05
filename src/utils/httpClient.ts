@@ -11,6 +11,7 @@ import { awsCognito } from './auth/awsCognito';
 import { awsSignature } from './auth/awsSignature';
 import { digest } from './auth/digest';
 import { MimeUtility } from './mimeUtility';
+import { proxyAgents } from './proxyAgents';
 import { base64, getHeader, removeHeader } from './misc';
 import { convertBufferToStream, convertStreamToBuffer } from './streamUtility';
 import { UserDataManager } from './userDataManager';
@@ -262,19 +263,9 @@ export class HttpClient {
 
         // set proxy
         if (settings.proxy && !HttpClient.ignoreProxy(httpRequest.url, settings.excludeHostsForProxy)) {
-            const proxyEndpoint = url.parse(settings.proxy);
-            if (/^https?:$/.test(proxyEndpoint.protocol || '')) {
-                const proxyOptions = {
-                    host: proxyEndpoint.hostname,
-                    port: Number(proxyEndpoint.port),
-                    rejectUnauthorized: settings.proxyStrictSSL
-                };
-
-                const ctor = (httpRequest.url.startsWith('http:')
-                    ? await import('http-proxy-agent')
-                    : await import('https-proxy-agent')).default;
-
-                options.agent = new ctor(proxyOptions);
+            const agents = await proxyAgents(settings.proxy, settings.proxyStrictSSL);
+            if (agents) {
+                options.agent = agents;
             }
         }
 
