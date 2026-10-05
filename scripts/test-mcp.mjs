@@ -92,5 +92,5 @@ ok('la raíz sigue igual: el servidor no escribe en disco', fs.readdirSync(tmp).
 mcp.kill();
 hijo.kill();
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log(`${BR}===== ${failures} fallos`);
+console.log(`${BR}===== ${failures} failures`);
 process.exit(failures ? 1 : 0);

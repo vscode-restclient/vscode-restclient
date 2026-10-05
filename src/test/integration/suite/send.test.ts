@@ -15,7 +15,7 @@ const BR = String.fromCharCode(10);
  * vale buscar «un documento nuevo»: se espera a que aparezca la marca única de
  * esta petición concreta.
  */
-async function enviar(contenido: string, mark: string, segundos = 20): Promise<string> {
+async function send(contenido: string, mark: string, segundos = 20): Promise<string> {
   const doc = await vscode.workspace.openTextDocument({ language: 'http', content: contenido });
   await vscode.window.showTextDocument(doc, { preview: false });
   await vscode.commands.executeCommand('rest-client.request');
@@ -44,13 +44,13 @@ describe('Rest Client · peticiones reales', () => {
 
   describe('lo básico', () => {
     it('P-01 · GET simple', async () => {
-      const t = await enviar(`GET ${BASE}/hola\n`, '/hola');
+      const t = await send(`GET ${BASE}/hola\n`, '/hola');
       assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
       assert.ok(/"path":\s*"\/hola"/.test(t), 'el servidor no vio la ruta');
     });
 
     it('P-02 · POST con cabeceras y cuerpo', async () => {
-      const t = await enviar(
+      const t = await send(
         `POST ${BASE}/crear\nContent-Type: application/json\nX-Test: valor-de-prueba\n\n{"a":1}\n`,
         'valor-de-prueba',
       );
@@ -60,12 +60,12 @@ describe('Rest Client · peticiones reales', () => {
     });
 
     it('P-03 · variables de fichero', async () => {
-      const t = await enviar(`@ruta = /desde-variable\nGET ${BASE}{{ruta}}\n`, '/desde-variable');
+      const t = await send(`@ruta = /desde-variable\nGET ${BASE}{{ruta}}\n`, '/desde-variable');
       assert.ok(t.includes('/desde-variable'), 'la variable no se sustituyó');
     });
 
     it('P-08 · varias peticiones separadas por ###, se envía la del cursor', async () => {
-      const t = await enviar(`GET ${BASE}/primera\n\n###\n\nGET ${BASE}/segunda\n`, '/primera');
+      const t = await send(`GET ${BASE}/primera\n\n###\n\nGET ${BASE}/segunda\n`, '/primera');
       assert.ok(t.includes('/primera'), 'debe enviarse la petición donde está el cursor');
       assert.ok(!t.includes('/segunda'), 'no debe enviar las dos');
     });
@@ -76,12 +76,12 @@ describe('Rest Client · peticiones reales', () => {
     // casan con la duracion o el tamano de una respuesta anterior (el panel
     // se reutiliza), y el test se queda con el documento equivocado.
     it('P-05 · un 404 se muestra, no se traga', async () => {
-      const t = await enviar(`GET ${BASE}/status/404\n`, '/status/404');
+      const t = await send(`GET ${BASE}/status/404\n`, '/status/404');
       assert.ok(t.includes('HTTP/1.1 404'), `sin 404 en:\n${t.slice(0, 200)}`);
     });
 
     it('P-05 · un 500 se muestra con su cuerpo', async () => {
-      const t = await enviar(`GET ${BASE}/status/500\n`, '/status/500');
+      const t = await send(`GET ${BASE}/status/500\n`, '/status/500');
       assert.ok(t.includes('HTTP/1.1 500'), `sin 500 en:\n${t.slice(0, 200)}`);
       assert.ok(t.includes('oops'), 'debe verse el cuerpo del error');
     });
@@ -89,30 +89,30 @@ describe('Rest Client · peticiones reales', () => {
 
   describe('redirecciones y tiempos', () => {
     it('P-06 · sigue una redirección hasta el destino', async () => {
-      const t = await enviar(`GET ${BASE}/redirige\n`, '/destino');
+      const t = await send(`GET ${BASE}/redirige\n`, '/destino');
       assert.ok(t.includes('HTTP/1.1 200'));
       assert.ok(t.includes('/destino'), 'no llegó al destino de la redirección');
     });
 
     it('P-07 · una respuesta lenta acaba llegando', async () => {
-      const t = await enviar(`GET ${BASE}/slow\n`, '/slow', 25);
+      const t = await send(`GET ${BASE}/slow\n`, '/slow', 25);
       assert.ok(t.includes('HTTP/1.1 200'));
     });
   });
 
   describe('formatos de respuesta', () => {
     it('P-09 · JSON se formatea legible', async () => {
-      const t = await enviar(`GET ${BASE}/json\n`, 'nested');
+      const t = await send(`GET ${BASE}/json\n`, 'nested');
       assert.ok(/\n\s+"nested"/.test(t), 'el JSON debería salir indentado');
     });
 
     it('P-09 · texto plano se muestra tal cual', async () => {
-      const t = await enviar(`GET ${BASE}/text\n`, 'plain text here');
+      const t = await send(`GET ${BASE}/text\n`, 'plain text here');
       assert.ok(t.includes('plain text here'));
     });
 
     it('P-09 · XML se muestra', async () => {
-      const t = await enviar(`GET ${BASE}/xml\n`, '<root>');
+      const t = await send(`GET ${BASE}/xml\n`, '<root>');
       assert.ok(t.includes('<child>'), 'debería verse el XML');
     });
   });
@@ -149,7 +149,7 @@ describe('Rest Client · peticiones reales', () => {
     it('P-10 · un ajuste propio se aplica', async () => {
       await setSetting('defaultHeaders', { 'User-Agent': 'rest-client-propio' });
       try {
-        const t = await enviar(`GET ${BASE}/cabeceras` + BR, 'rest-client-propio');
+        const t = await send(`GET ${BASE}/cabeceras` + BR, 'rest-client-propio');
         assert.ok(t.includes('rest-client-propio'), 'no se aplicó la cabecera por defecto');
       } finally {
         await setSetting('defaultHeaders', undefined);
@@ -159,7 +159,7 @@ describe('Rest Client · peticiones reales', () => {
     it('P-16 · el ajuste propio gana al heredado', async () => {
       await setSetting('defaultHeaders', { 'User-Agent': 'el-nuevo' });
       try {
-        const t = await enviar(`GET ${BASE}/cabeceras` + BR, 'el-nuevo');
+        const t = await send(`GET ${BASE}/cabeceras` + BR, 'el-nuevo');
         assert.ok(t.includes('el-nuevo'), 'debe mandar el ajuste propio');
         assert.ok(!t.includes('viene-de-restclient'), 'el heredado no debe colarse');
       } finally {
@@ -179,7 +179,7 @@ describe('Rest Client · resolución de localhost', () => {
   // PR #1396: el servidor de pruebas escucha SOLO en IPv6. Sin el parche,
   // `localhost` se resolvía a 127.0.0.1 y la petición no llegaba.
   it('P-27 · localhost alcanza un servidor que solo escucha en IPv6', async () => {
-    const t = await enviar(`GET ${BASE_LOCALHOST}/por-nombre` + BR, '/por-nombre');
+    const t = await send(`GET ${BASE_LOCALHOST}/por-nombre` + BR, '/por-nombre');
     assert.ok(t.includes('HTTP/1.1 200'), `no llegó por localhost:
 ${t.slice(0, 200)}`);
   });
@@ -241,23 +241,23 @@ describe('Rest Client · variables de petición', () => {
     };
 
     // Primera petición: el cursor sobre su línea de URL.
-    const primera = lineaDe('@name');
-    editor.selection = new vscode.Selection(primera + 1, 0, primera + 1, 0);
+    const first = lineaDe('@name');
+    editor.selection = new vscode.Selection(first + 1, 0, first + 1, 0);
     await vscode.commands.executeCommand('rest-client.request');
 
     // Se espera a la respuesta CONCRETA de esta primera petición: el documento
     // de respuesta se reutiliza y podría haber un 200 de una prueba anterior.
     // El servidor marca cada respuesta con `x-path`, así que se espera a la de
     // ESTA petición y no a un 200 que dejó una prueba anterior.
-    const filePath = '/' + lines[primera + 1].split('/').pop()!;
-    let lista = false;
-    for (let i = 0; i < 60 && !lista; i++) {
+    const filePath = '/' + lines[first + 1].split('/').pop()!;
+    let list = false;
+    for (let i = 0; i < 60 && !list; i++) {
       await esperar(250);
-      lista = vscode.workspace.textDocuments.some(
+      list = vscode.workspace.textDocuments.some(
         (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes('HTTP/1.1 200') && d.getText().includes('x-path: ' + filePath),
       );
     }
-    assert.ok(lista, 'la primera petición no llegó a responder');
+    assert.ok(list, 'la primera petición no llegó a responder');
 
     // Segunda: se recupera el foco del .http y se pone el cursor en su línea.
     // Hay que quedarse con el editor que DEVUELVE showTextDocument: el de

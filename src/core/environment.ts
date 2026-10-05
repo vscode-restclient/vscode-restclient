@@ -19,7 +19,7 @@ export interface EnvironmentData {
 /** Terminal environment: warnings go to stderr so they do not pollute the output. */
 export function terminalEnvironment(root: string, currentFile?: string): EnvironmentData {
     return {
-        warn: (message: string) => process.stderr.write(`aviso: ${message}\n`),
+        warn: (message: string) => process.stderr.write(`warning: ${message}\n`),
         root: () => path.resolve(root),
         currentFile: () => currentFile
     };

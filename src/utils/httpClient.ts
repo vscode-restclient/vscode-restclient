@@ -224,22 +224,22 @@ export class HttpClient {
                 // scheme. It used to split on every space and every `:`, so
                 // «admin:it's a total eclipse» arrived truncated (upstream
                 // #1419).
-                const resto = [user, ...args].join(' ');
-                const dosPuntos = resto.indexOf(':');
-                let credencial: string | undefined;
-                if (dosPuntos >= 0) {
-                    credencial = resto;
+                const rest = [user, ...args].join(' ');
+                const colon = rest.indexOf(':');
+                let credential: string | undefined;
+                if (colon >= 0) {
+                    credential = rest;
                 } else if (args.length > 0) {
-                    credencial = `${user}:${args.join(' ')}`;
+                    credential = `${user}:${args.join(' ')}`;
                 }
                 // With no `:` and no second argument, what is there is already
                 // the base64 of `user:password`: left untouched, as always.
-                if (credencial !== undefined) {
+                if (credential !== undefined) {
                     // The header is built here rather than left to `got` via
                     // `username`/`password`: got puts it in the URL, which
                     // escapes it («it's%20a%20total%3A%20eclipse»).
                     removeHeader(options.headers!, 'Authorization');
-                    (options.headers as Record<string, string>)['Authorization'] = `Basic ${base64(credencial)}`;
+                    (options.headers as Record<string, string>)['Authorization'] = `Basic ${base64(credential)}`;
                 }
             } else if (args.length > 0) {
                 const pass = args.join(' ');

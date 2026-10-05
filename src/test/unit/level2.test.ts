@@ -17,12 +17,12 @@ describe('ficheros de entorno de JetBrains', () => {
     it('P-32 · publico + privado: el privado manda; un JSON roto avisa y no tumba', () => {
         const dir = carpetaTemporal();
         fs.writeFileSync(path.join(dir, 'http-client.env.json'), JSON.stringify({ dev: { host: 'http://publico', token: 'x' }, prod: { host: 'http://prod' } }));
-        fs.writeFileSync(path.join(dir, 'http-client.private.env.json'), JSON.stringify({ dev: { token: 'secreto', puerto: 8080 } }));
+        fs.writeFileSync(path.join(dir, 'http-client.private.env.json'), JSON.stringify({ dev: { token: 'secreto', port: 8080 } }));
         const warnings: string[] = [];
         const e = readEnvironments(dir, m => warnings.push(m));
         assert.strictEqual(e.dev.host, 'http://publico');
         assert.strictEqual(e.dev.token, 'secreto', 'el privado manda sobre el publico');
-        assert.strictEqual(e.dev.puerto, '8080', 'un numero se usa como texto');
+        assert.strictEqual(e.dev.port, '8080', 'un numero se usa como texto');
         assert.strictEqual(e.prod.host, 'http://prod');
         assert.strictEqual(warnings.length, 0);
 
@@ -60,9 +60,9 @@ describe('import y run', () => {
         fs.writeFileSync(a, j('import ./lib/b.http', 'import "./not-found.http"', '', 'GET http://a'));
         fs.writeFileSync(b, j('@host = http://b', 'import ./c.http', '', '# @name login', 'POST {{host}}/login'));
         fs.writeFileSync(c, j('import ../a.http', 'import ./b.http', '@extra = 1'));
-        const { imported, faltan } = closeImports(a);
+        const { imported, missing } = closeImports(a);
         assert.deepStrictEqual(imported.map(i => path.basename(i.file)), ['b.http', 'c.http'], 'orden de aparicion, sin repetir a.http ni b.http');
-        assert.deepStrictEqual(faltan.map(f => path.basename(f)), ['not-found.http']);
+        assert.deepStrictEqual(missing.map(f => path.basename(f)), ['not-found.http']);
         assert.deepStrictEqual(importedPaths("import 'x y.http'", a), [path.join(dir, 'x y.http')], 'las comillas admiten espacios');
 
         const vars = variablesWithImports(j('@host = http://propio', 'GET {{host}}'), imported);
@@ -72,22 +72,22 @@ describe('import y run', () => {
     });
 
     it('P-35 · resolverRun encuentra en el propio fichero antes que en el importado, y falla claro si no existe', () => {
-        const propio = j('# @name login', 'POST http://propio/login', '', '###', '', 'run #login', '', '###', '', 'run #facturas', '', '###', '', 'run #nadie');
+        const own = j('# @name login', 'POST http://propio/login', '', '###', '', 'run #login', '', '###', '', 'run #facturas', '', '###', '', 'run #nadie');
         const imported = [{ file: 'lib.http', text: j('# @name login', 'POST http://lib/login', '', '###', '', '# @name facturas', 'GET http://lib/facturas') }];
-        const blocks = splitBlocks(propio);
-        assert.strictEqual(resolveRun(blocks[0], propio, imported).text, blocks[0].text, 'un bloque normal se devuelve tal cual');
+        const blocks = splitBlocks(own);
+        assert.strictEqual(resolveRun(blocks[0], own, imported).text, blocks[0].text, 'un bloque normal se devuelve tal cual');
 
-        const login = resolveRun(blocks[1], propio, imported);
+        const login = resolveRun(blocks[1], own, imported);
         assert.ok(login.text.includes('http://propio/login'), 'el propio manda sobre el importado');
         assert.strictEqual(login.name, 'login');
         assert.strictEqual(login.line, blocks[1].line, 'conserva la linea del run');
 
-        const facturas = resolveRun(blocks[2], propio, imported);
+        const facturas = resolveRun(blocks[2], own, imported);
         assert.ok(facturas.text.includes('http://lib/facturas'));
         assert.strictEqual((facturas as { file?: string }).file, 'lib.http');
 
-        assert.throws(() => resolveRun(blocks[3], propio, imported), /run #nadie: no hay ninguna petición/);
-        assert.strictEqual(namedBlock('nadie', propio, imported), undefined);
+        assert.throws(() => resolveRun(blocks[3], own, imported), /run #nadie: no request with that name/);
+        assert.strictEqual(namedBlock('nadie', own, imported), undefined);
     });
 });
 
@@ -127,12 +127,12 @@ describe('streaming', () => {
     });
 });
 
-import { aJunit } from '../../core/junit';
+import { toJunit } from '../../core/junit';
 import { parseRequests, splitArguments } from '../../cli/minimalParser';
 
 describe('runner en todas partes', () => {
     it('P-45 · JUnit: un caso por peticion, failure por asercion fallida, error por peticion caida, y XML escapado', () => {
-        const xml = aJunit('api.http', [
+        const xml = toJunit('api.http', [
             { name: 'login', ms: 120, failures: [] },
             { name: 'facturas', ms: 30, failures: ['body.$.total == 3 -> 2', 'header.x == "a" -> <b>'] },
             { name: '#3', ms: 5, failures: [], error: 'ECONNREFUSED' },

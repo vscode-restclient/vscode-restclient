@@ -45,15 +45,15 @@ const PARTS = /^(\S+)[ \t]+(==|!=|<|>|contains|matches|exists)[ \t]*(.*)$/;
 const HEADER_PREFIXES = ['headers.', 'header.'];
 
 export function readAssertions(block: string): Assertion[] {
-    const fuera: Assertion[] = [];
+    const out: Assertion[] = [];
     LINE_RE.lastIndex = 0;
     for (const m of block.matchAll(LINE_RE)) {
         const p = PARTS.exec(m[1]);
         if (p) {
-            fuera.push({ raw: m[1], subject: p[1], operator: p[2] as Operator, expected: p[3] ?? '' });
+            out.push({ raw: m[1], subject: p[1], operator: p[2] as Operator, expected: p[3] ?? '' });
         }
     }
-    return fuera;
+    return out;
 }
 
 /**
@@ -99,13 +99,13 @@ export function valueFor(subject: string, r: CheckableResponse): string {
         }
     }
     if (subject.startsWith('body.$')) {
-        return porRuta(r.body, subject.slice('body.$'.length).replace(/^\./, ''));
+        return byPath(r.body, subject.slice('body.$'.length).replace(/^\./, ''));
     }
     return '';
 }
 
 /** A simple path into a JSON value: `a.b[0].c`. Not full JSONPath. */
-function porRuta(body: string | undefined, filePath: string): string {
+function byPath(body: string | undefined, filePath: string): string {
     if (!body) {
         return '';
     }
@@ -119,11 +119,11 @@ function porRuta(body: string | undefined, filePath: string): string {
         return typeof actual === 'string' ? actual : JSON.stringify(actual);
     }
     for (const chunk of filePath.split('.')) {
-        for (const parte of chunk.split(/\[(\d+)\]/).filter(x => x !== '')) {
+        for (const piece of chunk.split(/\[(\d+)\]/).filter(x => x !== '')) {
             if (actual === null || actual === undefined) {
                 return '';
             }
-            actual = (actual as Record<string, unknown>)[parte];
+            actual = (actual as Record<string, unknown>)[piece];
         }
     }
     if (actual === undefined || actual === null) {
@@ -150,7 +150,7 @@ export function isKnownSubject(subject: string): boolean {
 export function checkAssertions(assertions: Assertion[], r: CheckableResponse): AssertionResult[] {
     return assertions.map(a => {
         if (!isKnownSubject(a.subject)) {
-            return { assertion: a, passed: false, actual: `no sé qué es "${a.subject}"` };
+            return { assertion: a, passed: false, actual: `unknown subject "${a.subject}"` };
         }
         const actual = valueFor(a.subject, r);
         const e = a.expected;

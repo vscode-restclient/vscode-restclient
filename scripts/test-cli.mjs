@@ -75,12 +75,14 @@ const r1 = await correr([bueno]);
 console.log(r1.output.trim().split(BR).map(l => '     ' + l).join(BR));
 ok('sale con código 0 cuando todo pasa', r1.exitCode === 0, `código ${r1.exitCode}`);
 ok('ejecuta las dos peticiones', (r1.output.match(/ok /g) || []).length === 2);
-ok('el token de la primera llega a la segunda', r1.output.includes('facturas') && !r1.output.includes('FALLA'));
+ok('el token de la primera llega a la segunda', r1.output.includes('facturas') && !/^(FAIL|ERROR)/m.test(r1.output));
+ok('el resumen cuenta las peticiones', r1.output.includes('2 requests, all green'), r1.output.trim().split(BR).pop());
 
 console.log(BR + '== P-23 · una aserción que falla');
 const r2 = await correr([malo]);
 ok('sale con código 1', r2.exitCode === 1, `código ${r2.exitCode}`);
 ok('dice qué aserción falló y con qué valor', r2.output.includes('status == 200') && r2.output.includes('404'));
+ok('marca la petición que falla y la cuenta en singular', /^FAIL /m.test(r2.output) && r2.output.includes('1 request, 1 failure') && !r2.output.includes('failures'), r2.output.trim().split(BR).pop());
 
 console.log(BR + '== salida en JSON, para integración continua');
 const r3 = await correr([bueno, '--json']);
@@ -131,7 +133,7 @@ ok('--env lee el entorno de http-client.env.json y el privado manda', r7.exitCod
 ok('run #login ejecuta la petición importada con su nombre', d7?.steps?.[0]?.name === 'login' && d7?.steps?.[0]?.status === 200);
 ok('la respuesta del importado encadena en el fichero que importa', d7?.steps?.[2]?.status === 200);
 const r8 = await correr([jet, '--env', 'dev']);
-ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.exitCode === 1 && r8.output.includes('missing secret "API_KEY"') && r8.output.includes('RESTCLIENT_SECRET_API_KEY'), r8.output.split(BR).find(l => l.includes('secreto')) ?? '');
+ok('sin el secreto, error que dice cuál y cómo pasarlo', r8.exitCode === 1 && r8.output.includes('missing secret "API_KEY"') && r8.output.includes('RESTCLIENT_SECRET_API_KEY'), r8.output.split(BR).find(l => l.includes('secret')) ?? '');
 const r9 = await new Promise((res) => {
   const p2 = spawn(process.execPath, [RUNNER, jet, '--env', 'dev', '--continue'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, RESTCLIENT_SECRET_API_KEY: 'clave-123' } });
   let output = ''; p2.stdout.on('data', d => output += d); p2.on('close', exitCode => res({ exitCode, output }));
@@ -212,11 +214,45 @@ console.log(BR + '== errores de uso');
 const r5 = await correr([]);
 ok('sin fichero explica cómo se usa', r5.exitCode === 2 && r5.error.includes('usage:'));
 const r6 = await correr([bueno, '--var', 'malescrita']);
-ok('una variable mal escrita se rechaza', r6.exitCode === 2 && r6.error.includes('clave=valor'));
+ok('una variable mal escrita se rechaza', r6.exitCode === 2 && r6.error.includes('malformed variable: "malescrita"'), r6.error.trim());
 const r11 = await correr([bueno, '--secret', 'sin-igual']);
-ok('un secreto mal escrito se rechaza', r11.exitCode === 2 && r11.error.includes('clave=valor'));
+ok('un secreto mal escrito se rechaza', r11.exitCode === 2 && r11.error.includes('malformed secret: "sin-igual"'), r11.error.trim());
+
+// Una opción que el runner no conoce es un error, no un no-op: si se ignorase,
+// un `--continuar` viejo en un CI pararía en la primera petición que no se
+// puede enviar sin decir por qué. (Lo que detiene la secuencia es un error de
+// envío; una aserción que falla no la detiene, con o sin --continue.)
+console.log(BR + '== opciones desconocidas y --continue');
+const dosPasos = escribir('dos.http', [
+  `GET http://127.0.0.1:${puerto}/echo/x`,
+  'X-Test: {{$secret NO_ESTA}}',
+  '',
+  '###',
+  '',
+  `GET http://127.0.0.1:${puerto}/facturas`,
+  'Authorization: Bearer tok-123',
+  '',
+  '# @assert status == 200',
+]);
+const pasos = (r) => { try { return JSON.parse(r.output).steps.length; } catch { return -1; } };
+const r16 = await correr([dosPasos, '--json']);
+ok('sin --continue se para en la primera petición que da error', r16.exitCode === 1 && pasos(r16) === 1, `${pasos(r16)} pasos`);
+const r17 = await correr([dosPasos, '--json', '--continue']);
+ok('con --continue sigue hasta el final y aun así sale con 1', r17.exitCode === 1 && pasos(r17) === 2, `${pasos(r17)} pasos`);
+const r18 = await correr([dosPasos, '--json', '--continuar']);
+ok('el nombre antiguo --continuar se rechaza y dice el nuevo', r18.exitCode === 2 && r18.output === '' && r18.error.includes('unknown option --continuar') && r18.error.includes('--continue now'), r18.error.trim());
+const r19 = await correr([bueno, '--no-existe']);
+ok('una opción desconocida se rechaza sin enviar nada', r19.exitCode === 2 && r19.output === '' && r19.error.includes('unknown option --no-existe') && r19.error.includes('usage:'), r19.error.trim().split(BR)[0]);
+// El servidor MCP: su raíz es el límite de lo que un agente puede leer, así que
+// un argumento que no entiende lo para en vez de dejarlo en el directorio actual.
+const r20 = await correr(['mcp', '--raiz', tmp]);
+ok('mcp --raiz (nombre antiguo) no arranca y dice --root', r20.exitCode === 2 && r20.output === '' && r20.error.includes('--root now'), r20.error.trim());
+const r21 = await correr(['mcp', '--root']);
+ok('mcp --root sin carpeta no arranca', r21.exitCode === 2 && r21.error.includes('--root needs a folder'), r21.error.trim());
+const r22 = await correr(['mcp', tmp]);
+ok('mcp con un argumento suelto no arranca', r22.exitCode === 2 && r22.error.includes('unexpected argument'), r22.error.trim().split(BR)[0]);
 
 hijo.kill();
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log(`${BR}===== ${failures} fallos`);
+console.log(`${BR}===== ${failures} failures`);
 process.exit(failures ? 1 : 0);

@@ -36,12 +36,12 @@ export function splitBlocks(text: string): Block[] {
     const lines = text.split(LINE_BREAK);
     const blocks: Block[] = [];
     let actual: string[] = [];
-    let inicio = 0;
+    let begin = 0;
 
     const close = () => {
         const t = actual.join(String.fromCharCode(10));
         if (t.trim().length > 0) {
-            blocks.push({ text: t, line: inicio, name: NAME_RE.exec(t)?.[1] });
+            blocks.push({ text: t, line: begin, name: NAME_RE.exec(t)?.[1] });
         }
         actual = [];
     };
@@ -49,7 +49,7 @@ export function splitBlocks(text: string): Block[] {
     for (let i = 0; i < lines.length; i++) {
         if (SEPARATOR_RE.test(lines[i])) {
             close();
-            inicio = i + 1;
+            begin = i + 1;
             continue;
         }
         actual.push(lines[i]);
@@ -71,13 +71,13 @@ export interface ExecutedStep {
 
 export interface SequenceOptions {
     /** Sends an already resolved block and returns the response. */
-    enviar(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined> }>;
+    send(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined> }>;
     /** Substitutes variables using what earlier requests have already returned. */
     resolve?(block: Block): Promise<Block>;
     /** By default, a failure stops the sequence. */
     continueOnFailure?: boolean;
     /** Called as each step finishes, so progress can be reported. */
-    alTerminarPaso?(step: ExecutedStep): void;
+    onStepDone?(step: ExecutedStep): void;
 }
 
 /**
@@ -89,35 +89,35 @@ export interface SequenceOptions {
  * that never arrived produces errors nobody can read.
  */
 export async function runSequence(blocks: Block[], options: SequenceOptions): Promise<ExecutedStep[]> {
-    const hechos: ExecutedStep[] = [];
+    const done: ExecutedStep[] = [];
 
     for (const block of blocks) {
         const t0 = Date.now();
         // The name comes from the resolved block: a `run #login` is called login.
-        let name = block.name ?? `#${hechos.length + 1}`;
+        let name = block.name ?? `#${done.length + 1}`;
         let step: ExecutedStep;
         try {
             const ready = options.resolve ? await options.resolve(block) : block;
             name = ready.name ?? name;
-            const r = await options.enviar(ready);
+            const r = await options.send(ready);
             step = { name, line: block.line, status: r.status, body: r.body, headers: r.headers, ms: Date.now() - t0 };
         } catch (e) {
             step = { name, line: block.line, error: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
         }
-        hechos.push(step);
-        options.alTerminarPaso?.(step);
+        done.push(step);
+        options.onStepDone?.(step);
         if (step.error && !options.continueOnFailure) {
             break;
         }
     }
-    return hechos;
+    return done;
 }
 
-const LINEA_DECLARACION = /^\s*(?:(?:#|\/\/).*|@[\w.-]+\s*=.*|import\s+\S.*)?$/;
+const DECLARATION_LINE = /^\s*(?:(?:#|\/\/).*|@[\w.-]+\s*=.*|import\s+\S.*)?$/;
 
 /** A block with only `import`, `@variables` and comments is not a request. */
 export function isRequest(block: Block): boolean {
-    return block.text.split(LINE_BREAK).some(l => !LINEA_DECLARACION.test(l));
+    return block.text.split(LINE_BREAK).some(l => !DECLARATION_LINE.test(l));
 }
 
 export interface RequestSummary {
@@ -134,12 +134,12 @@ export interface RequestSummary {
  */
 export function requestSummaries(text: string): RequestSummary[] {
     return splitBlocks(text).filter(isRequest).map(b => {
-        const primera = b.text.split(LINE_BREAK).find(l => !LINEA_DECLARACION.test(l))!.trim();
-        const m = /^([A-Z]+)\s+(\S.*)$/.exec(primera);
-        const run = /^run\s+#(\S+)/.exec(primera);
+        const first = b.text.split(LINE_BREAK).find(l => !DECLARATION_LINE.test(l))!.trim();
+        const m = /^([A-Z]+)\s+(\S.*)$/.exec(first);
+        const run = /^run\s+#(\S+)/.exec(first);
         if (run) {
             return { name: b.name, method: 'RUN', url: `#${run[1]}`, line: b.line };
         }
-        return { name: b.name, method: m ? m[1] : 'GET', url: (m ? m[2] : primera).replace(/\s+HTTP\/.*$/i, ''), line: b.line };
+        return { name: b.name, method: m ? m[1] : 'GET', url: (m ? m[2] : first).replace(/\s+HTTP\/.*$/i, ''), line: b.line };
     });
 }

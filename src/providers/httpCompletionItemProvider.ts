@@ -13,7 +13,7 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
         // and it replaces whatever was between them. It used to insert the
         // whole `{{variable}}` after the `{{` just typed, which produced
         // `{{{{variable}}}}`.
-        const interior = HttpCompletionItemProvider.rangoDentroDeLlaves(document, position);
+        const inner = HttpCompletionItemProvider.rangeInsideBraces(document, position);
 
         const elements = await HttpElementFactory.getHttpElements(document, document.lineAt(position).text);
         return elements.map(e => {
@@ -30,14 +30,14 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
                         : CompletionItemKind.Field;
 
             const text = typeof e.text === 'string' ? e.text : (e.text?.value ?? '');
-            if (interior && text.startsWith('{{') && text.endsWith('}}')) {
-                const dentro = text.slice(2, -2).trim();
-                item.range = interior;
-                item.insertText = typeof e.text === 'string' ? dentro : new SnippetString(dentro);
+            if (inner && text.startsWith('{{') && text.endsWith('}}')) {
+                const inside = text.slice(2, -2).trim();
+                item.range = inner;
+                item.insertText = typeof e.text === 'string' ? inside : new SnippetString(inside);
                 // With the cursor at `{{$ti`, VS Code filters by what was typed:
                 // without this, `$timestamp` did not match a bare `timestamp`.
-                if (dentro.startsWith('$')) {
-                    item.filterText = `${dentro} ${dentro.substring(1)}`;
+                if (inside.startsWith('$')) {
+                    item.filterText = `${inside} ${inside.substring(1)}`;
                 }
             }
             return item;
@@ -45,16 +45,16 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
     }
 
     /** The gap between `{{` and `}}` if the cursor is inside it; `undefined` otherwise. */
-    private static rangoDentroDeLlaves(document: TextDocument, position: Position): Range | undefined {
+    private static rangeInsideBraces(document: TextDocument, position: Position): Range | undefined {
         const line = document.lineAt(position.line).text;
-        const antes = line.substring(0, position.character);
-        const abre = antes.lastIndexOf('{{');
-        if (abre < 0 || abre < antes.lastIndexOf('}}')) {
+        const before = line.substring(0, position.character);
+        const opens = before.lastIndexOf('{{');
+        if (opens < 0 || opens < before.lastIndexOf('}}')) {
             return undefined;
         }
-        const cierra = line.indexOf('}}', position.character);
+        const closes = line.indexOf('}}', position.character);
         return new Range(
-            new Position(position.line, abre + 2),
-            new Position(position.line, cierra === -1 ? line.length : cierra));
+            new Position(position.line, opens + 2),
+            new Position(position.line, closes === -1 ? line.length : closes));
     }
 }

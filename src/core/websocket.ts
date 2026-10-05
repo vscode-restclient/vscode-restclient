@@ -28,7 +28,7 @@ export function bodyMessages(body: string | undefined): string[] {
 }
 
 export function talk(url: string, headers: Record<string, string>, messages: string[], ms: number = DEFAULT_LISTEN_MS): Promise<WsResult> {
-    const Ws = (globalThis as { WebSocket?: new (url: string, options?: unknown) => WebSocketMinimo }).WebSocket;
+    const Ws = (globalThis as { WebSocket?: new (url: string, options?: unknown) => MinimalWebSocket }).WebSocket;
     if (!Ws) {
         return Promise.reject(new Error('WebSocket needs Node 22 or newer (no WebSocket global in this runtime)'));
     }
@@ -36,14 +36,14 @@ export function talk(url: string, headers: Record<string, string>, messages: str
         const sent: string[] = [];
         const received: string[] = [];
         const lines: string[] = [];
-        let terminado = false;
-        let socket: WebSocketMinimo;
+        let finished = false;
+        let socket: MinimalWebSocket;
 
         const close = (closedBy: WsResult['closedBy'], detail?: string) => {
-            if (terminado) {
+            if (finished) {
                 return;
             }
-            terminado = true;
+            finished = true;
             clearTimeout(timer);
             try {
                 socket.close();
@@ -96,8 +96,8 @@ export function readTranscript(text: string): { received: string[]; sent: string
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : e === undefined ? undefined : String(e));
 
-interface WebSocketMinimo {
+interface MinimalWebSocket {
     send(data: string): void;
     close(): void;
-    addEventListener(tipo: string, escucha: (ev: never) => void): void;
+    addEventListener(eventType: string, listener: (ev: never) => void): void;
 }

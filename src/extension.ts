@@ -31,7 +31,7 @@ import { UserDataManager } from './utils/userDataManager';
 // your extension is activated the very first time the command is executed
 export async function activate(context: ExtensionContext) {
     await UserDataManager.initialize();
-    SecretStore.inicializar(context.secrets, context.globalState);
+    SecretStore.initialize(context.secrets, context.globalState);
 
     const requestController = new RequestController(context);
     const historyController = new HistoryController();
@@ -82,7 +82,7 @@ export async function activate(context: ExtensionContext) {
         if (!name) {
             return;
         }
-        await SecretStore.borrar(name);
+        await SecretStore.remove(name);
         window.setStatusBarMessage(l10n.t('Secret "{0}" deleted', name), 4000);
     }));
     context.subscriptions.push(registerCommandSafely('rest-client.clear-aad-token-cache', () => AadTokenCache.clear()));

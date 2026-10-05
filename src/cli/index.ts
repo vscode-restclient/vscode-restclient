@@ -1,8 +1,9 @@
 /**
  * restclient — the same .http file, run from the terminal.
  *
- *   restclient peticiones.http [--env dev] [--var host=https://api] [--secret KEY=valor]
- *                              [--continue] [--json] [--timeout ms]
+ *   restclient requests.http [--env dev] [--var host=https://api] [--secret KEY=value]
+ *                            [--continue] [--json] [--junit report.xml] [--timeout ms]
+ *   restclient mcp [--root folder]
  *
  * The sixth most upvoted request in the original project (+44 votes since
  * 2019), and what turns a file of requests into an integration test: it exits
@@ -24,7 +25,7 @@ import { Block, runSequence, isRequest, splitBlocks } from '../core/sequence';
 import { checkAssertions, readAssertions, AssertionResult } from '../core/assertions';
 import { isEventStream } from '../core/sse';
 import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
-import { aJunit } from '../core/junit';
+import { toJunit } from '../core/junit';
 
 export interface Options {
     file: string;
@@ -35,12 +36,44 @@ export interface Options {
     json: boolean;
     timeoutMs: number;
     /** Only the request with this name; used by the MCP server. */
-    solo?: string;
+    only?: string;
     /** Path of the JUnit XML report, if one was asked for. */
     junit?: string;
 }
 
 export const USAGE = 'usage: restclient <file.http> [--env name] [--var key=value] [--secret NAME=value] [--continue] [--json] [--junit report.xml] [--timeout ms]';
+
+/** Flags that existed under these names in httpkeeper-cli, and what they are called now. */
+const RENAMED_OPTIONS: Record<string, string> = { '--continuar': '--continue', '--raiz': '--root' };
+
+function unknownOption(option: string): string {
+    const now = Object.prototype.hasOwnProperty.call(RENAMED_OPTIONS, option) ? RENAMED_OPTIONS[option] : undefined;
+    return now ? `unknown option ${option}: it is called ${now} now` : `unknown option ${option}\n${USAGE}`;
+}
+
+/**
+ * `restclient mcp [--root folder]`. Returns the root, or an error message.
+ *
+ * Strict on purpose: the root is the boundary of what an agent may read, so an
+ * argument we do not understand must stop the server rather than fall back to
+ * the current directory. `mcp --raiz ./api` used to be the documented form;
+ * read loosely, it would start a server rooted somewhere wider than asked.
+ */
+export function readMcpArguments(argv: string[]): { root: string } | string {
+    let root: string | undefined;
+    for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+        if (a === '--root') {
+            root = argv[++i];
+            if (!root) {
+                return '--root needs a folder';
+            }
+        } else {
+            return a.startsWith('-') ? unknownOption(a) : `unexpected argument "${a}"\nusage: restclient mcp [--root folder]`;
+        }
+    }
+    return { root: root ?? process.cwd() };
+}
 
 export function readArguments(argv: string[]): Options | string {
     const variables: Record<string, string> = {};
@@ -52,12 +85,12 @@ export function readArguments(argv: string[]): Options | string {
     let junit: string | undefined;
     let timeoutMs = 30_000;
 
-    const keyValuePair = (par: string, que: string): [string, string] | string => {
-        const corte = par.indexOf('=');
-        if (corte < 1) {
-            return `${que} mal escrito: "${par}". Se espera clave=valor`;
+    const keyValuePair = (pair: string, what: string): [string, string] | string => {
+        const cutoff = pair.indexOf('=');
+        if (cutoff < 1) {
+            return `malformed ${what}: "${pair}". Expected key=value`;
         }
-        return [par.slice(0, corte), par.slice(corte + 1)];
+        return [pair.slice(0, cutoff), pair.slice(cutoff + 1)];
     };
 
     for (let i = 0; i < argv.length; i++) {
@@ -65,11 +98,11 @@ export function readArguments(argv: string[]): Options | string {
         if (a === '--var' || a === '-v') {
             const r = keyValuePair(argv[++i] ?? '', 'variable');
             if (typeof r === 'string') {
-                return r.replace('variable mal escrito', 'variable mal escrita');
+                return r;
             }
             variables[r[0]] = r[1];
         } else if (a === '--secret' || a === '-s') {
-            const r = keyValuePair(argv[++i] ?? '', 'secreto');
+            const r = keyValuePair(argv[++i] ?? '', 'secret');
             if (typeof r === 'string') {
                 return r;
             }
@@ -77,12 +110,12 @@ export function readArguments(argv: string[]): Options | string {
         } else if (a === '--env' || a === '-e') {
             environment = argv[++i];
             if (!environment) {
-                return '--env necesita el nombre de un entorno de http-client.env.json';
+                return '--env needs the name of an environment from http-client.env.json';
             }
         } else if (a === '--timeout') {
             timeoutMs = Number(argv[++i]);
             if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-                return '--timeout necesita un número de milisegundos mayor que 0';
+                return '--timeout needs a number of milliseconds greater than 0';
             }
         } else if (a === '--continue') {
             continueOnFailure = true;
@@ -91,10 +124,15 @@ export function readArguments(argv: string[]): Options | string {
         } else if (a === '--junit') {
             junit = argv[++i];
             if (!junit) {
-                return '--junit necesita la ruta del informe XML';
+                return '--junit needs the path of the XML report';
             }
         } else if (!a.startsWith('-')) {
             file = a;
+        } else {
+            // An option we do not know is an error, never a no-op. Ignoring it
+            // silently is what would have let a stale `--continuar` stop a CI
+            // run at the first request that errors, with nothing to say why.
+            return unknownOption(a);
         }
     }
     if (!file) {
@@ -104,10 +142,10 @@ export function readArguments(argv: string[]): Options | string {
 }
 
 /** The block whose `@name` matches, either in the file or via `run #name`. */
-function soloElBloque(blocks: Block[], name: string): Block[] {
-    const directo = blocks.find(b => b.name === name);
-    if (directo) {
-        return [directo];
+function onlyBlock(blocks: Block[], name: string): Block[] {
+    const direct = blocks.find(b => b.name === name);
+    if (direct) {
+        return [direct];
     }
     return [{ text: `run #${name}`, line: 0 }];
 }
@@ -118,11 +156,11 @@ function soloElBloque(blocks: Block[], name: string): Block[] {
  * the block, because that is how they work in the editor.
  */
 export function fileVariables(text: string): Record<string, string> {
-    const fuera: Record<string, string> = {};
+    const out: Record<string, string> = {};
     for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*)$/gm)) {
-        fuera[m[1]] = m[2].trim();
+        out[m[1]] = m[2].trim();
     }
-    return fuera;
+    return out;
 }
 
 /** Secrets: from the command line, or from `RESTCLIENT_SECRET_NAME`. A missing one is an error, not a blank. */
@@ -141,42 +179,42 @@ export function secret(name: string, secrets: Record<string, string>): string {
  * behaves identically in both places.
  */
 export function substitute(text: string, variables: Record<string, string>, secrets: Record<string, string> = {}): string {
-    return text.replace(/\{\{([^{}]+)\}\}/g, (completo, name: string) => {
+    return text.replace(/\{\{([^{}]+)\}\}/g, (whole, name: string) => {
         const key = name.trim();
         if (key in variables) {
             return variables[key];
         }
-        const [sistema, ...resto] = key.split(/\s+/);
-        const argumento = resto.join(' ');
-        switch (sistema.replace(/\(.*$/, '')) {
-            case '$processEnv': return process.env[argumento] ?? '';
+        const [system, ...rest] = key.split(/\s+/);
+        const argument = rest.join(' ');
+        switch (system.replace(/\(.*$/, '')) {
+            case '$processEnv': return process.env[argument] ?? '';
             case '$faker': {
-                const grupos = fakerRegex.exec(key);
-                if (!grupos) {
-                    return completo;
+                const groups = fakerRegex.exec(key);
+                if (!groups) {
+                    return whole;
                 }
-                const r = resolveFakerPath(faker, grupos[1], grupos[2]);
-                return 'value' in r ? r.value : completo;
+                const r = resolveFakerPath(faker, groups[1], groups[2]);
+                return 'value' in r ? r.value : whole;
             }
-            case '$secret': return secret(argumento, secrets);
+            case '$secret': return secret(argument, secrets);
             case '$guid':
             case '$uuid': return crypto.randomUUID();
             case '$timestamp': return String(Math.floor(Date.now() / 1000));
             case '$isoTimestamp': return new Date().toISOString();
-            case '$datetime': return argumento.startsWith('rfc1123') ? new Date().toUTCString() : new Date().toISOString();
+            case '$datetime': return argument.startsWith('rfc1123') ? new Date().toUTCString() : new Date().toISOString();
             case '$randomInt': {
-                const [min, max] = argumento.split(/\s+/).map(Number);
-                return Number.isFinite(min) && Number.isFinite(max) && min < max ? String(min + Math.floor(Math.random() * (max - min))) : completo;
+                const [min, max] = argument.split(/\s+/).map(Number);
+                return Number.isFinite(min) && Number.isFinite(max) && min < max ? String(min + Math.floor(Math.random() * (max - min))) : whole;
             }
             case '$random.integer': {
                 const m = /\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/.exec(key);
                 if (!m) {
-                    return completo;
+                    return whole;
                 }
                 const [min, max] = [Number(m[1]), Number(m[2])];
-                return min < max ? String(min + Math.floor(Math.random() * (max - min))) : completo;
+                return min < max ? String(min + Math.floor(Math.random() * (max - min))) : whole;
             }
-            default: return completo;
+            default: return whole;
         }
     });
 }
@@ -187,9 +225,9 @@ export async function execute(options: Options, output: (line: string) => void):
     const root = path.dirname(absoluteFile);
     const environment = terminalEnvironment(root, absoluteFile);
 
-    const { imported, faltan } = closeImports(absoluteFile, text);
-    for (const f of faltan) {
-        environment.warn(`import: no existe ${f}`);
+    const { imported, missing } = closeImports(absoluteFile, text);
+    for (const f of missing) {
+        environment.warn(`import: ${f} does not exist`);
     }
 
     // Prioridad de menor a mayor: entorno de fichero -> @variables (importadas,
@@ -201,8 +239,8 @@ export async function execute(options: Options, output: (line: string) => void):
         ...options.variables
     };
 
-    const todos = splitBlocks(text).filter(isRequest);
-    const blocks = options.solo ? soloElBloque(todos, options.solo) : todos;
+    const all = splitBlocks(text).filter(isRequest);
+    const blocks = options.only ? onlyBlock(all, options.only) : all;
     const byBlock = new Map<number, AssertionResult[]>();
     // What the named requests have already returned, so they can be chained.
     const previous = new Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>();
@@ -213,11 +251,11 @@ export async function execute(options: Options, output: (line: string) => void):
             const real = resolveRun(b, text, imported);
             return { ...real, text: substitute(resolvePrevious(real.text, previous), variables, options.secrets) };
         },
-        enviar: async (b: Block) => {
+        send: async (b: Block) => {
             const request = parseRequests(b.text, root, t => substitute(t, variables, options.secrets));
             const timeout = blockTimeout(b.text);
             const result = request.method === 'WEBSOCKET'
-                ? await enviarWebSocket(request, timeout ?? DEFAULT_LISTEN_MS)
+                ? await sendWebSocket(request, timeout ?? DEFAULT_LISTEN_MS)
                 : await sendRequest(request, timeout ?? options.timeoutMs);
             if (b.name) {
                 previous.set(b.name, result);
@@ -236,7 +274,7 @@ export async function execute(options: Options, output: (line: string) => void):
         failures += failed.length + (step.error ? 1 : 0);
 
         if (!options.json) {
-            const mark = step.error ? 'ERROR' : failed.length ? 'FALLA' : '  ok ';
+            const mark = step.error ? 'ERROR' : failed.length ? 'FAIL ' : '  ok ';
             output(`${mark}  ${step.name.padEnd(20)} ${String(step.status ?? '').padStart(3)}  ${step.ms} ms`);
             for (const m of failed) {
                 output(`         ${m.assertion.raw}   ->  ${truncate(m.actual)}`);
@@ -248,7 +286,7 @@ export async function execute(options: Options, output: (line: string) => void):
     });
 
     if (options.junit) {
-        fs.writeFileSync(options.junit, aJunit(path.basename(options.file), steps.map((p, i) => ({
+        fs.writeFileSync(options.junit, toJunit(path.basename(options.file), steps.map((p, i) => ({
             name: p.name,
             ms: p.ms,
             error: p.error,
@@ -265,9 +303,9 @@ export async function execute(options: Options, output: (line: string) => void):
             }))
         }, null, 2));
     } else {
-        const total = steps.length;
+        const total = `${steps.length} request${steps.length === 1 ? '' : 's'}`;
         output('');
-        output(failures === 0 ? `${total} peticiones, todo en verde` : `${total} peticiones, ${failures} fallo(s)`);
+        output(failures === 0 ? `${total}, all green` : `${total}, ${failures} failure${failures === 1 ? '' : 's'}`);
     }
     return failures === 0 ? 0 : 1;
 }
@@ -279,12 +317,12 @@ function environmentVars(root: string, name: string | undefined, warn: (m: strin
     }
     const folder = environmentsFolder(root);
     if (!folder) {
-        warn(`--env ${name}: no hay http-client.env.json desde ${root} hacia arriba`);
+        warn(`--env ${name}: no http-client.env.json found from ${root} upwards`);
         return {};
     }
     const environments = readEnvironments(folder, warn);
     if (!(name in environments)) {
-        warn(`--env ${name}: ese entorno no está en ${folder}. Hay: ${Object.keys(environments).join(', ') || 'ninguno'}`);
+        warn(`--env ${name}: no such environment in ${folder}. Available: ${Object.keys(environments).join(', ') || 'none'}`);
         return {};
     }
     return environments[name];
@@ -297,7 +335,7 @@ export function blockTimeout(text: string): number | undefined {
 }
 
 /** WebSocket: the «response» is the transcript, with status 101 as in the editor. */
-async function enviarWebSocket(p: { url: string; headers: Record<string, string>; body?: string | Buffer }, ms: number):
+async function sendWebSocket(p: { url: string; headers: Record<string, string>; body?: string | Buffer }, ms: number):
     Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
     const body = typeof p.body === 'string' ? p.body : p.body?.toString('utf8');
     const r = await talk(p.url, p.headers, bodyMessages(body), ms);
@@ -310,33 +348,33 @@ async function enviarWebSocket(p: { url: string; headers: Record<string, string>
 /** Sends the request with Node's own HTTP client: no dependencies. */
 function sendRequest(p: { method: string; url: string; headers: Record<string, string>; body?: string | Buffer }, timeoutMs: number):
     Promise<{ status: number; body: string; headers: Record<string, string | undefined> }> {
-    return new Promise((resolve, rechazar) => {
-        let destino: URL;
+    return new Promise((resolve, reject) => {
+        let destination: URL;
         try {
-            destino = new URL(p.url);
+            destination = new URL(p.url);
         } catch {
-            rechazar(new Error(`URL no válida: ${p.url}`));
+            reject(new Error(`invalid URL: ${p.url}`));
             return;
         }
-        const transporte = destino.protocol === 'https:' ? https : http;
-        const request = transporte.request(destino, { method: p.method, headers: p.headers, timeout: timeoutMs }, response => {
+        const transport = destination.protocol === 'https:' ? https : http;
+        const request = transport.request(destination, { method: p.method, headers: p.headers, timeout: timeoutMs }, response => {
             const chunks: Buffer[] = [];
-            const terminar = () => resolve({
+            const finish = () => resolve({
                 status: response.statusCode ?? 0,
                 body: Buffer.concat(chunks).toString('utf8'),
                 headers: response.headers as Record<string, string | undefined>
             });
             response.on('data', t => chunks.push(t as Buffer));
-            response.on('end', terminar);
+            response.on('end', finish);
             // An event stream may never end: once the time is up it is cut,
             // and what arrived by then is the response, not an error.
             if (isEventStream(response.headers['content-type'])) {
-                const corte = setTimeout(() => { response.destroy(); terminar(); }, timeoutMs);
-                response.on('end', () => clearTimeout(corte));
+                const cutoff = setTimeout(() => { response.destroy(); finish(); }, timeoutMs);
+                response.on('end', () => clearTimeout(cutoff));
             }
         });
-        request.on('timeout', () => request.destroy(new Error(`sin respuesta en ${timeoutMs} ms`)));
-        request.on('error', e => rechazar(e));
+        request.on('timeout', () => request.destroy(new Error(`no response in ${timeoutMs} ms`)));
+        request.on('error', e => reject(e));
         if (p.body !== undefined) {
             if (!Object.keys(p.headers).some(k => k.toLowerCase() === 'content-length')) {
                 request.setHeader('Content-Length', Buffer.byteLength(p.body));
@@ -349,17 +387,17 @@ function sendRequest(p: { method: string; url: string; headers: Record<string, s
 
 /** Resolves `{{name.response.body.$.x}}` with what that request already answered. */
 function resolvePrevious(text: string, previous: Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>): string {
-    return text.replace(/\{\{(\w+)\.response\.(body|headers)\.([^{}]+)\}\}/g, (completo, name: string, parte: string, resto: string) => {
+    return text.replace(/\{\{(\w+)\.response\.(body|headers)\.([^{}]+)\}\}/g, (whole, name: string, piece: string, rest: string) => {
         const r = previous.get(name);
         if (!r) {
-            return completo;
+            return whole;
         }
-        const subject = parte === 'headers' ? `headers.${resto.trim()}` : `body.${resto.trim()}`;
+        const subject = piece === 'headers' ? `headers.${rest.trim()}` : `body.${rest.trim()}`;
         // The same resolver as the assertions is reused: one language, not two.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { valueFor } = require('../core/assertions');
         const value = valueFor(subject, { status: r.status, body: r.body, headers: r.headers, ms: 0 });
-        return value === '' ? completo : value;
+        return value === '' ? whole : value;
     });
 }
 
@@ -371,8 +409,12 @@ if (require.main === module) {
     if (process.argv[2] === 'mcp') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { serveMcp } = require('./mcp');
-        const i = process.argv.indexOf('--root');
-        serveMcp(i > 0 ? process.argv[i + 1] : process.cwd());
+        const mcpOptions = readMcpArguments(process.argv.slice(3));
+        if (typeof mcpOptions === 'string') {
+            process.stderr.write(mcpOptions + '\n');
+            process.exit(2);
+        }
+        serveMcp(mcpOptions.root);
     } else {
         const options = readArguments(process.argv.slice(2));
         if (typeof options === 'string') {

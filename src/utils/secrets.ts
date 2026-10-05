@@ -9,17 +9,17 @@ import { l10n, Memento, SecretStorage, window } from 'vscode';
  * global state; only the names, never the values.
  */
 export class SecretStore {
-    private static almacen: SecretStorage | undefined;
+    private static storage: SecretStorage | undefined;
     private static status: Memento | undefined;
     private static readonly NAMES_KEY = 'rest-client.secretNames';
 
-    public static inicializar(almacen: SecretStorage, status: Memento) {
-        this.almacen = almacen;
+    public static initialize(storage: SecretStorage, status: Memento) {
+        this.storage = storage;
         this.status = status;
     }
 
     public static get ready(): boolean {
-        return this.almacen !== undefined;
+        return this.storage !== undefined;
     }
 
     public static names(): string[] {
@@ -27,18 +27,18 @@ export class SecretStore {
     }
 
     public static async get(name: string): Promise<string | undefined> {
-        return this.almacen?.get(this.key(name));
+        return this.storage?.get(this.key(name));
     }
 
     public static async set(name: string, value: string): Promise<void> {
-        await this.almacen?.store(this.key(name), value);
+        await this.storage?.store(this.key(name), value);
         const names = new Set(this.names());
         names.add(name);
         await this.status?.update(this.NAMES_KEY, [...names].sort());
     }
 
-    public static async borrar(name: string): Promise<void> {
-        await this.almacen?.delete(this.key(name));
+    public static async remove(name: string): Promise<void> {
+        await this.storage?.delete(this.key(name));
         await this.status?.update(this.NAMES_KEY, this.names().filter(n => n !== name));
     }
 

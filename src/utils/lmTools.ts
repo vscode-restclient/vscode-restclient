@@ -34,15 +34,15 @@ export function registerTools(context: vscode.ExtensionContext, controller: Requ
             prepareInvocation: async (options: { input: { file?: string; name?: string } }) => {
                 const uri = workspaceFile(options.input.file);
                 const doc = await vscode.workspace.openTextDocument(uri);
-                const lista = requestSummaries(doc.getText());
-                const objetivo = options.input.name ? lista.find(r => r.name === options.input.name) : lista[0];
-                const que = objetivo ? `${objetivo.method} ${objetivo.url}` : (options.input.name ?? 'the first request');
+                const list = requestSummaries(doc.getText());
+                const target = options.input.name ? list.find(r => r.name === options.input.name) : list[0];
+                const what = target ? `${target.method} ${target.url}` : (options.input.name ?? 'the first request');
                 const file = vscode.workspace.asRelativePath(uri);
                 return {
-                    invocationMessage: vscode.l10n.t('Sending {0} from {1}', que, file),
+                    invocationMessage: vscode.l10n.t('Sending {0} from {1}', what, file),
                     confirmationMessages: {
                         title: vscode.l10n.t('Send HTTP request'),
-                        message: new vscode.MarkdownString(vscode.l10n.t('Send **{0}** from `{1}`?', que, file)),
+                        message: new vscode.MarkdownString(vscode.l10n.t('Send **{0}** from `{1}`?', what, file)),
                     },
                 };
             },
@@ -83,13 +83,13 @@ export function workspaceFile(file: string | undefined): vscode.Uri {
     if (!file) {
         throw new Error('file is required');
     }
-    const carpetas = vscode.workspace.workspaceFolders ?? [];
-    const abs = path.isAbsolute(file) ? file : path.resolve(carpetas[0]?.uri.fsPath ?? process.cwd(), file);
-    const dentro = carpetas.some(c => {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const abs = path.isAbsolute(file) ? file : path.resolve(folders[0]?.uri.fsPath ?? process.cwd(), file);
+    const inside = folders.some(c => {
         const rel = path.relative(c.uri.fsPath, abs);
         return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
     });
-    if (!dentro) {
+    if (!inside) {
         throw new Error(`${file} is outside the workspace`);
     }
     return vscode.Uri.file(abs);
@@ -98,9 +98,9 @@ export function workspaceFile(file: string | undefined): vscode.Uri {
 interface ApiLm {
     lm?: {
         registerTool?: (name: string, tool: unknown) => vscode.Disposable;
-        registerMcpServerDefinitionProvider?: (id: string, proveedor: unknown) => vscode.Disposable;
+        registerMcpServerDefinitionProvider?: (id: string, provider: unknown) => vscode.Disposable;
     };
     LanguageModelToolResult?: new (parts: unknown[]) => unknown;
     LanguageModelTextPart?: new (text: string) => unknown;
-    McpStdioServerDefinition?: new (etiqueta: string, comando: string, args: string[], env?: Record<string, string>) => unknown;
+    McpStdioServerDefinition?: new (label: string, command: string, args: string[], env?: Record<string, string>) => unknown;
 }

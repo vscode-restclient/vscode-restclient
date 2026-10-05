@@ -13,11 +13,11 @@ async function main(): Promise<void> {
   // eco, códigos de estado, JSON, XML, redirección, SSE y un WebSocket de eco.
   const server = path.join(root, 'scripts', 'test-server.cjs');
   const hijo = cp.spawn(process.execPath, [server, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
-  const puerto: string = await new Promise((res, rej) => {
-    hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).puerto)));
+  const port: string = await new Promise((res, rej) => {
+    hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).port)));
     setTimeout(() => rej(new Error('el servidor de prueba no arrancó')), 10000);
   });
-  console.log(`servidor de prueba en el puerto ${puerto}`);
+  console.log(`servidor de prueba en el puerto ${port}`);
 
   // Se simula a alguien que YA tenía REST Client: sus ajustes viven en el
   // settings.json del usuario. VS Code no deja escribirlos desde la API si la
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
       extensionDevelopmentPath: root,
       extensionTestsPath: path.resolve(__dirname, './suite/index'),
       launchArgs: [tmp, `--user-data-dir=${path.join(root, '.vscode-test', 'user-data')}`, '--disable-extensions'],
-      extensionTestsEnv: { RC_TEST_PUERTO: puerto, HK_SOLO: process.env.HK_SOLO ?? '' },
+      extensionTestsEnv: { RC_TEST_PUERTO: port, HK_SOLO: process.env.HK_SOLO ?? '' },
     });
   } finally {
     hijo.kill();

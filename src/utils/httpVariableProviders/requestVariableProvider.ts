@@ -58,12 +58,12 @@ export class RequestVariableProvider implements HttpVariableProvider {
         }
 
         const fileContent = document.getText();
-        const textos = document.uri.scheme === 'file'
+        const texts = document.uri.scheme === 'file'
             ? [fileContent, ...closeImports(document.fileName, fileContent).imported.map(i => i.text)]
             : [fileContent];
 
         const variableNames = new Set<string>();
-        for (const text of textos) {
+        for (const text of texts) {
             const requestVariableReferenceRegex = new RegExp(Constants.RequestVariableDefinitionWithNameRegexFactory('\\w+'), 'mg');
             let match: RegExpExecArray | null;
             while (match = requestVariableReferenceRegex.exec(text)) {

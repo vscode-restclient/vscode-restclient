@@ -79,10 +79,10 @@ export class FileVariableProvider implements HttpVariableProvider {
         const variables = new Map<string, FileVariableValue>();
         // First those of the imported files (`import ./common.http`), in
         // order; then the file's own, which therefore win.
-        const textos = document.uri.scheme === 'file'
+        const texts = document.uri.scheme === 'file'
             ? [...closeImports(document.fileName, fileContent).imported.map(i => i.text), fileContent]
             : [fileContent];
-        for (const line of textos.flatMap(t => t.split(Constants.LineSplitterRegex))) {
+        for (const line of texts.flatMap(t => t.split(Constants.LineSplitterRegex))) {
             const regex = new RegExp(Constants.FileVariableDefinitionRegex, 'g');
             let match: RegExpExecArray | null;
             while (match = regex.exec(line)) {

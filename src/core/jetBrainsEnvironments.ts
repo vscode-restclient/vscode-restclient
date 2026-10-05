@@ -33,11 +33,11 @@ export function environmentsFolder(start: string, ceiling?: string): string | un
         if (limit && dir === limit) {
             return undefined;
         }
-        const padre = path.dirname(dir);
-        if (padre === dir) {
+        const parent = path.dirname(dir);
+        if (parent === dir) {
             return undefined;
         }
-        dir = padre;
+        dir = parent;
     }
 }
 
@@ -47,7 +47,7 @@ export function environmentsFolder(start: string, ceiling?: string): string | un
  * while you are still editing the file.
  */
 export function readEnvironments(folder: string, warn: (message: string) => void = () => { /* silencio */ }): Environments {
-    const fuera: Environments = {};
+    const out: Environments = {};
     for (const name of [PUBLIC_FILE, PRIVATE_FILE]) {
         const filePath = path.join(folder, name);
         if (!fs.existsSync(filePath)) {
@@ -56,20 +56,20 @@ export function readEnvironments(folder: string, warn: (message: string) => void
         try {
             const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
             if (typeof json !== 'object' || json === null) {
-                warn(`${name}: se esperaba un objeto con un entorno por clave`);
+                warn(`${name}: expected an object with one environment per key`);
                 continue;
             }
             for (const [environment, vars] of Object.entries(json)) {
                 if (typeof vars !== 'object' || vars === null) {
                     continue;
                 }
-                fuera[environment] = { ...(fuera[environment] ?? {}), ...aTexto(vars as Record<string, unknown>) };
+                out[environment] = { ...(out[environment] ?? {}), ...toText(vars as Record<string, unknown>) };
             }
         } catch (e) {
             warn(`${name}: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
-    return fuera;
+    return out;
 }
 
 /** Variables del entorno pedido, o `{}` si no existe. */
@@ -81,5 +81,5 @@ export function environmentVariables(folder: string | undefined, environment: st
 }
 
 /** A value that is not text (a number, an object) is used as it would be written in the request. */
-const aTexto = (o: Record<string, unknown>): Record<string, string> =>
+const toText = (o: Record<string, unknown>): Record<string, string> =>
     Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]));

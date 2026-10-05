@@ -21,11 +21,11 @@ export interface MinimalRequest {
 }
 
 const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS', 'TRACE', 'CONNECT', 'QUERY', 'WEBSOCKET'];
-const SALTOS = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
+const LINE_BREAKS = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
 const FILE_IN_BODY = /^<(@)?\s+(.+?)\s*$/;
 
 export function parseRequests(text: string, base: string, substitute: (t: string) => string = t => t): MinimalRequest {
-    const lines = text.split(SALTOS);
+    const lines = text.split(LINE_BREAKS);
     let i = 0;
 
     // Comments, metadata and blank lines before the request.
@@ -33,15 +33,15 @@ export function parseRequests(text: string, base: string, substitute: (t: string
         i++;
     }
     if (i >= lines.length) {
-        throw new Error('no hay ninguna petición en este bloque');
+        throw new Error('there is no request in this block');
     }
 
     if (/^\s*curl\b/.test(lines[i])) {
         return parseCurl(lines.slice(i), base);
     }
 
-    const primera = lines[i++].trim();
-    const parts = primera.split(/\s+/);
+    const first = lines[i++].trim();
+    const parts = first.split(/\s+/);
     let method = 'GET';
     let url: string;
     if (METHODS.includes(parts[0].toUpperCase())) {
@@ -51,7 +51,7 @@ export function parseRequests(text: string, base: string, substitute: (t: string
         url = parts[0];
     }
     if (!url) {
-        throw new Error(`no encuentro la URL en "${primera}"`);
+        throw new Error(`cannot find the URL in "${first}"`);
     }
 
     // A URL can continue on the following lines if they start with ? or &.
@@ -65,16 +65,16 @@ export function parseRequests(text: string, base: string, substitute: (t: string
         if (/^\s*(#|\/\/)/.test(l)) {
             continue;
         }
-        const corte = l.indexOf(':');
-        if (corte > 0) {
-            headers[l.slice(0, corte).trim()] = l.slice(corte + 1).trim();
+        const cutoff = l.indexOf(':');
+        if (cutoff > 0) {
+            headers[l.slice(0, cutoff).trim()] = l.slice(cutoff + 1).trim();
         }
     }
 
     // Everything after the blank line is the body, except the metadata
     // comments (@assert, @name, @timeout) that sit at the end of the block.
-    const restantes = lines.slice(i + 1).filter(l => !/^\s*(?:#|\/\/)\s*@(assert|name|timeout)\b/.test(l));
-    const body = readBody(restantes, headers, base, substitute);
+    const remaining = lines.slice(i + 1).filter(l => !/^\s*(?:#|\/\/)\s*@(assert|name|timeout)\b/.test(l));
+    const body = readBody(remaining, headers, base, substitute);
     return { method, url, headers, body };
 }
 
@@ -104,7 +104,7 @@ function readBody(lines: string[], headers: Record<string, string>, base: string
         if (m) {
             const filePath = path.isAbsolute(m[2]) ? m[2] : path.join(base, m[2]);
             if (!fs.existsSync(filePath)) {
-                throw new Error(`no existe el fichero del cuerpo: ${m[2]}`);
+                throw new Error(`body file does not exist: ${m[2]}`);
             }
             parts.push(m[1] ? Buffer.from(substitute(fs.readFileSync(filePath, 'utf8')), 'utf8') : fs.readFileSync(filePath));
         } else {
@@ -123,8 +123,8 @@ function readBody(lines: string[], headers: Record<string, string>, base: string
  * what gets sent.
  */
 export function parseCurl(lines: string[], base: string): MinimalRequest {
-    const unaLinea = lines.join('\n').replace(/\\\r?\n/g, ' ').replace(/^\s*curl\b/, '');
-    const args = splitArguments(unaLinea);
+    const oneLine = lines.join('\n').replace(/\\\r?\n/g, ' ').replace(/^\s*curl\b/, '');
+    const args = splitArguments(oneLine);
     let method: string | undefined;
     let url = '';
     const headers: Record<string, string> = {};
@@ -137,8 +137,8 @@ export function parseCurl(lines: string[], base: string): MinimalRequest {
         else if (a.startsWith('-X') && a.length > 2) { method = a.slice(2).toUpperCase(); }
         else if (a === '-H' || a === '--header') {
             const h = value();
-            const corte = h.indexOf(':');
-            if (corte > 0) { headers[h.slice(0, corte).trim()] = h.slice(corte + 1).trim(); }
+            const cutoff = h.indexOf(':');
+            if (cutoff > 0) { headers[h.slice(0, cutoff).trim()] = h.slice(cutoff + 1).trim(); }
         }
         else if (a === '-d' || a === '--data' || a === '--data-raw' || a === '--data-binary' || a === '--data-ascii') { data.push(value()); }
         else if (a === '-u' || a === '--user') { user = value(); }
@@ -148,13 +148,13 @@ export function parseCurl(lines: string[], base: string): MinimalRequest {
         else if (!a.startsWith('-') && !url) { url = a; }
     }
     if (!url) {
-        throw new Error('la orden curl no lleva URL');
+        throw new Error('the curl command has no URL');
     }
     let body: string | undefined = data.length ? data.join('&') : undefined;
     if (body?.startsWith('@')) {
         const filePath = path.isAbsolute(body.slice(1)) ? body.slice(1) : path.join(base, body.slice(1));
         if (!fs.existsSync(filePath)) {
-            throw new Error(`no existe el fichero del cuerpo: ${body.slice(1)}`);
+            throw new Error(`body file does not exist: ${body.slice(1)}`);
         }
         body = fs.readFileSync(filePath, 'utf8');
     }
@@ -169,28 +169,28 @@ export function parseCurl(lines: string[], base: string): MinimalRequest {
 
 /** Arguments as the shell would see them: single and double quotes, spaces inside them. */
 export function splitArguments(text: string): string[] {
-    const fuera: string[] = [];
+    const out: string[] = [];
     let actual = '';
-    let dentro: '"' | "'" | null = null;
-    let hayAlgo = false;
+    let inside: '"' | "'" | null = null;
+    let hasAny = false;
     for (let i = 0; i < text.length; i++) {
         const c = text[i];
-        if (dentro) {
-            if (c === dentro) { dentro = null; }
-            else if (c === '\\' && dentro === '"' && i + 1 < text.length) { actual += text[++i]; }
+        if (inside) {
+            if (c === inside) { inside = null; }
+            else if (c === '\\' && inside === '"' && i + 1 < text.length) { actual += text[++i]; }
             else { actual += c; }
         } else if (c === '"' || c === "'") {
-            dentro = c;
-            hayAlgo = true;
+            inside = c;
+            hasAny = true;
         } else if (/\s/.test(c)) {
-            if (hayAlgo) { fuera.push(actual); actual = ''; hayAlgo = false; }
+            if (hasAny) { out.push(actual); actual = ''; hasAny = false; }
         } else {
             actual += c;
-            hayAlgo = true;
+            hasAny = true;
         }
     }
-    if (hayAlgo) {
-        fuera.push(actual);
+    if (hasAny) {
+        out.push(actual);
     }
-    return fuera;
+    return out;
 }

@@ -42,21 +42,21 @@ describe('ejecutar en secuencia', () => {
     const response = (status: number) => ({ status, body: '{}', headers: {} });
 
     it('P-19 · ejecuta todos los bloques en orden', async () => {
-        const vistos: string[] = [];
+        const seen: string[] = [];
         const steps = await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
-            enviar: async (b: Block) => { vistos.push(b.text.trim()); return response(200); }
+            send: async (b: Block) => { seen.push(b.text.trim()); return response(200); }
         });
-        assert.deepStrictEqual(vistos.map(v => v.slice(-1)), ['1', '2', '3']);
+        assert.deepStrictEqual(seen.map(v => v.slice(-1)), ['1', '2', '3']);
         assert.strictEqual(steps.length, 3);
     });
 
     it('P-19 · cada bloque se resuelve cuando le toca, no antes', async () => {
-        const hechos: ExecutedStep[] = [];
+        const done: ExecutedStep[] = [];
         const alResolver: number[] = [];
         await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
-            resolve: async (b) => { alResolver.push(hechos.length); return b; },
-            enviar: async () => response(200),
-            alTerminarPaso: (p) => { hechos.push(p); }
+            resolve: async (b) => { alResolver.push(done.length); return b; },
+            send: async () => response(200),
+            onStepDone: (p) => { done.push(p); }
         });
         // Al resolver el bloque n ya han terminado los n anteriores: eso es lo
         // que permite encadenar {{login.response...}}.
@@ -66,7 +66,7 @@ describe('ejecutar en secuencia', () => {
     it('P-20 · un fallo detiene la secuencia', async () => {
         let sent = 0;
         const steps = await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
-            enviar: async () => { sent++; if (sent === 2) { throw new Error('sin conexion'); } return response(200); }
+            send: async () => { sent++; if (sent === 2) { throw new Error('sin conexion'); } return response(200); }
         });
         assert.strictEqual(steps.length, 2, 'no debe seguir tras el fallo');
         assert.strictEqual(steps[1].error, 'sin conexion');
@@ -77,7 +77,7 @@ describe('ejecutar en secuencia', () => {
         let sent = 0;
         const steps = await runSequence(splitBlocks(j('GET http://a/1', '###', 'GET http://a/2', '###', 'GET http://a/3')), {
             continueOnFailure: true,
-            enviar: async () => { sent++; if (sent === 2) { throw new Error('oops'); } return response(200); }
+            send: async () => { sent++; if (sent === 2) { throw new Error('oops'); } return response(200); }
         });
         assert.strictEqual(steps.length, 3);
         assert.strictEqual(sent, 3);
@@ -111,7 +111,7 @@ describe('aserciones', () => {
     });
 
     it('P-21 · los siete operadores, con su caso bueno y su caso malo', () => {
-        const casos: [string, boolean][] = [
+        const cases: [string, boolean][] = [
             ['status == 200', true], ['status == 404', false],
             ['status != 404', true], ['status != 200', false],
             ['time < 500', true], ['time < 10', false],
@@ -120,7 +120,7 @@ describe('aserciones', () => {
             ['body.$.token matches ^abc[0-9]+$', true], ['body.$.token matches ^zzz', false],
             ['body.$.token exists', true], ['body.$.vacio exists', false]
         ];
-        for (const [text, expected] of casos) {
+        for (const [text, expected] of cases) {
             const [res] = checkAssertions(readAssertions('# @assert ' + text), r);
             assert.strictEqual(res.passed, expected, `"${text}" deberia ${expected ? 'pasar' : 'fallar'} y dio "${res.actual}"`);
         }

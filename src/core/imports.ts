@@ -35,35 +35,35 @@ export function importedPaths(text: string, baseFile: string): string[] {
 export function closeImports(
     file: string,
     text?: string,
-    leer: (f: string) => string = (f) => fs.readFileSync(f, 'utf8')
-): { imported: Imported[]; faltan: string[] } {
+    read: (f: string) => string = (f) => fs.readFileSync(f, 'utf8')
+): { imported: Imported[]; missing: string[] } {
     const root = path.resolve(file);
-    const vistos = new Set<string>([root]);
-    const cola = importedPaths(text ?? leer(root), root);
+    const seen = new Set<string>([root]);
+    const tail = importedPaths(text ?? read(root), root);
     const imported: Imported[] = [];
-    const faltan: string[] = [];
-    while (cola.length) {
-        const f = cola.shift()!;
-        if (vistos.has(f)) {
+    const missing: string[] = [];
+    while (tail.length) {
+        const f = tail.shift()!;
+        if (seen.has(f)) {
             continue;
         }
-        vistos.add(f);
+        seen.add(f);
         if (!fs.existsSync(f)) {
-            faltan.push(f);
+            missing.push(f);
             continue;
         }
-        const t = leer(f);
+        const t = read(f);
         imported.push({ file: f, text: t });
-        cola.push(...importedPaths(t, f));
+        tail.push(...importedPaths(t, f));
     }
-    return { imported, faltan };
+    return { imported, missing };
 }
 
 /** The block whose `@name` matches: first in the text itself, then in the imports, in order. */
 export function namedBlock(name: string, text: string, imported: Imported[]): (Block & { file?: string }) | undefined {
-    const propio = splitBlocks(text).find(b => b.name === name);
-    if (propio) {
-        return propio;
+    const own = splitBlocks(text).find(b => b.name === name);
+    if (own) {
+        return own;
     }
     for (const i of imported) {
         const b = splitBlocks(i.text).find(x => x.name === name);
@@ -86,25 +86,25 @@ export function resolveRun(block: Block, text: string, imported: Imported[]): Bl
     }
     const real = namedBlock(m[1], text, imported);
     if (!real) {
-        throw new Error(`run #${m[1]}: no hay ninguna petición con ese nombre en este fichero ni en los importados`);
+        throw new Error(`run #${m[1]}: no request with that name in this file or the ones it imports`);
     }
     return { ...real, line: block.line };
 }
 
 /** The `@variable = value` pairs of a text, in order of appearance; the last definition wins. */
 export function textVariables(text: string): Record<string, string> {
-    const fuera: Record<string, string> = {};
+    const out: Record<string, string> = {};
     for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*?)\s*$/gm)) {
-        fuera[m[1]] = m[2];
+        out[m[1]] = m[2];
     }
-    return fuera;
+    return out;
 }
 
 /** Variables from the imports, in order, with the file's own on top. */
 export function variablesWithImports(text: string, imported: Imported[]): Record<string, string> {
-    let fuera: Record<string, string> = {};
+    let out: Record<string, string> = {};
     for (const i of imported) {
-        fuera = { ...fuera, ...textVariables(i.text) };
+        out = { ...out, ...textVariables(i.text) };
     }
-    return { ...fuera, ...textVariables(text) };
+    return { ...out, ...textVariables(text) };
 }

@@ -56,9 +56,9 @@ export class RequestController {
             const note = name
                 ? l10n.t('Are you sure you want to send the request "{0}"?', name)
                 : l10n.t('Are you sure you want to send this request?');
-            const si = l10n.t('Yes');
-            const userConfirmed = await window.showWarningMessage(note, si, l10n.t('No'));
-            if (userConfirmed !== si) {
+            const yes = l10n.t('Yes');
+            const userConfirmed = await window.showWarningMessage(note, yes, l10n.t('No'));
+            if (userConfirmed !== yes) {
                 return;
             }
         }
@@ -156,7 +156,7 @@ export class RequestController {
         // A text/event-stream is painted as it arrives: the panel opens with
         // the first chunk and grows. When it ends it is rendered whole like any
         // other response, so history and variables are unaffected.
-        let enStreaming = false;
+        let streaming = false;
         const onReceive: OnReceive = (chunk, meta) => {
             if (settings.previewResponseInUntitledDocument || !isEventStream(getHeader(meta.headers, 'content-type') as string | undefined)) {
                 return;
@@ -164,8 +164,8 @@ export class RequestController {
             // A failure while painting the stream must not bring the request
             // down: it is logged and the full response still arrives at the end.
             try {
-                if (!enStreaming) {
-                    enStreaming = true;
+                if (!streaming) {
+                    streaming = true;
                     this._webview.startStreaming(httpRequest, meta, this.resolvePreviewColumn(settings, document));
                 }
                 this._webview.appendChunk(chunk.toString('utf8'));
@@ -208,7 +208,7 @@ export class RequestController {
         } catch (error) {
             // check cancel
             if (httpRequest.isCancelled) {
-                if (enStreaming) {
+                if (streaming) {
                     // Cancelling is the normal way to end a stream that never
                     // finishes: what was received stays in the panel.
                     this._webview.finishStreaming(l10n.t('cancelled; the events above were received before'));

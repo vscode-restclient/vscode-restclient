@@ -102,9 +102,9 @@ export class Selector {
     }
 
     private static resolveRun(document: TextDocument, text: string): string {
-        const completo = document.getText();
-        const imported = document.uri.scheme === 'file' ? closeImports(document.fileName, completo).imported : [];
-        return resolveRun({ text, line: 0 }, completo, imported).text;
+        const whole = document.getText();
+        const imported = document.uri.scheme === 'file' ? closeImports(document.fileName, whole).imported : [];
+        return resolveRun({ text, line: 0 }, whole, imported).text;
     }
 
     public static parseReqMetadatas(lines: string[]): Map<RequestMetadata, string | undefined> {

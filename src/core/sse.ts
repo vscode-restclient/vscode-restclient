@@ -14,11 +14,11 @@ export interface SseEvent {
 }
 
 export function readEvents(text: string): SseEvent[] {
-    const fuera: SseEvent[] = [];
+    const out: SseEvent[] = [];
     let actual: { event?: string; data: string[]; id?: string } = { data: [] };
     const close = () => {
         if (actual.data.length > 0) {
-            fuera.push({ event: actual.event, data: actual.data.join('\n'), id: actual.id });
+            out.push({ event: actual.event, data: actual.data.join('\n'), id: actual.id });
         }
         actual = { data: [] };
     };
@@ -30,19 +30,19 @@ export function readEvents(text: string): SseEvent[] {
         if (line.startsWith(':')) {
             continue;
         }
-        const corte = line.indexOf(':');
-        const campo = corte < 0 ? line : line.slice(0, corte);
-        const value = corte < 0 ? '' : line.slice(corte + 1).replace(/^ /, '');
-        if (campo === 'data') {
+        const cutoff = line.indexOf(':');
+        const field = cutoff < 0 ? line : line.slice(0, cutoff);
+        const value = cutoff < 0 ? '' : line.slice(cutoff + 1).replace(/^ /, '');
+        if (field === 'data') {
             actual.data.push(value);
-        } else if (campo === 'event') {
+        } else if (field === 'event') {
             actual.event = value;
-        } else if (campo === 'id') {
+        } else if (field === 'id') {
             actual.id = value;
         }
     }
     close();
-    return fuera;
+    return out;
 }
 
 export function isEventStream(contentType: string | undefined): boolean {

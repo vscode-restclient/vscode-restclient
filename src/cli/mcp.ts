@@ -19,7 +19,7 @@ import * as readline from 'readline';
 import { requestSummaries } from '../core/sequence';
 import { execute, Options } from './index';
 
-const PROTOCOLO = '2025-06-18';
+const PROTOCOL = '2025-06-18';
 
 interface Request {
     jsonrpc?: string;
@@ -28,7 +28,7 @@ interface Request {
     params?: Record<string, unknown>;
 }
 
-const HERRAMIENTAS = [
+const TOOLS = [
     {
         name: 'list_requests',
         description: 'List the requests (name, method, url, line) defined in a .http file. Nothing is sent.',
@@ -68,10 +68,10 @@ const HERRAMIENTAS = [
     },
 ];
 
-export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): void {
+export function serveMcp(root: string, inputStream: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): void {
     const absoluteRoot = path.resolve(root);
-    const rl = readline.createInterface({ input: entrada, crlfDelay: Infinity });
-    const responder = (id: Request['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
+    const rl = readline.createInterface({ input: inputStream, crlfDelay: Infinity });
+    const reply = (id: Request['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
         output.write(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...body }) + '\n');
     };
 
@@ -83,25 +83,25 @@ export function serveMcp(root: string, entrada: NodeJS.ReadableStream = process.
         try {
             msg = JSON.parse(line);
         } catch {
-            responder(null, { error: { code: -32700, message: 'Parse error' } });
+            reply(null, { error: { code: -32700, message: 'Parse error' } });
             return;
         }
-        const esNotificacion = msg.id === undefined;
+        const isNotification = msg.id === undefined;
         try {
             const result = await handle(msg, absoluteRoot);
-            if (!esNotificacion) {
-                responder(msg.id, { result: result });
+            if (!isNotification) {
+                reply(msg.id, { result: result });
             }
         } catch (e) {
-            if (!esNotificacion) {
+            if (!isNotification) {
                 const err = e as { code?: number; message?: string };
-                responder(msg.id, { error: { code: typeof err.code === 'number' ? err.code : -32603, message: err.message ?? String(e) } });
+                reply(msg.id, { error: { code: typeof err.code === 'number' ? err.code : -32603, message: err.message ?? String(e) } });
             }
         }
     });
 }
 
-class ErrorRpc extends Error {
+class RpcError extends Error {
     public constructor(public code: number, message: string) {
         super(message);
     }
@@ -110,28 +110,28 @@ class ErrorRpc extends Error {
 async function handle(msg: Request, root: string): Promise<unknown> {
     switch (msg.method) {
         case 'initialize':
-            return { protocolVersion: PROTOCOLO, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };
+            return { protocolVersion: PROTOCOL, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };
         case 'ping':
             return {};
         case 'tools/list':
-            return { tools: HERRAMIENTAS };
+            return { tools: TOOLS };
         case 'tools/call':
-            return llamar(msg.params ?? {}, root);
+            return callTool(msg.params ?? {}, root);
         default:
             if (msg.method?.startsWith('notifications/')) {
                 return undefined;
             }
-            throw new ErrorRpc(-32601, `Method not found: ${msg.method}`);
+            throw new RpcError(-32601, `Method not found: ${msg.method}`);
     }
 }
 
 /** A tool's result goes back as text; a usage error goes with isError, not as a protocol error. */
-async function llamar(params: Record<string, unknown>, root: string): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
+async function callTool(params: Record<string, unknown>, root: string): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
     const name = params.name as string;
     const args = (params.arguments ?? {}) as Record<string, unknown>;
     const text = (t: unknown, isError = false) => ({ content: [{ type: 'text' as const, text: typeof t === 'string' ? t : JSON.stringify(t, null, 2) }], ...(isError ? { isError: true } : {}) });
-    if (!HERRAMIENTAS.some(h => h.name === name)) {
-        throw new ErrorRpc(-32602, `Unknown tool: ${name}`);
+    if (!TOOLS.some(h => h.name === name)) {
+        throw new RpcError(-32602, `Unknown tool: ${name}`);
     }
     try {
         const file = insideRoot(String(args.file ?? ''), root);
@@ -145,13 +145,13 @@ async function llamar(params: Record<string, unknown>, root: string): Promise<{ 
                 }
                 const options: Options = {
                     file,
-                    variables: aTexto(args.vars),
-                    secrets: aTexto(args.secrets),
+                    variables: toText(args.vars),
+                    secrets: toText(args.secrets),
                     environment: typeof args.env === 'string' ? args.env : undefined,
                     continueOnFailure: args.continueOnFailure === true,
                     json: true,
                     timeoutMs: typeof args.timeoutMs === 'number' && args.timeoutMs > 0 ? args.timeoutMs : 30_000,
-                    solo: name === 'send_request' ? String(args.name) : undefined,
+                    only: name === 'send_request' ? String(args.name) : undefined,
                 };
                 let json = '';
                 const exitCode = await execute(options, l => { json += l; });
@@ -159,10 +159,10 @@ async function llamar(params: Record<string, unknown>, root: string): Promise<{ 
                 return text({ ok: exitCode === 0, ...data }, exitCode !== 0);
             }
             default:
-                throw new ErrorRpc(-32602, `Unknown tool: ${name}`);
+                throw new RpcError(-32602, `Unknown tool: ${name}`);
         }
     } catch (e) {
-        if (e instanceof ErrorRpc) {
+        if (e instanceof RpcError) {
             throw e;
         }
         return text(e instanceof Error ? e.message : String(e), true);
@@ -185,13 +185,13 @@ export function insideRoot(file: string, root: string): string {
     return abs;
 }
 
-const aTexto = (o: unknown): Record<string, string> =>
+const toText = (o: unknown): Record<string, string> =>
     o && typeof o === 'object' ? Object.fromEntries(Object.entries(o as Record<string, unknown>).map(([k, v]) => [k, String(v)])) : {};
 
 function version(): string {
-    for (const candidato of [path.join(__dirname, '..', '..', 'package.json'), path.join(__dirname, '..', 'package.json')]) {
+    for (const candidate of [path.join(__dirname, '..', '..', 'package.json'), path.join(__dirname, '..', 'package.json')]) {
         try {
-            return JSON.parse(fs.readFileSync(candidato, 'utf8')).version ?? '0.0.0';
+            return JSON.parse(fs.readFileSync(candidate, 'utf8')).version ?? '0.0.0';
         } catch { /* siguiente */ }
     }
     return '0.0.0';

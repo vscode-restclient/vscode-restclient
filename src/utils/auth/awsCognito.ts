@@ -12,7 +12,7 @@ import type { BeforeRequestHook } from 'got';
  * behaviour, same syntax in the `.http` file, no SDK.
  */
 
-const OBJETIVO = 'AWSCognitoIdentityProviderService.InitiateAuth';
+const TARGET = 'AWSCognitoIdentityProviderService.InitiateAuth';
 
 interface CognitoResponse {
   AuthenticationResult?: {
@@ -37,7 +37,7 @@ async function login(
       .post(`https://cognito-idp.${region}.amazonaws.com/`, {
         headers: {
           'content-type': 'application/x-amz-json-1.1',
-          'x-amz-target': OBJETIVO,
+          'x-amz-target': TARGET,
         },
         json: {
           AuthFlow: 'USER_PASSWORD_AUTH',
@@ -49,16 +49,16 @@ async function login(
       })
       .json<CognitoResponse>();
   } catch (e) {
-    throw new Error(`Cognito no respondió: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`Cognito did not respond: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   const r = body.AuthenticationResult;
   if (!r?.AccessToken || !r?.IdToken) {
     // A pending challenge (password change, MFA) cannot be resolved here.
-    const motivo = body.ChallengeName
-      ? `Cognito pide resolver "${body.ChallengeName}" antes de dar un token`
-      : body.message || body.__type || 'respuesta sin tokens';
-    throw new Error(`Invalid auth response: ${motivo}`);
+    const reason = body.ChallengeName
+      ? `Cognito requires "${body.ChallengeName}" to be resolved before it issues a token`
+      : body.message || body.__type || 'response without tokens';
+    throw new Error(`Invalid auth response: ${reason}`);
   }
   return { idToken: r.IdToken, accessToken: r.AccessToken };
 }

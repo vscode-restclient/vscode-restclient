@@ -89,8 +89,8 @@ describe('Rest Client · formato JetBrains y secretos', () => {
       '',
     ));
 
-    const primera = await sendFile(file, 2, '"path": "/echo/login"');
-    assert.ok(primera.includes('HTTP/1.1 200'), 'run #login debe enviar la petición importada');
+    const first = await sendFile(file, 2, '"path": "/echo/login"');
+    assert.ok(first.includes('HTTP/1.1 200'), 'run #login debe enviar la petición importada');
 
     const segunda = await sendFile(file, 6, '/echo/facturas?desde=');
     assert.ok(/"path":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
@@ -203,8 +203,8 @@ describe('Rest Client · herramientas para agentes', () => {
     const token = new vscode.CancellationTokenSource().token;
     const text = (r: { content: { value?: string }[] }) => r.content.map((p) => p.value ?? '').join('');
 
-    const lista = await lm.invokeTool('rest_client_list_requests', { input: { file: 'agente.http' }, toolInvocationToken: undefined }, token);
-    const data = JSON.parse(text(lista));
+    const list = await lm.invokeTool('rest_client_list_requests', { input: { file: 'agente.http' }, toolInvocationToken: undefined }, token);
+    const data = JSON.parse(text(list));
     assert.strictEqual(data.requests.length, 2, JSON.stringify(data));
     assert.strictEqual(data.requests[0].name, 'saludo');
     assert.strictEqual(data.requests[0].method, 'GET');
@@ -258,11 +258,11 @@ describe('RestClient · lo portado de rest-client-next', () => {
     await vscode.window.showTextDocument(doc, { preview: false });
     const line = 1;
     const posicion = new vscode.Position(line, doc.lineAt(line).text.length);
-    const lista = (await vscode.commands.executeCommand(
+    const list = (await vscode.commands.executeCommand(
       'vscode.executeCompletionItemProvider', doc.uri, posicion)) as vscode.CompletionList;
 
-    const variables = lista.items.filter((i) => typeof i.label === 'string' && (i.label === '$guid' || i.label === 'host'));
-    assert.ok(variables.length >= 1, 'sin propuestas de variable: ' + lista.items.map((i) => i.label).slice(0, 10).join(', '));
+    const variables = list.items.filter((i) => typeof i.label === 'string' && (i.label === '$guid' || i.label === 'host'));
+    assert.ok(variables.length >= 1, 'sin propuestas de variable: ' + list.items.map((i) => i.label).slice(0, 10).join(', '));
     for (const item of variables) {
       const text = typeof item.insertText === 'string' ? item.insertText : (item.insertText as vscode.SnippetString)?.value ?? '';
       assert.ok(!text.includes('{{'), `«${String(item.label)}» insertaría llaves otra vez: ${text}`);
