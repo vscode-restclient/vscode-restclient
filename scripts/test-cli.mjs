@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const RUNNER = process.env.CLI_RUTA ?? 'dist-cli/cli/index.js';
+const RUNNER = process.env.CLI_PATH ?? 'dist-cli/cli/index.js';
 if (!fs.existsSync(RUNNER)) {
   console.error(`the runner ${RUNNER} does not exist: build it first (npm run build:cli or npx webpack)`);
   process.exit(2);

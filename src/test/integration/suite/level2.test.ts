@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-const PUERTO = process.env.RC_TEST_PUERTO!;
-const BASE = `http://[::1]:${PUERTO}`;
+const PORT = process.env.RC_TEST_PORT!;
+const BASE = `http://[::1]:${PORT}`;
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const BR = String.fromCharCode(10);
 const j = (...l: string[]) => l.join(BR);
@@ -165,7 +165,7 @@ describe('Rest Client · streaming', () => {
   it('P-43 · WEBSOCKET: the server greets, echoes two messages, status 101', async () => {
     const file = write('socket.http', j(
       '# @timeout 800',
-      `WEBSOCKET ws://[::1]:${PUERTO}/socket`,
+      `WEBSOCKET ws://[::1]:${PORT}/socket`,
       'X-Test: ana',
       '',
       '{"a":1}',

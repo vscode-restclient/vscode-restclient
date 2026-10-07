@@ -35,7 +35,7 @@ async function main(): Promise<void> {
       extensionDevelopmentPath: root,
       extensionTestsPath: path.resolve(__dirname, './suite/index'),
       launchArgs: [tmp, `--user-data-dir=${path.join(root, '.vscode-test', 'user-data')}`, '--disable-extensions'],
-      extensionTestsEnv: { RC_TEST_PUERTO: port, HK_SOLO: process.env.HK_SOLO ?? '' },
+      extensionTestsEnv: { RC_TEST_PORT: port, RC_TEST_ONLY: process.env.RC_TEST_ONLY ?? '' },
     });
   } finally {
     hijo.kill();

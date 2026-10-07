@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const RUNNER = process.env.CLI_RUTA ?? 'dist-cli/cli/index.js';
+const RUNNER = process.env.CLI_PATH ?? 'dist-cli/cli/index.js';
 const SERVER = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'test-server.cjs');
 const BR = String.fromCharCode(10);
 

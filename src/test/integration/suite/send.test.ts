@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-const PUERTO = process.env.RC_TEST_PUERTO!;
-const BASE = `http://[::1]:${PUERTO}`;
+const PORT = process.env.RC_TEST_PORT!;
+const BASE = `http://[::1]:${PORT}`;
 /** The same server by name: this is what exercises the resolution of localhost. */
-const BASE_LOCALHOST = `http://localhost:${PUERTO}`;
+const BASE_LOCALHOST = `http://localhost:${PORT}`;
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const BR = String.fromCharCode(10);
 

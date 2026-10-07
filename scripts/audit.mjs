@@ -305,7 +305,7 @@ ok('the editor launches the MCP server with the option the runner reads', read('
 // And through the environment: the audit points the runner's own test at the
 // published bundle. If the test stopped reading the variable it would quietly
 // test the other build and come back green.
-ok('the runner tests read the path the audit hands them', read('scripts/test-cli.mjs').includes('process.env.CLI_RUTA') && read('scripts/test-mcp.mjs').includes('process.env.CLI_RUTA'));
+ok('the runner tests read the path the audit hands them', read('scripts/test-cli.mjs').includes('process.env.CLI_PATH') && read('scripts/test-mcp.mjs').includes('process.env.CLI_PATH'));
 // And through stdout: the test servers announce their port as JSON and five
 // readers parse it untyped. One of them was renamed alone during the English
 // pass (`.puerto` -> `.port`) and every integration test timed out.
@@ -388,7 +388,7 @@ const nUnit = /(\d+) passing/.exec(unit.output)?.[1] ?? '0';
 ok('unit tests green', unit.exitCode === 0 && Number(nUnit) >= 15, `${nUnit} tests`);
 const cli = run('node scripts/test-cli.mjs');
 ok('the runner passes its end-to-end test', cli.exitCode === 0, /===== (\d+) failures/.exec(cli.output)?.[0] ?? '');
-const cliPub = run('node scripts/test-cli.mjs', { CLI_RUTA: 'dist/cli.js' });
+const cliPub = run('node scripts/test-cli.mjs', { CLI_PATH: 'dist/cli.js' });
 ok('the published runner passes the same test', cliPub.exitCode === 0, /===== (\d+) failures/.exec(cliPub.output)?.[0] ?? '');
 
 section('compatibility with REST Client');

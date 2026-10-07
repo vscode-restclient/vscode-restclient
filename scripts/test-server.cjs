@@ -1,11 +1,11 @@
-// Servidor de pruebas compartido por la suite de integración y la del runner.
+// The test server shared by the integration suite and the runner's.
 //
-// Responde lo justo para poder afirmar qué llegó: un eco por defecto, códigos
-// de estado a demanda, JSON, XML, texto, redirección, lentitud, un stream SSE
-// y un WebSocket de eco escrito a mano (RFC 6455, tramas de texto), para no
-// meter una dependencia solo para probar.
+// It answers just enough to assert what arrived: an echo by default, status
+// codes on demand, JSON, XML, text, a redirect, slowness, an SSE stream and a
+// hand-written echo WebSocket (RFC 6455, text frames), so as not to pull in a
+// dependency just for testing.
 //
-//   node test-server.cjs [host]   -> imprime {"port": N}
+//   node test-server.cjs [host]   -> prints {"port": N}
 const http = require('http');
 const crypto = require('crypto');
 
@@ -37,7 +37,7 @@ const s = http.createServer((q, r) => {
     }
     if (u === '/not-found') { return json(r, 404, { error: 'no existe' }); }
     if (u.startsWith('/sse')) {
-      // Tres eventos espaciados: el panel tiene que pintarlos según llegan.
+      // Three spaced-out events: the panel has to paint them as they arrive.
       r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-path': u });
       r.write(': latido\n\n');
       const events = ['{"delta":"Hola"}', '{"delta":" mundo"}', '[DONE]'];
@@ -56,7 +56,7 @@ const s = http.createServer((q, r) => {
   });
 });
 
-// --- WebSocket de eco: saluda al conectar y devuelve "eco: <mensaje>" ---------
+// --- Echo WebSocket: greets on connect and returns "eco: <message>" ----------
 s.on('upgrade', (q, socket) => {
   const key = q.headers['sec-websocket-key'];
   if (!key) { socket.destroy(); return; }
@@ -94,7 +94,7 @@ s.on('upgrade', (q, socket) => {
       if (op === 0x1) enviar(`eco: ${carga.toString('utf8')}`);
     }
   });
-  socket.on('error', () => { /* el cliente se fue */ });
+  socket.on('error', () => { /* the client left */ });
 });
 
 s.listen(0, host, () => console.log(JSON.stringify({ port: s.address().port })));
