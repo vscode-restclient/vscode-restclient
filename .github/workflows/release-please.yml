@@ -48,6 +48,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # The audit runs the unit tests and the runner's own tests, so both have
+      # to be compiled before it. ci.yml and release.yml get there through their
+      # test steps; this job has none, and without these two lines the audit
+      # failed on a clean checkout and nothing would have been published.
+      - run: npm run compile-tests
+      - run: npm run build:cli
       - run: npm run audit
       - name: Missing secrets must fail loudly, not leave a half-made release
         env:

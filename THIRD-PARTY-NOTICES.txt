@@ -4233,7 +4233,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ==============================================================================
 
-source-map-js@1.2.1
+source-map-js@1.2.2
 License: BSD-3-Clause
 Repository: 7rulnik/source-map-js
 Author: Valentin 7rulnik Semirulnik <v7rulnik@gmail.com>

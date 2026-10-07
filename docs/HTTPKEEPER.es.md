@@ -65,6 +65,8 @@ Content-Type: application/json
 
 Las comprobaciones son comentarios `@`, de modo que cualquier otra herramienta que lea el formato las ignora.
 
+Las dos cosas son del ejecutor (más abajo): `restclient api.http` recorre el fichero en orden e informa de cada comprobación. En el editor, Send Request envía una petición y muestra su respuesta; todavía no evalúa las comprobaciones ([#34](https://github.com/vscode-restclient/vscode-restclient/issues/34)).
+
 ### Streaming (+72)
 
 `text/event-stream` —como responde toda API de modelos en 2026— se pinta en el panel **según llega**. Cancelar conserva lo recibido. Se puede comprobar `sse.count`, `sse.first` y `sse.last`.

@@ -65,6 +65,8 @@ Content-Type: application/json
 
 Assertions are `@` comments, so any other tool that reads the format just ignores them.
 
+Both are features of the runner (see below): `restclient api.http` runs the file in order and reports every assertion. In the editor, Send Request sends one request and shows its response; it does not evaluate the assertions yet ([#34](https://github.com/vscode-restclient/vscode-restclient/issues/34)).
+
 ### Streaming (+72)
 
 `text/event-stream` — how every AI API answers in 2026 — is painted in the response panel **as it arrives**. Cancel keeps what came in. `sse.count`, `sse.first` and `sse.last` can be asserted.
