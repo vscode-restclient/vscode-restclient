@@ -1,11 +1,12 @@
 import { EOL } from 'os';
-import { languages, Position, Range, TextDocument, ViewColumn, window, workspace } from 'vscode';
+import { l10n, languages, Position, Range, TextDocument, ViewColumn, window, workspace } from 'vscode';
 import { SystemSettings } from '../models/configurationSettings';
 import { HttpResponse } from '../models/httpResponse';
 import { PreviewOption } from '../models/previewOption';
 import { MimeUtility } from '../utils/mimeUtility';
 import { formatHeaders } from '../utils/misc';
 import { ResponseFormatUtility } from '../utils/responseFormatUtility';
+import { reportLines, summarize } from '../utils/assertionReport';
 
 export class HttpResponseTextDocumentView {
 
@@ -68,6 +69,16 @@ export class HttpResponseTextDocumentView {
         if (previewOption !== PreviewOption.Headers) {
             const prefix = previewOption === PreviewOption.Body ? '' : EOL;
             content += `${prefix}${ResponseFormatUtility.formatBody(response.body, response.contentType, true)}`;
+        }
+
+        // The verdict of the `# @assert` lines, as comments after the response.
+        // Not in body-only mode: that document is the body, in its own
+        // language, and a comment block would not be one there.
+        if (response.assertions?.length && previewOption !== PreviewOption.Body) {
+            const { passed, total } = summarize(response.assertions);
+            content += EOL.repeat(2) + [l10n.t('{0} of {1} assertions passed', passed, total), ...reportLines(response.assertions)]
+                .map(line => `# ${line}`)
+                .join(EOL);
         }
 
         return content;

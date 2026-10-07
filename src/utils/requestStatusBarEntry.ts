@@ -1,6 +1,7 @@
 import { EOL } from 'os';
 import { l10n, StatusBarAlignment, StatusBarItem, window } from 'vscode';
 import { HttpResponse } from '../models/httpResponse';
+import { reportLines, summarize } from '../utils/assertionReport';
 
 const filesize = require('filesize');
 
@@ -28,20 +29,26 @@ export class RequestStatusEntry {
 
     private readonly sizeEntry: StatusBarItem;
 
+    private readonly assertionsEntry: StatusBarItem;
+
     public constructor() {
         this.durationEntry = window.createStatusBarItem('duration', StatusBarAlignment.Left);
         this.durationEntry.name = 'Response Timing';
         this.sizeEntry = window.createStatusBarItem('size', StatusBarAlignment.Left);
         this.sizeEntry.name = 'Response Size';
+        this.assertionsEntry = window.createStatusBarItem('assertions', StatusBarAlignment.Left);
+        this.assertionsEntry.name = 'Response Assertions';
     }
 
     public dispose() {
         this.durationEntry.dispose();
         this.sizeEntry.dispose();
+        this.assertionsEntry.dispose();
     }
 
     public update(status: RequestStatus) {
         this.sizeEntry.hide();
+        this.assertionsEntry.hide();
 
         switch (status.state) {
             case RequestState.Closed:
@@ -71,8 +78,20 @@ export class RequestStatusEntry {
 
                 this.showDurationEntry(`$(clock) ${response.timingPhases.total ?? 0}ms`, tooltip);
                 this.showSizeEntry(response);
+                this.showAssertionsEntry(response);
                 break;
         }
+    }
+
+    /** Only when the request had `# @assert` lines: how many held, and which did not. */
+    private showAssertionsEntry(response: HttpResponse) {
+        if (!response.assertions?.length) {
+            return;
+        }
+        const { passed, failed, total } = summarize(response.assertions);
+        this.assertionsEntry.text = failed === 0 ? `$(pass) ${passed}/${total}` : `$(error) ${passed}/${total}`;
+        this.assertionsEntry.tooltip = [l10n.t('{0} of {1} assertions passed', passed, total), ...reportLines(response.assertions)].join(EOL);
+        this.assertionsEntry.show();
     }
 
     private showSizeEntry(response: HttpResponse) {

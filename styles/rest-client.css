@@ -259,3 +259,41 @@ body.vscode-high-contrast #scroll-to-top:hover {
     margin: 8px 0 0 0;
     padding-left: 20px;
 }
+
+/* The verdict of the # @assert lines, above the response. */
+.assertions {
+  margin: 0.4em 0 0.8em 0;
+  padding: 0.4em 0.8em;
+  border-left: 3px solid var(--vscode-testing-iconPassed, #388a34);
+  font-family: var(--vscode-editor-font-family);
+}
+.assertions.has-failures {
+  border-left-color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+.assertions .summary {
+  font-weight: bold;
+  margin-bottom: 0.3em;
+}
+.assertions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.assertions li {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.assertions .mark {
+  display: inline-block;
+  min-width: 2.6em;
+  font-weight: bold;
+}
+.assertions li.passed .mark {
+  color: var(--vscode-testing-iconPassed, #388a34);
+}
+.assertions li.failed .mark {
+  color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+.assertions .actual {
+  opacity: 0.8;
+}

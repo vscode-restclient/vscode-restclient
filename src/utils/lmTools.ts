@@ -56,6 +56,8 @@ export function registerTools(context: vscode.ExtensionContext, controller: Requ
                     ms: r.timingPhases.total ?? 0,
                     headers: r.headers,
                     body: body,
+                    // The verdict of the request's `# @assert` lines, as the MCP server returns it.
+                    assertions: r.assertions,
                 };
                 return new api.LanguageModelToolResult!([new api.LanguageModelTextPart!(JSON.stringify(output, null, 2))]);
             },

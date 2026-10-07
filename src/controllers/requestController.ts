@@ -12,6 +12,8 @@ import { isEventStream } from '../core/sse';
 import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { HttpResponse } from '../models/httpResponse';
 import { getHeader } from '../utils/misc';
+import { checkResponse } from '../utils/assertionReport';
+import { Assertion } from '../core/assertions';
 import { RequestState, RequestStatusEntry } from '../utils/requestStatusBarEntry';
 import { RequestVariableCache } from "../utils/requestVariableCache";
 import { Selector } from '../utils/selector';
@@ -25,7 +27,7 @@ export class RequestController {
     private _httpClient: HttpClient;
     private _webview: HttpResponseWebview;
     private _textDocumentView: HttpResponseTextDocumentView;
-    private _lastRequestSettingTuple: [HttpRequest, IRestClientSettings];
+    private _lastRequestSettingTuple: [HttpRequest, IRestClientSettings, Assertion[]];
     private _lastPendingRequest?: HttpRequest;
 
     public constructor(context: ExtensionContext) {
@@ -49,7 +51,7 @@ export class RequestController {
             return;
         }
 
-        const { text, metadatas } = selectedRequest;
+        const { text, metadatas, assertions } = selectedRequest;
         const name = metadatas.get(RequestMetadata.Name);
 
         if (metadatas.has(RequestMetadata.Note)) {
@@ -70,11 +72,11 @@ export class RequestController {
         const httpRequest = await RequestParserFactory.createRequestParser(text, settings).parseHttpRequest(name);
 
         if (httpRequest.method === 'WEBSOCKET') {
-            await this.runWebSocket(httpRequest, settings, document);
+            await this.runWebSocket(httpRequest, settings, document, assertions);
             return;
         }
 
-        await this.runCore(httpRequest, settings, document);
+        await this.runCore(httpRequest, settings, document, assertions);
     }
 
     /**
@@ -106,13 +108,13 @@ export class RequestController {
         if (!selectedRequest) {
             throw new Error('the request could not be read');
         }
-        const { text, metadatas } = selectedRequest;
+        const { text, metadatas, assertions } = selectedRequest;
         const name = metadatas.get(RequestMetadata.Name);
         const settings: IRestClientSettings = new RestClientSettings(new RequestSettings(metadatas));
         const httpRequest = await RequestParserFactory.createRequestParser(text, settings).parseHttpRequest(name);
         const response = httpRequest.method === 'WEBSOCKET'
-            ? await this.runWebSocket(httpRequest, settings, document)
-            : await this.runCore(httpRequest, settings, document);
+            ? await this.runWebSocket(httpRequest, settings, document, assertions)
+            : await this.runCore(httpRequest, settings, document, assertions);
         if (!response) {
             throw new Error('the request failed or was cancelled');
         }
@@ -125,10 +127,10 @@ export class RequestController {
             return;
         }
 
-        const [request, settings] = this._lastRequestSettingTuple;
+        const [request, settings, assertions] = this._lastRequestSettingTuple;
 
         // TODO: recover from last request settings
-        await this.runCore(request, settings);
+        await this.runCore(request, settings, undefined, assertions);
     }
 
     @trace('Cancel Request')
@@ -145,13 +147,13 @@ export class RequestController {
         }
     }
 
-    private async runCore(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument): Promise<HttpResponse | undefined> {
+    private async runCore(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, assertions: Assertion[] = []): Promise<HttpResponse | undefined> {
         // clear status bar
         this._requestStatusEntry.update({ state: RequestState.Pending });
 
         // set last request and last pending request
         this._lastPendingRequest = httpRequest;
-        this._lastRequestSettingTuple = [httpRequest, settings];
+        this._lastRequestSettingTuple = [httpRequest, settings, assertions];
 
         // A text/event-stream is painted as it arrives: the panel opens with
         // the first chunk and grows. When it ends it is rendered whole like any
@@ -184,6 +186,12 @@ export class RequestController {
                 return undefined;
             }
 
+            // The `# @assert` lines of the block, checked here as the runner
+            // does, and shown with the response. Nothing blocks on a failure.
+            if (assertions.length > 0) {
+                response.assertions = checkResponse(assertions, response);
+            }
+
             this._requestStatusEntry.update({ state: RequestState.Received, response });
 
             if (httpRequest.name && document) {
@@ -199,6 +207,7 @@ export class RequestController {
                 }
             } catch (reason) {
                 Logger.error('Unable to preview response:', reason);
+                console.error('[rest-client] unable to preview response:', reason);
                 window.showErrorMessage(reason);
             }
 
@@ -225,6 +234,7 @@ export class RequestController {
             }
             this._requestStatusEntry.update({ state: RequestState.Error });
             Logger.error('Failed to send request:', error);
+            console.error('[rest-client] failed to send request:', error);
             window.showErrorMessage(error.message);
             return undefined;
         } finally {
@@ -240,9 +250,9 @@ export class RequestController {
      * the transcript, with status 101, so the panel, the history and the
      * assertions treat it like any other.
      */
-    private async runWebSocket(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument): Promise<HttpResponse | undefined> {
+    private async runWebSocket(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, assertions: Assertion[] = []): Promise<HttpResponse | undefined> {
         this._requestStatusEntry.update({ state: RequestState.Pending });
-        this._lastRequestSettingTuple = [httpRequest, settings];
+        this._lastRequestSettingTuple = [httpRequest, settings, assertions];
         const t0 = Date.now();
         try {
             const ms = settings.timeoutInMilliseconds > 0 ? settings.timeoutInMilliseconds : DEFAULT_LISTEN_MS;
@@ -258,6 +268,9 @@ export class RequestController {
                 r.transcript, body.length, 0, body,
                 { total } as HttpResponse['timingPhases'],
                 httpRequest);
+            if (assertions.length > 0) {
+                response.assertions = checkResponse(assertions, response);
+            }
             this._requestStatusEntry.update({ state: RequestState.Received, response });
             if (httpRequest.name && document) {
                 RequestVariableCache.add(document, httpRequest.name, response);

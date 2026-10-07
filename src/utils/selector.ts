@@ -5,6 +5,7 @@ import { fromString as ParseReqMetaKey, RequestMetadata } from '../models/reques
 import { SelectedRequest } from '../models/SelectedRequest';
 import { VariableProcessor } from './variableProcessor';
 import { closeImports, IMPORT_LINE, resolveRun, RUN } from '../core/imports';
+import { readAssertions } from '../core/assertions';
 
 export interface RequestRangeOptions {
     ignoreCommentLine?: boolean;
@@ -59,6 +60,10 @@ export class Selector {
     }
 
     private static async readRequest(document: TextDocument, selectedText: string): Promise<SelectedRequest | null> {
+        // The assertions belong to the block as written: a `run #name` block
+        // keeps its own, as it does in the runner, not the imported request's.
+        const assertions = readAssertions(selectedText);
+
         // `run #name`: replaced by the request with that name, from this file
         // or an imported one, before anything else is read.
         if (RUN.test(selectedText)) {
@@ -97,7 +102,8 @@ export class Selector {
 
         return {
             text: selectedText,
-            metadatas: metadatas
+            metadatas: metadatas,
+            assertions
         };
     }
 

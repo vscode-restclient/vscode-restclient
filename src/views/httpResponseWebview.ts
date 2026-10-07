@@ -4,6 +4,7 @@ import { Clipboard, commands, env, ExtensionContext, l10n, Uri, ViewColumn, Webv
 import { registerCommandSafely } from '../utils/safeCommands';
 import { SystemSettings } from '../models/configurationSettings';
 import { HttpRequest } from '../models/httpRequest';
+import { summarize } from '../utils/assertionReport';
 import { HttpResponse } from '../models/httpResponse';
 import { PreviewOption } from '../models/previewOption';
 import { trace } from '../utils/decorator';
@@ -22,6 +23,8 @@ const OPEN = l10n.t('Open');
 const COPYPATH = l10n.t('Copy Path');
 
 type FoldingRange = [number, number];
+
+const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export class HttpResponseWebview extends BaseWebview {
 
@@ -297,6 +300,8 @@ export class HttpResponseWebview extends BaseWebview {
             innerHtml = `<pre><code>${this.addLineNums(code)}</code></pre>`;
         }
 
+        const assertionsHtml = this.getAssertionsHtml(response);
+
         // Content Security Policy
         const nonce = new Date().getTime() + '' + new Date().getMilliseconds();
         const csp = this.getCsp(nonce);
@@ -316,6 +321,7 @@ export class HttpResponseWebview extends BaseWebview {
     </head>
     <body>
         <div>
+            ${assertionsHtml}
             ${this.settings.disableAddingHrefLinkForLargeResponse && response.bodySizeInBytes > this.settings.largeResponseBodySizeLimitInMB * 1024 * 1024
                 ? innerHtml
                 : this.addUrlLinks(innerHtml)}
@@ -323,6 +329,24 @@ export class HttpResponseWebview extends BaseWebview {
         </div>
         <script type="text/javascript" src="${panel.webview.asWebviewUri(this.scriptFilePath)}" nonce="${nonce}" charset="UTF-8"></script>
     </body>`;
+    }
+
+    /**
+     * The verdict of the request's `# @assert` lines, above the response: the
+     * summary and one line per assertion, with the actual value for a failure.
+     * Everything is the user's own text, so it is escaped.
+     */
+    private getAssertionsHtml(response: HttpResponse): string {
+        if (!response.assertions?.length) {
+            return '';
+        }
+        const { passed, failed, total } = summarize(response.assertions);
+        const items = response.assertions.map(r =>
+            `<li class="${r.passed ? 'passed' : 'failed'}"><span class="mark">${r.passed ? 'OK' : 'FAIL'}</span> ${escapeHtml(r.assertion.raw)}${r.passed ? '' : `<span class="actual"> -&gt; ${escapeHtml(r.actual)}</span>`}</li>`);
+        return `<div class="assertions ${failed ? 'has-failures' : 'all-passed'}">
+            <div class="summary">${escapeHtml(l10n.t('{0} of {1} assertions passed', passed, total))}</div>
+            <ul>${items.join('')}</ul>
+        </div>`;
     }
 
     private highlightResponse(response: HttpResponse): string {

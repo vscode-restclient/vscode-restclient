@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **83** (43 unitarias, 40 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **89** (45 unitarias, 44 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -65,7 +65,7 @@ Content-Type: application/json
 
 Las comprobaciones son comentarios `@`, de modo que cualquier otra herramienta que lea el formato las ignora.
 
-Las dos cosas son del ejecutor (más abajo): `restclient api.http` recorre el fichero en orden e informa de cada comprobación. En el editor, Send Request envía una petición y muestra su respuesta; todavía no evalúa las comprobaciones ([#34](https://github.com/vscode-restclient/vscode-restclient/issues/34)).
+En el editor, Send Request muestra el veredicto de cada comprobación debajo de la respuesta, y la barra de estado las cuenta. Recorrer el fichero entero en orden es cosa del ejecutor (más abajo): `restclient api.http` lo recorre e informa de cada comprobación.
 
 ### Streaming (+72)
 
