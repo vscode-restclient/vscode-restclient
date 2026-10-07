@@ -105,7 +105,7 @@ describe('assertions', () => {
         assert.strictEqual(valueFor('body.$.token', r), 'abc123');
         assert.strictEqual(valueFor('body.$.items[0].id', r), '7');
         assert.strictEqual(valueFor('headers.content-type', r), 'application/json; charset=utf-8');
-        assert.strictEqual(valueFor('headers.CONTENT-TYPE', r), 'application/json; charset=utf-8', 'las cabeceras no distinguen mayusculas');
+        assert.strictEqual(valueFor('headers.CONTENT-TYPE', r), 'application/json; charset=utf-8', 'header names are case-insensitive');
         assert.strictEqual(valueFor('body.$.no-existe', r), '');
         assert.strictEqual(valueFor('header.content-type', r), 'application/json; charset=utf-8', 'header in the singular works too');
     });
@@ -146,13 +146,13 @@ describe('assertions', () => {
 
     it('P-31 · a subject that does not exist is reported, not swallowed', () => {
         const r = { status: 200, body: '{}', headers: { 'content-type': 'application/json' }, ms: 5 };
-        const [mal] = checkAssertions(readAssertions('# @assert cabecera.content-type contains json'), r);
-        assert.strictEqual(mal.passed, false);
-        assert.ok(mal.actual.includes('cabecera.content-type'), 'the message names the subject');
+        const [bad] = checkAssertions(readAssertions('# @assert cabecera.content-type contains json'), r);
+        assert.strictEqual(bad.passed, false);
+        assert.ok(bad.actual.includes('cabecera.content-type'), 'the message names the subject');
 
         // The dangerous one was !=: against '' it passed, and the file looked green.
-        const [negada] = checkAssertions(readAssertions('# @assert lo.que.sea != 200'), r);
-        assert.strictEqual(negada.passed, false, 'an unknown subject cannot make an assertion pass');
+        const [negated] = checkAssertions(readAssertions('# @assert lo.que.sea != 200'), r);
+        assert.strictEqual(negated.passed, false, 'an unknown subject cannot make an assertion pass');
 
         const [bien] = checkAssertions(readAssertions('# @assert header.content-type contains json'), r);
         assert.strictEqual(bien.passed, true);

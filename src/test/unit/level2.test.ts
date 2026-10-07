@@ -186,7 +186,7 @@ describe('the runner everywhere', () => {
 import { readArguments, readMcpArguments, USAGE, MCP_USAGE } from '../../cli/index';
 
 describe('runner arguments', () => {
-    const rechazo = (...argv: string[]): string => {
+    const rejection = (...argv: string[]): string => {
         const r = readArguments(argv);
         assert.strictEqual(typeof r, 'string', `should have been rejected: ${argv.join(' ')}`);
         return r as string;
@@ -198,36 +198,36 @@ describe('runner arguments', () => {
             { file: 'a.http', variables: { k: 'v' }, secrets: { S: '1' }, environment: 'dev', continueOnFailure: true, json: true, timeoutMs: 500, junit: 'r.xml' });
 
         // Unknown options, with a hint only for the one renamed HERE.
-        assert.strictEqual(rechazo('a.http', '--continuar'), 'unknown option --continuar: it is called --continue now');
-        assert.strictEqual(rechazo('a.http', '--nope'), 'unknown option --nope\n' + USAGE);
-        assert.strictEqual(rechazo('a.http', '-x'), 'unknown option -x\n' + USAGE);
-        assert.strictEqual(rechazo('a.http', '-'), 'unknown option -\n' + USAGE);
-        assert.strictEqual(rechazo('a.http', '--raiz', 'x'), 'unknown option --raiz\n' + USAGE);
-        assert.strictEqual(rechazo('a.http', '--root', 'x'), 'unknown option --root\n' + USAGE);
-        assert.strictEqual(rechazo('a.http', '--continue=true'), 'unknown option --continue=true\n' + USAGE);
+        assert.strictEqual(rejection('a.http', '--continuar'), 'unknown option --continuar: it is called --continue now');
+        assert.strictEqual(rejection('a.http', '--nope'), 'unknown option --nope\n' + USAGE);
+        assert.strictEqual(rejection('a.http', '-x'), 'unknown option -x\n' + USAGE);
+        assert.strictEqual(rejection('a.http', '-'), 'unknown option -\n' + USAGE);
+        assert.strictEqual(rejection('a.http', '--raiz', 'x'), 'unknown option --raiz\n' + USAGE);
+        assert.strictEqual(rejection('a.http', '--root', 'x'), 'unknown option --root\n' + USAGE);
+        assert.strictEqual(rejection('a.http', '--continue=true'), 'unknown option --continue=true\n' + USAGE);
 
         // An option is not the value of another: `--junit --json` used to write the report into a file called --json.
-        assert.strictEqual(rechazo('a.http', '--junit', '--json'), '--junit needs the path of the XML report, got "--json"');
-        assert.strictEqual(rechazo('a.http', '--junit'), '--junit needs the path of the XML report');
-        assert.strictEqual(rechazo('a.http', '--env', '--json'), '--env needs the name of an environment from http-client.env.json, got "--json"');
-        assert.strictEqual(rechazo('a.http', '-e'), '-e needs the name of an environment from http-client.env.json');
-        assert.strictEqual(rechazo('a.http', '--timeout', '0'), '--timeout needs a number of milliseconds greater than 0');
-        assert.strictEqual(rechazo('a.http', '--timeout'), '--timeout needs a number of milliseconds greater than 0');
-        assert.strictEqual(rechazo('a.http', '--var', 'sin-igual'), 'malformed variable: "sin-igual". Expected key=value');
-        assert.strictEqual(rechazo('a.http', '--var', '=v'), 'malformed variable: "=v". Expected key=value');
-        assert.strictEqual(rechazo('a.http', '--secret'), 'malformed secret: "". Expected key=value');
+        assert.strictEqual(rejection('a.http', '--junit', '--json'), '--junit needs the path of the XML report, got "--json"');
+        assert.strictEqual(rejection('a.http', '--junit'), '--junit needs the path of the XML report');
+        assert.strictEqual(rejection('a.http', '--env', '--json'), '--env needs the name of an environment from http-client.env.json, got "--json"');
+        assert.strictEqual(rejection('a.http', '-e'), '-e needs the name of an environment from http-client.env.json');
+        assert.strictEqual(rejection('a.http', '--timeout', '0'), '--timeout needs a number of milliseconds greater than 0');
+        assert.strictEqual(rejection('a.http', '--timeout'), '--timeout needs a number of milliseconds greater than 0');
+        assert.strictEqual(rejection('a.http', '--var', 'sin-igual'), 'malformed variable: "sin-igual". Expected key=value');
+        assert.strictEqual(rejection('a.http', '--var', '=v'), 'malformed variable: "=v". Expected key=value');
+        assert.strictEqual(rejection('a.http', '--secret'), 'malformed secret: "". Expected key=value');
 
         // A second file is not lost in silence: only the last one used to run.
-        assert.strictEqual(rechazo('a.http', 'b.http'), 'only one file per run, got 2: "a.http", "b.http"');
-        assert.strictEqual(rechazo('a.http', ''), 'only one file per run, got 2: "a.http", ""');
-        assert.strictEqual(rechazo(), USAGE);
-        assert.strictEqual(rechazo('--json'), USAGE);
-        assert.strictEqual(rechazo('a.http', '--help'), USAGE);
+        assert.strictEqual(rejection('a.http', 'b.http'), 'only one file per run, got 2: "a.http", "b.http"');
+        assert.strictEqual(rejection('a.http', ''), 'only one file per run, got 2: "a.http", ""');
+        assert.strictEqual(rejection(), USAGE);
+        assert.strictEqual(rejection('--json'), USAGE);
+        assert.strictEqual(rejection('a.http', '--help'), USAGE);
 
         // After `--` everything is a file, even if it starts with a dash.
         const dash = readArguments(['--json', '--', '-raro.http']);
         assert.ok(typeof dash !== 'string' && dash.file === '-raro.http' && dash.json === true, JSON.stringify(dash));
-        assert.strictEqual(rechazo('--', 'a.http', '--json'), 'only one file per run, got 2: "a.http", "--json"');
+        assert.strictEqual(rejection('--', 'a.http', '--json'), 'only one file per run, got 2: "a.http", "--json"');
     });
 
     it('P-68 · mcp: an argument it does not understand stops the server instead of leaving it in the current directory', () => {

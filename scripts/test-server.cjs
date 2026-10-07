@@ -42,11 +42,11 @@ const s = http.createServer((q, r) => {
       r.write(': latido\n\n');
       const events = ['{"delta":"Hola"}', '{"delta":" mundo"}', '[DONE]'];
       let i = 0;
-      const tic = setInterval(() => {
+      const tick = setInterval(() => {
         if (i < events.length) {
           r.write(`id: ${i + 1}\nevent: token\ndata: ${events[i++]}\n\n`);
         } else {
-          clearInterval(tic);
+          clearInterval(tick);
           r.end();
         }
       }, 200);
@@ -70,28 +70,28 @@ s.on('upgrade', (q, socket) => {
     socket.write(Buffer.concat([header, data]));
   };
   enviar(`hola ${q.headers['x-test'] || 'anonimo'}`);
-  let resto = Buffer.alloc(0);
+  let rest = Buffer.alloc(0);
   socket.on('data', (chunk) => {
-    resto = Buffer.concat([resto, chunk]);
+    rest = Buffer.concat([rest, chunk]);
     for (;;) {
-      if (resto.length < 2) return;
-      const op = resto[0] & 0x0f;
-      const enmascarado = (resto[1] & 0x80) !== 0;
-      let largo = resto[1] & 0x7f;
+      if (rest.length < 2) return;
+      const opcode = rest[0] & 0x0f;
+      const masked = (rest[1] & 0x80) !== 0;
+      let frameLength = rest[1] & 0x7f;
       let pos = 2;
-      if (largo === 126) { if (resto.length < 4) return; largo = resto.readUInt16BE(2); pos = 4; }
-      else if (largo === 127) { if (resto.length < 10) return; largo = Number(resto.readBigUInt64BE(2)); pos = 10; }
-      const fin = pos + (enmascarado ? 4 : 0) + largo;
-      if (resto.length < fin) return;
-      let carga = resto.subarray(pos + (enmascarado ? 4 : 0), fin);
-      if (enmascarado) {
-        const mascara = resto.subarray(pos, pos + 4);
-        carga = Buffer.from(carga.map((b, i) => b ^ mascara[i % 4]));
+      if (frameLength === 126) { if (rest.length < 4) return; frameLength = rest.readUInt16BE(2); pos = 4; }
+      else if (frameLength === 127) { if (rest.length < 10) return; frameLength = Number(rest.readBigUInt64BE(2)); pos = 10; }
+      const frameEnd = pos + (masked ? 4 : 0) + frameLength;
+      if (rest.length < frameEnd) return;
+      let payload = rest.subarray(pos + (masked ? 4 : 0), frameEnd);
+      if (masked) {
+        const mascara = rest.subarray(pos, pos + 4);
+        payload = Buffer.from(payload.map((b, i) => b ^ mascara[i % 4]));
       }
-      resto = resto.subarray(fin);
-      if (op === 0x8) { socket.write(Buffer.from([0x88, 0])); socket.end(); return; }
-      if (op === 0x9) { socket.write(Buffer.concat([Buffer.from([0x8a, carga.length]), carga])); continue; }
-      if (op === 0x1) enviar(`eco: ${carga.toString('utf8')}`);
+      rest = rest.subarray(frameEnd);
+      if (opcode === 0x8) { socket.write(Buffer.from([0x88, 0])); socket.end(); return; }
+      if (opcode === 0x9) { socket.write(Buffer.concat([Buffer.from([0x8a, payload.length]), payload])); continue; }
+      if (opcode === 0x1) enviar(`eco: ${payload.toString('utf8')}`);
     }
   });
   socket.on('error', () => { /* the client left */ });

@@ -12,9 +12,9 @@ async function main(): Promise<void> {
   // The test server shared with the runner's suite (scripts/test-server.cjs):
   // echo, status codes, JSON, XML, a redirect, SSE and an echo WebSocket.
   const server = path.join(root, 'scripts', 'test-server.cjs');
-  const hijo = cp.spawn(process.execPath, [server, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const serverProcess = cp.spawn(process.execPath, [server, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
   const port: string = await new Promise((res, rej) => {
-    hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).port)));
+    serverProcess.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).port)));
     setTimeout(() => rej(new Error('the test server did not start')), 10000);
   });
   console.log(`test server on port ${port}`);
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
       extensionTestsEnv: { RC_TEST_PORT: port, RC_TEST_ONLY: process.env.RC_TEST_ONLY ?? '' },
     });
   } finally {
-    hijo.kill();
+    serverProcess.kill();
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 }

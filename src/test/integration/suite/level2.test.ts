@@ -31,22 +31,22 @@ function write(name: string, contenido: string): string {
  * and waits for the response that carries the mark. The extension reuses the
  * response document, so what is looked for is the mark, not "a new document".
  */
-async function sendFile(filePath: string, line: number, mark: string, segundos = 20): Promise<string> {
+async function sendFile(filePath: string, line: number, mark: string, seconds = 20): Promise<string> {
   const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
   const editor = await vscode.window.showTextDocument(doc, { preview: false });
   const pos = new vscode.Position(line, 0);
   editor.selection = new vscode.Selection(pos, pos);
   await vscode.commands.executeCommand('rest-client.request');
 
-  for (let i = 0; i < segundos * 4; i++) {
+  for (let i = 0; i < seconds * 4; i++) {
     await esperar(250);
     const response = vscode.workspace.textDocuments.find(
       (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(mark),
     );
     if (response) return response.getText();
   }
-  const abiertos = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 60)}`).join(' | ');
-  throw new Error(`no response with "${mark}" in ${segundos} s. Documents: ${abiertos}`);
+  const openDocs = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 60)}`).join(' | ');
+  throw new Error(`no response with "${mark}" in ${seconds} s. Documents: ${openDocs}`);
 }
 
 describe('Rest Client · JetBrains format and secrets', () => {
@@ -92,8 +92,8 @@ describe('Rest Client · JetBrains format and secrets', () => {
     const first = await sendFile(file, 2, '"path": "/echo/login"');
     assert.ok(first.includes('HTTP/1.1 200'), 'run #login must send the imported request');
 
-    const segunda = await sendFile(file, 6, '/echo/facturas?desde=');
-    assert.ok(/"path":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'the request variable of the imported file must resolve: ' + segunda.slice(0, 200));
+    const second = await sendFile(file, 6, '/echo/facturas?desde=');
+    assert.ok(/"path":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(second), 'the request variable of the imported file must resolve: ' + second.slice(0, 200));
   });
 
   it('P-38 · $secret: stored with the command, it is substituted; the file does not contain it', async () => {
@@ -265,8 +265,8 @@ describe('RestClient · what was ported from rest-client-next', () => {
     assert.ok(variables.length >= 1, 'no variable proposals: ' + list.items.map((i) => i.label).slice(0, 10).join(', '));
     for (const item of variables) {
       const text = typeof item.insertText === 'string' ? item.insertText : (item.insertText as vscode.SnippetString)?.value ?? '';
-      assert.ok(!text.includes('{{'), `«${String(item.label)}" would insert braces again: ${text}`);
-      assert.ok(item.range, `«${String(item.label)}" does not replace the gap between the braces`);
+      assert.ok(!text.includes('{{'), `"${String(item.label)}" would insert braces again: ${text}`);
+      assert.ok(item.range, `"${String(item.label)}" does not replace the gap between the braces`);
     }
   });
 });

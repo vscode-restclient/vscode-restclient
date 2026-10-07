@@ -15,20 +15,20 @@ const BR = String.fromCharCode(10);
  * "a new document" is no good: it waits for the mark unique to this very
  * request to show up.
  */
-async function send(contenido: string, mark: string, segundos = 20): Promise<string> {
-  const doc = await vscode.workspace.openTextDocument({ language: 'http', content: contenido });
+async function send(httpText: string, mark: string, seconds = 20): Promise<string> {
+  const doc = await vscode.workspace.openTextDocument({ language: 'http', content: httpText });
   await vscode.window.showTextDocument(doc, { preview: false });
   await vscode.commands.executeCommand('rest-client.request');
 
-  for (let i = 0; i < segundos * 4; i++) {
+  for (let i = 0; i < seconds * 4; i++) {
     await esperar(250);
     const response = vscode.workspace.textDocuments.find(
       (d) => d.uri.toString() !== doc.uri.toString() && d.getText().includes(mark),
     );
     if (response) return response.getText();
   }
-  const abiertos = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 50)}`).join(' | ');
-  throw new Error(`no response with "${mark}" in ${segundos} s. Documents: ${abiertos}`);
+  const openDocs = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 50)}`).join(' | ');
+  throw new Error(`no response with "${mark}" in ${seconds} s. Documents: ${openDocs}`);
 }
 
 const setSetting = (key: string, value: unknown) =>
@@ -189,7 +189,7 @@ ${t.slice(0, 200)}`);
   });
 });
 
-describe('Rest Client · vista previa', () => {
+describe('Rest Client · preview', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
@@ -209,13 +209,13 @@ describe('Rest Client · vista previa', () => {
 
     // The response panel is a webview: what is checked is that a new tab shows
     // up without the command having thrown.
-    let hay = false;
-    for (let i = 0; i < 60 && !hay; i++) {
+    let present = false;
+    for (let i = 0; i < 60 && !present; i++) {
       await esperar(250);
-      hay = vscode.window.tabGroups.all.some(g =>
+      present = vscode.window.tabGroups.all.some(g =>
         g.tabs.some(t => t.input instanceof vscode.TabInputWebview || /Response/i.test(t.label)));
     }
-    assert.ok(hay, 'the response panel did not show up');
+    assert.ok(present, 'the response panel did not show up');
   });
 });
 
@@ -234,13 +234,13 @@ describe('Rest Client · request variables', () => {
    * Request variables are file-scoped, so the two have to coexist; what changes
    * between them is where the cursor is.
    */
-  async function encadenar(contenido: string, mark: string): Promise<string> {
-    const doc = await vscode.workspace.openTextDocument({ language: 'http', content: contenido });
+  async function encadenar(httpText: string, mark: string): Promise<string> {
+    const doc = await vscode.workspace.openTextDocument({ language: 'http', content: httpText });
     const editor = await vscode.window.showTextDocument(doc, { preview: false });
     const lines = doc.getText().split(String.fromCharCode(10));
-    const lineaDe = (aguja: string) => {
-      const i = lines.findIndex((l) => l.includes(aguja));
-      if (i < 0) throw new Error(`cannot find the line with "${aguja}"`);
+    const lineaDe = (needle: string) => {
+      const i = lines.findIndex((l) => l.includes(needle));
+      if (i < 0) throw new Error(`cannot find the line with "${needle}"`);
       return i;
     };
 
@@ -268,8 +268,8 @@ describe('Rest Client · request variables', () => {
     // stopped being the active one, and `rest-client.request` acts on the
     // active one. With few documents open they coincided; with many, not.
     const editor2 = await vscode.window.showTextDocument(doc, { preview: false });
-    const segunda = lineaDe('{{');
-    editor2.selection = new vscode.Selection(segunda, 0, segunda, 0);
+    const second = lineaDe('{{');
+    editor2.selection = new vscode.Selection(second, 0, second, 0);
     await vscode.commands.executeCommand('rest-client.request');
 
     for (let i = 0; i < 80; i++) {
@@ -279,11 +279,11 @@ describe('Rest Client · request variables', () => {
       );
       if (r) return r.getText();
     }
-    const abiertos = vscode.workspace.textDocuments
+    const openDocs = vscode.workspace.textDocuments
       .filter((d) => d.uri.toString() !== doc.uri.toString())
       .map((d) => d.getText().replace(/\s+/g, ' ').slice(0, 200))
       .join('  ||  ');
-    throw new Error(`no response with "${mark}". What there is: ${abiertos}`);
+    throw new Error(`no response with "${mark}". What there is: ${openDocs}`);
   }
 
   it('P-12 · JSONPath extracts a value from the previous response', async () => {
