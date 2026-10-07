@@ -12,10 +12,10 @@ const j = (...l: string[]) => l.join(BR);
 const setSetting = (key: string, value: unknown) =>
   vscode.workspace.getConfiguration('rest-client').update(key, value, vscode.ConfigurationTarget.Global);
 
-/** Carpeta del espacio de trabajo de la prueba: ahí van los ficheros de verdad. */
+/** The workspace folder of the test: real files go there. */
 function folder(): string {
   const c = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  assert.ok(c, 'la prueba necesita un espacio de trabajo abierto');
+  assert.ok(c, 'the test needs an open workspace');
   return c!;
 }
 
@@ -27,9 +27,9 @@ function write(name: string, contenido: string): string {
 }
 
 /**
- * Abre un fichero .http de disco, pone el cursor en la línea pedida, envía y
- * espera la respuesta que lleve la marca. La extensión reutiliza el documento
- * de respuesta, así que se busca la marca y no «un documento nuevo».
+ * Opens a .http file from disk, puts the cursor on the requested line, sends
+ * and waits for the response that carries the mark. The extension reuses the
+ * response document, so what is looked for is the mark, not "a new document".
  */
 async function sendFile(filePath: string, line: number, mark: string, segundos = 20): Promise<string> {
   const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
@@ -46,37 +46,37 @@ async function sendFile(filePath: string, line: number, mark: string, segundos =
     if (response) return response.getText();
   }
   const abiertos = vscode.workspace.textDocuments.map((d) => `${d.languageId}:${d.getText().slice(0, 60)}`).join(' | ');
-  throw new Error(`sin respuesta con "${mark}" en ${segundos} s. Documentos: ${abiertos}`);
+  throw new Error(`no response with "${mark}" in ${segundos} s. Documents: ${abiertos}`);
 }
 
-describe('Rest Client · formato JetBrains y secretos', () => {
+describe('Rest Client · JetBrains format and secrets', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
-    assert.ok(ext, 'la extensión no está cargada');
+    assert.ok(ext, 'the extension is not loaded');
     await ext!.activate();
     await setSetting('previewResponseInUntitledDocument', true);
     await setSetting('previewResponsePanelTakeFocus', false);
   });
 
   after(async () => {
-    // Sin entorno ni secretos: que las demás suites no hereden nada.
+    // No environment and no secrets: the other suites must inherit nothing.
     await vscode.commands.executeCommand('rest-client.switch-environment', '');
     await vscode.commands.executeCommand('rest-client.delete-secret', 'API_KEY');
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  it('P-36 · http-client.env.json junto al fichero: el entorno elegido resuelve, y el privado manda', async () => {
+  it('P-36 · http-client.env.json next to the file: the chosen environment resolves, and the private one wins', async () => {
     write('http-client.env.json', JSON.stringify({ dev: { host: BASE, path: '/public' }, prod: { host: 'http://unused' } }));
     write('http-client.private.env.json', JSON.stringify({ dev: { path: '/private-wins' } }));
     const file = write('entorno.http', j('GET {{host}}{{path}}', ''));
 
     await vscode.commands.executeCommand('rest-client.switch-environment', 'dev');
     const t = await sendFile(file, 0, '/private-wins');
-    assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
-    assert.ok(/"path":\s*"\/private-wins"/.test(t), 'el privado debe mandar sobre el público');
+    assert.ok(t.includes('HTTP/1.1 200'), `no 200 in:\n${t.slice(0, 200)}`);
+    assert.ok(/"path":\s*"\/private-wins"/.test(t), 'the private one must win over the public one');
   });
 
-  it('P-37 · import + run #nombre: se envía la petición importada y su respuesta resuelve en el fichero que importa', async () => {
+  it('P-37 · import + run #name: the imported request is sent and its response resolves in the importing file', async () => {
     write(path.join('lib', 'auth.http'), j(`@host = ${BASE}`, '', '# @name login', 'GET {{host}}/echo/login', ''));
     const file = write('api.http', j(
       'import ./lib/auth.http',
@@ -90,27 +90,27 @@ describe('Rest Client · formato JetBrains y secretos', () => {
     ));
 
     const first = await sendFile(file, 2, '"path": "/echo/login"');
-    assert.ok(first.includes('HTTP/1.1 200'), 'run #login debe enviar la petición importada');
+    assert.ok(first.includes('HTTP/1.1 200'), 'run #login must send the imported request');
 
     const segunda = await sendFile(file, 6, '/echo/facturas?desde=');
-    assert.ok(/"path":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'la variable de petición del importado debe resolver: ' + segunda.slice(0, 200));
+    assert.ok(/"path":\s*"\/echo\/facturas\?desde=\/echo\/login"/.test(segunda), 'the request variable of the imported file must resolve: ' + segunda.slice(0, 200));
   });
 
-  it('P-38 · $secret: guardado con el comando, se sustituye; el fichero no lo contiene', async () => {
+  it('P-38 · $secret: stored with the command, it is substituted; the file does not contain it', async () => {
     await vscode.commands.executeCommand('rest-client.set-secret', 'API_KEY', 'clave-secreta-123');
     const file = write('secreto.http', j(`GET ${BASE}/con-secreto`, 'X-Test: {{$secret API_KEY}}', ''));
-    assert.ok(!fs.readFileSync(file, 'utf8').includes('clave-secreta-123'), 'el valor no está en el fichero');
+    assert.ok(!fs.readFileSync(file, 'utf8').includes('clave-secreta-123'), 'the value is not in the file');
     const t = await sendFile(file, 0, '/con-secreto');
-    assert.ok(/"header":\s*"clave-secreta-123"/.test(t), 'el secreto debe llegar en la cabecera: ' + t.slice(0, 200));
+    assert.ok(/"header":\s*"clave-secreta-123"/.test(t), 'the secret must arrive in the header: ' + t.slice(0, 200));
   });
 
-  it('P-39 · alias de JetBrains: $uuid, $isoTimestamp y $random.integer(min,max)', async () => {
+  it('P-39 · JetBrains aliases: $uuid, $isoTimestamp and $random.integer(min,max)', async () => {
     const file = write('alias.http', j(`GET ${BASE}/alias?u={{$uuid}}&t={{$isoTimestamp}}&r={{$random.integer(5,6)}}`, ''));
     const t = await sendFile(file, 0, '/alias?u=');
     const filePath = /"path":\s*"([^"]+)"/.exec(t)?.[1] ?? '';
-    assert.ok(/u=[0-9a-f-]{36}&/.test(filePath), `sin uuid en ${filePath}`);
-    assert.ok(/t=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(filePath), `sin fecha ISO en ${filePath}`);
-    assert.ok(/r=5$/.test(filePath), `random.integer(5,6) solo puede dar 5: ${filePath}`);
+    assert.ok(/u=[0-9a-f-]{36}&/.test(filePath), `no uuid in ${filePath}`);
+    assert.ok(/t=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(filePath), `no ISO date in ${filePath}`);
+    assert.ok(/r=5$/.test(filePath), `random.integer(5,6) can only give 5: ${filePath}`);
   });
 });
 
@@ -127,15 +127,15 @@ describe('Rest Client · streaming', () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  it('P-42 · text/event-stream: el panel se abre en streaming antes de que termine, y al final llegan los 3 eventos', async () => {
-    // Primero en modo panel: tiene que aparecer una pestaña «streaming» ANTES
-    // del último evento (el servidor los espacia 200 ms).
+  it('P-42 · text/event-stream: the panel opens in streaming mode before it ends, and the 3 events arrive at the end', async () => {
+    // Panel mode first: a "streaming" tab has to show up BEFORE the last
+    // event (the server spaces them 200 ms apart).
     await setSetting('previewResponseInUntitledDocument', false);
     await esperar(300);
     const doc = await vscode.workspace.openTextDocument({ language: 'http', content: `GET ${BASE}/sse${BR}` });
     await vscode.window.showTextDocument(doc, { preview: false });
-    // El comando no resuelve hasta que la petición TERMINA: hay que sondear
-    // mientras está en vuelo, no después.
+    // The command does not resolve until the request ENDS: the polling has to
+    // happen while it is in flight, not after.
     const envio = vscode.commands.executeCommand('rest-client.request');
     let vistoStreaming = false;
     let vistoFinal = false;
@@ -148,21 +148,21 @@ describe('Rest Client · streaming', () => {
         if (etiquetas.some((l) => /streaming/.test(l))) vistoStreaming = true;
         if (vistoStreaming && etiquetas.some((l) => /^Response\(\d+ms\)$/.test(l))) vistoFinal = true;
       }
-      assert.ok(vistoStreaming, 'el panel debe abrirse en modo streaming con el primer evento; pestañas vistas: ' + [...vistas].join(' | '));
-      assert.ok(vistoFinal, 'al terminar el stream el panel pasa a la respuesta completa; pestañas vistas: ' + [...vistas].join(' | '));
+      assert.ok(vistoStreaming, 'the panel must open in streaming mode with the first event; tabs seen: ' + [...vistas].join(' | '));
+      assert.ok(vistoFinal, 'when the stream ends the panel moves to the full response; tabs seen: ' + [...vistas].join(' | '));
     } finally {
       await envio;
       await setSetting('previewResponseInUntitledDocument', true);
     }
 
-    // Y en modo documento, el cuerpo final trae los tres eventos.
+    // And in document mode, the final body carries the three events.
     const file = write('sse.http', j(`GET ${BASE}/sse`, ''));
     const t = await sendFile(file, 0, '[DONE]');
-    assert.ok(t.includes('content-type: text/event-stream'), 'la cabecera del stream');
-    assert.ok(t.includes('data: {"delta":"Hola"}') && t.includes('data: {"delta":" mundo"}'), 'los tres eventos llegan enteros');
+    assert.ok(t.includes('content-type: text/event-stream'), 'the header of the stream');
+    assert.ok(t.includes('data: {"delta":"Hola"}') && t.includes('data: {"delta":" mundo"}'), 'the three events arrive whole');
   });
 
-  it('P-43 · WEBSOCKET: saludo del servidor, eco de dos mensajes y estado 101', async () => {
+  it('P-43 · WEBSOCKET: the server greets, echoes two messages, status 101', async () => {
     const file = write('socket.http', j(
       '# @timeout 800',
       `WEBSOCKET ws://[::1]:${PUERTO}/socket`,
@@ -174,14 +174,14 @@ describe('Rest Client · streaming', () => {
       '',
     ));
     const t = await sendFile(file, 1, 'eco: segundo');
-    assert.ok(t.includes('HTTP/1.1 101'), `sin 101 en ${t.slice(0, 120)}`);
-    assert.ok(t.includes('<< hola ana'), 'el saludo del servidor lleva la cabecera enviada');
-    assert.ok(t.includes('>> {"a":1}') && t.includes('<< eco: {"a":1}'), 'el primer mensaje y su eco');
-    assert.ok(t.includes('-- closed after 800 ms'), 'se cierra al cumplirse @timeout: ' + t.slice(-80));
+    assert.ok(t.includes('HTTP/1.1 101'), `no 101 in ${t.slice(0, 120)}`);
+    assert.ok(t.includes('<< hola ana'), 'the server greeting carries the header that was sent');
+    assert.ok(t.includes('>> {"a":1}') && t.includes('<< eco: {"a":1}'), 'the first message and its echo');
+    assert.ok(t.includes('-- closed after 800 ms'), 'it closes when @timeout is up: ' + t.slice(-80));
   });
 });
 
-describe('Rest Client · herramientas para agentes', () => {
+describe('Rest Client · tools for agents', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
@@ -192,7 +192,7 @@ describe('Rest Client · herramientas para agentes', () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  it('P-44 · las herramientas de modelo de lenguaje listan las peticiones y envían una por su nombre', async function () {
+  it('P-44 · the language model tools list the requests and send one by name', async function () {
     const lm = (vscode as unknown as { lm?: { invokeTool?: Function } }).lm;
     if (!lm?.invokeTool) {
       this.skip();
@@ -213,7 +213,7 @@ describe('Rest Client · herramientas para agentes', () => {
     const envio = await lm.invokeTool('rest_client_send_request', { input: { file: 'agente.http', name: 'saludo' }, toolInvocationToken: undefined }, token);
     const r = JSON.parse(text(envio));
     assert.strictEqual(r.status, 200, JSON.stringify(r).slice(0, 200));
-    assert.ok(r.body.includes('desde-agente'), 'la cabecera llegó al servidor: ' + r.body.slice(0, 120));
+    assert.ok(r.body.includes('desde-agente'), 'the header reached the server: ' + r.body.slice(0, 120));
     assert.ok(typeof r.ms === 'number');
 
     await assert.rejects(
@@ -223,7 +223,7 @@ describe('Rest Client · herramientas para agentes', () => {
   });
 });
 
-describe('RestClient · lo portado de rest-client-next', () => {
+describe('RestClient · what was ported from rest-client-next', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
@@ -234,25 +234,25 @@ describe('RestClient · lo portado de rest-client-next', () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  it('P-47 · Basic Auth: la contraseña puede llevar dos puntos y espacios (upstream #1419)', async () => {
-    // «admin:it's a total eclipse»: antes se partía por cada espacio y por cada
-    // ':', y llegaba truncada.
+  it('P-47 · Basic Auth: the password may contain colons and spaces (upstream #1419)', async () => {
+    // "admin:it's a total eclipse": it used to be split on every space and
+    // every ':', and arrived truncated.
     const key = "it's a total: eclipse";
     const file = write('basic.http', j(`GET ${BASE}/echo/basic`, `Authorization: Basic admin:${key}`, ''));
     const t = await sendFile(file, 0, '/echo/basic');
     const recibida = /"authorization":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
-    assert.ok(recibida, 'no llegó cabecera Authorization: ' + t.slice(0, 200));
+    assert.ok(recibida, 'no Authorization header arrived: ' + t.slice(0, 200));
     assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), `admin:${key}`);
   });
 
-  it('P-48 · Basic Auth: la forma «usuario contraseña» separada por espacio sigue funcionando', async () => {
+  it('P-48 · Basic Auth: the space-separated "user password" form still works', async () => {
     const file = write('basic2.http', j(`GET ${BASE}/echo/basic2`, 'Authorization: Basic ana secreta', ''));
     const t = await sendFile(file, 0, '/echo/basic2');
     const recibida = /"authorization":\s*"Basic ([^"]+)"/.exec(t)?.[1] ?? '';
     assert.strictEqual(Buffer.from(recibida, 'base64').toString('utf8'), 'ana:secreta');
   });
 
-  it('P-49 · autocompletar dentro de {{ }} no duplica las llaves', async () => {
+  it('P-49 · completion inside {{ }} does not duplicate the braces', async () => {
     const file = write('completar.http', j('@host = http://ejemplo', 'GET {{host}}/x?id={{', ''));
     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
     await vscode.window.showTextDocument(doc, { preview: false });
@@ -262,16 +262,16 @@ describe('RestClient · lo portado de rest-client-next', () => {
       'vscode.executeCompletionItemProvider', doc.uri, posicion)) as vscode.CompletionList;
 
     const variables = list.items.filter((i) => typeof i.label === 'string' && (i.label === '$guid' || i.label === 'host'));
-    assert.ok(variables.length >= 1, 'sin propuestas de variable: ' + list.items.map((i) => i.label).slice(0, 10).join(', '));
+    assert.ok(variables.length >= 1, 'no variable proposals: ' + list.items.map((i) => i.label).slice(0, 10).join(', '));
     for (const item of variables) {
       const text = typeof item.insertText === 'string' ? item.insertText : (item.insertText as vscode.SnippetString)?.value ?? '';
-      assert.ok(!text.includes('{{'), `«${String(item.label)}» insertaría llaves otra vez: ${text}`);
-      assert.ok(item.range, `«${String(item.label)}» no sustituye el hueco entre llaves`);
+      assert.ok(!text.includes('{{'), `«${String(item.label)}" would insert braces again: ${text}`);
+      assert.ok(item.range, `«${String(item.label)}" does not replace the gap between the braces`);
     }
   });
 });
 
-describe('metodo QUERY (portado de upstream #1438)', () => {
+describe('the QUERY method (ported from upstream #1438)', () => {
   before(async () => {
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     await ext!.activate();
@@ -282,7 +282,7 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  it('P-66 · QUERY llega como QUERY y con su cuerpo', async function () {
+  it('P-66 · QUERY arrives as QUERY and with its body', async function () {
     this.timeout(60000);
     const file = write('query.http', j(
       `QUERY ${BASE}/buscar`,
@@ -292,14 +292,14 @@ describe('metodo QUERY (portado de upstream #1438)', () => {
       '',
     ));
     const t = await sendFile(file, 0, '"/buscar"', 40);
-    assert.ok(t.includes('HTTP/1.1 200'), `sin 200 en:\n${t.slice(0, 200)}`);
-    assert.ok(/"method":\s*"QUERY"/.test(t), 'el servidor debe recibir el metodo QUERY: ' + t.slice(0, 250));
-    assert.ok(/"received":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'el cuerpo debe viajar con la peticion: ' + t.slice(0, 250));
+    assert.ok(t.includes('HTTP/1.1 200'), `no 200 in:\n${t.slice(0, 200)}`);
+    assert.ok(/"method":\s*"QUERY"/.test(t), 'the server must receive the QUERY method: ' + t.slice(0, 250));
+    assert.ok(/"received":\s*"\{\\"filtro\\":\\"activo\\"\}"/.test(t) || t.includes('filtro'), 'the body must travel with the request: ' + t.slice(0, 250));
   });
 });
 
-describe('faker en el editor (carga diferida)', () => {
-  it('P-64 · {{$faker internet.email}} se resuelve al enviar (el chunk se carga en caliente)', async function () {
+describe('faker in the editor (lazy loading)', () => {
+  it('P-64 · {{$faker internet.email}} is resolved on send (the chunk loads on the fly)', async function () {
     this.timeout(60000);
     const file = write('faker.http', j(
       `GET ${BASE}/echo?email={{$faker internet.email}}`,
@@ -308,6 +308,6 @@ describe('faker en el editor (carga diferida)', () => {
     const text = await sendFile(file, 0, 'faker-mark', 40);
     const email = /email=([^&"\\]+)/.exec(text)?.[1] ?? '';
     assert.ok(/%40|@/.test(email), `no parece un email: ${email || text.slice(0, 200)}`);
-    assert.ok(!email.includes('faker'), 'la variable quedo sin resolver');
+    assert.ok(!email.includes('faker'), 'the variable was left unresolved');
   });
 });

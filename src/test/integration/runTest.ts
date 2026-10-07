@@ -4,25 +4,25 @@ import * as os from 'os';
 import * as path from 'path';
 import { runTests } from '@vscode/test-electron';
 
-/** Levanta un servidor de prueba local y corre la suite contra él. */
+/** Starts a local test server and runs the suite against it. */
 async function main(): Promise<void> {
   delete process.env.ELECTRON_RUN_AS_NODE;
   const root = path.resolve(__dirname, '../../../');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-it-'));
-  // Servidor de pruebas compartido con la suite del runner (scripts/test-server.cjs):
-  // eco, códigos de estado, JSON, XML, redirección, SSE y un WebSocket de eco.
+  // The test server shared with the runner's suite (scripts/test-server.cjs):
+  // echo, status codes, JSON, XML, a redirect, SSE and an echo WebSocket.
   const server = path.join(root, 'scripts', 'test-server.cjs');
   const hijo = cp.spawn(process.execPath, [server, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
   const port: string = await new Promise((res, rej) => {
     hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).port)));
-    setTimeout(() => rej(new Error('el servidor de prueba no arrancó')), 10000);
+    setTimeout(() => rej(new Error('the test server did not start')), 10000);
   });
-  console.log(`servidor de prueba en el puerto ${port}`);
+  console.log(`test server on port ${port}`);
 
-  // Se simula a alguien que YA tenía REST Client: sus ajustes viven en el
-  // settings.json del usuario. VS Code no deja escribirlos desde la API si la
-  // sección no está declarada por ninguna extensión instalada, así que la única
-  // forma fiel de probar la herencia es dejarlos puestos de antemano.
+  // This plays someone who ALREADY had REST Client: their settings live in the
+  // user's settings.json. VS Code does not let the API write them if no
+  // installed extension declares the section, so the only faithful way to test
+  // the inheritance is to have them in place beforehand.
   const userDir = path.join(root, '.vscode-test', 'user-data', 'User');
   fs.mkdirSync(userDir, { recursive: true });
   fs.writeFileSync(
@@ -44,6 +44,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  console.error('Fallaron las pruebas de integración', e);
+  console.error('The integration tests failed', e);
   process.exit(1);
 });
