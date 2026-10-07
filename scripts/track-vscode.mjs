@@ -11,25 +11,25 @@ import path from 'node:path';
 const RAIZ = process.argv[2] ?? 'src/cli/index.ts';
 
 /** `import type` desaparece al compilar; `require('vscode')` sólo corre si se llama. */
-const importaVscode = (fuente) => /^\s*import\s(?!type\s)[^;]*from\s+'vscode'/m.test(fuente);
-const sinTipos = (fuente) => fuente.replace(/^\s*import\s+type\s[^;]*;\s*$/gm, '');
+const importaVscode = (source) => /^\s*import\s(?!type\s)[^;]*from\s+'vscode'/m.test(source);
+const sinTipos = (source) => source.replace(/^\s*import\s+type\s[^;]*;\s*$/gm, '');
 
 const culpables = new Map();
 const enCurso = new Set();
 
-function buscar(fichero, camino) {
-  const abs = path.resolve(fichero);
+function buscar(file, camino) {
+  const abs = path.resolve(file);
   if (enCurso.has(abs) || !fs.existsSync(abs)) return;
   enCurso.add(abs);
 
-  const fuente = fs.readFileSync(abs, 'utf8');
+  const source = fs.readFileSync(abs, 'utf8');
   const rel = path.relative('.', abs).split(path.sep).join('/');
   const aqui = [...camino, rel];
 
-  if (importaVscode(fuente)) {
+  if (importaVscode(source)) {
     if (!culpables.has(rel)) culpables.set(rel, aqui);
   } else {
-    for (const m of sinTipos(fuente).matchAll(/from '(\.[^']+)'/g)) {
+    for (const m of sinTipos(source).matchAll(/from '(\.[^']+)'/g)) {
       const base = path.resolve(path.dirname(abs), m[1]);
       for (const candidato of [base + '.ts', path.join(base, 'index.ts')]) {
         buscar(candidato, aqui);

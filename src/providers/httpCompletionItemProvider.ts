@@ -9,11 +9,11 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
             return undefined;
         }
 
-        // Si el cursor ya está dentro de unas llaves, lo que se inserta es sólo
-        // el interior y sustituye a lo que hubiera entre ellas. Antes se
-        // insertaba `{{variable}}` entero después del `{{` recién escrito y
-        // salía `{{{{variable}}}}`.
-        const interior = HttpCompletionItemProvider.rangoDentroDeLlaves(document, position);
+        // If the cursor is already inside braces, only the inside is inserted
+        // and it replaces whatever was between them. It used to insert the
+        // whole `{{variable}}` after the `{{` just typed, which produced
+        // `{{{{variable}}}}`.
+        const inner = HttpCompletionItemProvider.rangeInsideBraces(document, position);
 
         const elements = await HttpElementFactory.getHttpElements(document, document.lineAt(position).text);
         return elements.map(e => {
@@ -29,32 +29,32 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
                         ? CompletionItemKind.Property
                         : CompletionItemKind.Field;
 
-            const texto = typeof e.text === 'string' ? e.text : (e.text?.value ?? '');
-            if (interior && texto.startsWith('{{') && texto.endsWith('}}')) {
-                const dentro = texto.slice(2, -2).trim();
-                item.range = interior;
-                item.insertText = typeof e.text === 'string' ? dentro : new SnippetString(dentro);
-                // Con el cursor en `{{$ti`, VS Code filtra por lo tecleado: sin
-                // esto, `$timestamp` no casaba al escribir `timestamp` a secas.
-                if (dentro.startsWith('$')) {
-                    item.filterText = `${dentro} ${dentro.substring(1)}`;
+            const text = typeof e.text === 'string' ? e.text : (e.text?.value ?? '');
+            if (inner && text.startsWith('{{') && text.endsWith('}}')) {
+                const inside = text.slice(2, -2).trim();
+                item.range = inner;
+                item.insertText = typeof e.text === 'string' ? inside : new SnippetString(inside);
+                // With the cursor at `{{$ti`, VS Code filters by what was typed:
+                // without this, `$timestamp` did not match a bare `timestamp`.
+                if (inside.startsWith('$')) {
+                    item.filterText = `${inside} ${inside.substring(1)}`;
                 }
             }
             return item;
         });
     }
 
-    /** El hueco entre `{{` y `}}` si el cursor está dentro; `undefined` si no. */
-    private static rangoDentroDeLlaves(document: TextDocument, position: Position): Range | undefined {
-        const linea = document.lineAt(position.line).text;
-        const antes = linea.substring(0, position.character);
-        const abre = antes.lastIndexOf('{{');
-        if (abre < 0 || abre < antes.lastIndexOf('}}')) {
+    /** The gap between `{{` and `}}` if the cursor is inside it; `undefined` otherwise. */
+    private static rangeInsideBraces(document: TextDocument, position: Position): Range | undefined {
+        const line = document.lineAt(position.line).text;
+        const beforeCursor = line.substring(0, position.character);
+        const opens = beforeCursor.lastIndexOf('{{');
+        if (opens < 0 || opens < beforeCursor.lastIndexOf('}}')) {
             return undefined;
         }
-        const cierra = linea.indexOf('}}', position.character);
+        const closes = line.indexOf('}}', position.character);
         return new Range(
-            new Position(position.line, abre + 2),
-            new Position(position.line, cierra === -1 ? linea.length : cierra));
+            new Position(position.line, opens + 2),
+            new Position(position.line, closes === -1 ? line.length : closes));
     }
 }

@@ -17,7 +17,7 @@ import { CALLBACK_PORT, OidcClient } from '../auth/oidcClient';
 import { HttpClient } from '../httpClient';
 import { EnvironmentVariableProvider } from './environmentVariableProvider';
 import { HttpVariable, HttpVariableContext, HttpVariableProvider } from './httpVariableProvider';
-import { Secretos } from '../secretos';
+import { SecretStore } from '../secrets';
 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -76,16 +76,16 @@ export class SystemVariableProvider implements HttpVariableProvider {
     public readonly type: VariableType = VariableType.System;
 
     public async has(name: string, document: TextDocument): Promise<boolean> {
-        return this.resolveFuncs.has(SystemVariableProvider.nombreDe(name));
+        return this.resolveFuncs.has(SystemVariableProvider.nameOf(name));
     }
 
-    /** `$random.integer(1,9)` no lleva espacio: el nombre es lo que hay antes del paréntesis. */
-    private static nombreDe(name: string): string {
+    /** `$random.integer(1,9)` has no space: the name is whatever comes before the parenthesis. */
+    private static nameOf(name: string): string {
         return name.split(' ').filter(Boolean)[0].replace(/\(.*$/, '');
     }
 
     public async get(name: string, document: TextDocument, context: HttpVariableContext): Promise<HttpVariable> {
-        const variableName = SystemVariableProvider.nombreDe(name);
+        const variableName = SystemVariableProvider.nameOf(name);
         if (!this.resolveFuncs.has(variableName)) {
             return { name: variableName, error: ResolveErrorMessage.SystemVariableNotExist };
         }
@@ -255,20 +255,20 @@ export class SystemVariableProvider implements HttpVariableProvider {
             if (groups === null) {
                 return { warning: 'Secret variable should follow format "{{$secret NAME}}"' };
             }
-            const [, nombre] = groups;
-            if (!Secretos.listo) {
+            const [, secretName] = groups;
+            if (!SecretStore.ready) {
                 return { warning: 'Secret storage is not available' };
             }
-            // La primera vez se pide y se guarda; a partir de ahí, ni se nota.
-            const valor = (await Secretos.get(nombre)) ?? (await Secretos.pedir(nombre));
-            if (valor === undefined) {
-                return { warning: `Secret "${nombre}" is not set. Run "RestClient: Set secret"` };
+            // Asked for the first time it is used, then stored; after that it is invisible.
+            const value = (await SecretStore.get(secretName)) ?? (await SecretStore.prompt(secretName));
+            if (value === undefined) {
+                return { warning: `Secret "${secretName}" is not set. Run "RestClient: Set secret"` };
             }
-            return { value: valor };
+            return { value: value };
         });
     }
 
-    /** Nombres de JetBrains para lo que ya existía: un fichero suyo funciona sin tocarlo. */
+    /** JetBrains names for what already existed: one of their files works untouched. */
     private registerJetBrainsAliases() {
         this.resolveFuncs.set(Constants.UuidVariableName, async () => ({ value: uuidv4() }));
         this.resolveFuncs.set(Constants.IsoTimestampVariableName, async () => ({ value: dayjs.utc().toISOString() }));

@@ -18,7 +18,7 @@ media/demo/
 # Estado e informes del vigía diario: locales, se regeneran
 
 
-# Paquete npm: cli.js y LICENSE se copian con npm run preparar-npm
+# Paquete npm: cli.js y LICENSE se copian con npm run prepare-npm
 npm/cli.js
 npm/LICENSE
 .vscode/bookmarks.json

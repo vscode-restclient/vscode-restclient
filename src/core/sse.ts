@@ -1,50 +1,50 @@
 /**
- * Server-Sent Events (`text/event-stream`), que es como responden en 2026
- * todas las API de modelos de lenguaje. Petición #493 del original (+44).
+ * Server-Sent Events (`text/event-stream`), which is how every language-model
+ * API answers in 2026. Upstream request #493 (+44).
  *
- * El formato es de líneas: `event:`, `data:`, `id:`, y un evento termina en
- * una línea en blanco. Varias líneas `data:` seguidas se unen con salto de
- * línea. Las líneas que empiezan por `:` son comentarios (latidos, casi
- * siempre). Sin `vscode`: lo usan el editor, las aserciones y el runner.
+ * The format is line-based: `event:`, `data:`, `id:`, and an event ends at a
+ * blank line. Consecutive `data:` lines are joined with a line break. Lines
+ * starting with `:` are comments (heartbeats, almost always). No `vscode`
+ * import: the editor, the assertions and the runner all use this.
  */
-export interface EventoSse {
-    evento?: string;
-    datos: string;
+export interface SseEvent {
+    event?: string;
+    data: string;
     id?: string;
 }
 
-export function leerEventos(texto: string): EventoSse[] {
-    const fuera: EventoSse[] = [];
-    let actual: { evento?: string; datos: string[]; id?: string } = { datos: [] };
-    const cerrar = () => {
-        if (actual.datos.length > 0) {
-            fuera.push({ evento: actual.evento, datos: actual.datos.join('\n'), id: actual.id });
+export function readEvents(text: string): SseEvent[] {
+    const out: SseEvent[] = [];
+    let actual: { event?: string; data: string[]; id?: string } = { data: [] };
+    const close = () => {
+        if (actual.data.length > 0) {
+            out.push({ event: actual.event, data: actual.data.join('\n'), id: actual.id });
         }
-        actual = { datos: [] };
+        actual = { data: [] };
     };
-    for (const linea of texto.split(/\r?\n/)) {
-        if (linea === '') {
-            cerrar();
+    for (const line of text.split(/\r?\n/)) {
+        if (line === '') {
+            close();
             continue;
         }
-        if (linea.startsWith(':')) {
+        if (line.startsWith(':')) {
             continue;
         }
-        const corte = linea.indexOf(':');
-        const campo = corte < 0 ? linea : linea.slice(0, corte);
-        const valor = corte < 0 ? '' : linea.slice(corte + 1).replace(/^ /, '');
-        if (campo === 'data') {
-            actual.datos.push(valor);
-        } else if (campo === 'event') {
-            actual.evento = valor;
-        } else if (campo === 'id') {
-            actual.id = valor;
+        const cutoff = line.indexOf(':');
+        const field = cutoff < 0 ? line : line.slice(0, cutoff);
+        const value = cutoff < 0 ? '' : line.slice(cutoff + 1).replace(/^ /, '');
+        if (field === 'data') {
+            actual.data.push(value);
+        } else if (field === 'event') {
+            actual.event = value;
+        } else if (field === 'id') {
+            actual.id = value;
         }
     }
-    cerrar();
-    return fuera;
+    close();
+    return out;
 }
 
-export function esEventStream(contentType: string | undefined): boolean {
+export function isEventStream(contentType: string | undefined): boolean {
     return /^\s*text\/event-stream/i.test(contentType ?? '');
 }

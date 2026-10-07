@@ -2,7 +2,7 @@
 // guionizado y el capturador de ventana en paralelo.
 //
 // Lo que sale de aqui son fotogramas crudos en media/demo/. Elegir los planos y
-// montar el GIF es cosa de montar.mjs.
+// montar el GIF es cosa de assemble.mjs.
 import cp from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -42,7 +42,7 @@ const s = http.createServer((q, r) => {
     json(404, { error: 'no existe', ruta: q.url });
   });
 });
-s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ puerto: s.address().port })));`;
+s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ port: s.address().port })));`;
 
 const API_HTTP = (puerto) => `@host = http://127.0.0.1:${puerto}
 
@@ -123,30 +123,30 @@ async function main() {
     fs.writeFileSync(ficheroServidor, SERVIDOR);
     const hijo = cp.spawn(process.execPath, [ficheroServidor], { stdio: ['ignore', 'pipe', 'inherit'] });
     const puerto = await new Promise((res, rej) => {
-        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).puerto));
+        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).port));
         setTimeout(() => rej(new Error('el servidor de la demo no arrancó')), 8000);
     });
     console.log(`servidor de la demo en ${puerto}`);
 
-    const trabajo = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-ws-'));
-    fs.writeFileSync(path.join(trabajo, 'api.http'), API_HTTP(puerto));
-    fs.writeFileSync(path.join(trabajo, 'pruebas.http'), PRUEBAS_HTTP(puerto));
-    fs.writeFileSync(path.join(trabajo, 'chat.http'), CHAT_HTTP(puerto));
-    fs.mkdirSync(path.join(trabajo, '.vscode'));
-    fs.writeFileSync(path.join(trabajo, '.vscode', 'settings.json'), JSON.stringify(AJUSTES, null, 2));
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-ws-'));
+    fs.writeFileSync(path.join(work, 'api.http'), API_HTTP(puerto));
+    fs.writeFileSync(path.join(work, 'pruebas.http'), PRUEBAS_HTTP(puerto));
+    fs.writeFileSync(path.join(work, 'chat.http'), CHAT_HTTP(puerto));
+    fs.mkdirSync(path.join(work, '.vscode'));
+    fs.writeFileSync(path.join(work, '.vscode', 'settings.json'), JSON.stringify(AJUSTES, null, 2));
 
     const capturador = cp.spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', path.join(RAIZ, 'scripts', 'demo', 'capturar.ps1'),
+        '-File', path.join(RAIZ, 'scripts', 'demo', 'capture.ps1'),
         '-Salida', SALIDA,
     ], { stdio: 'inherit' });
 
     try {
         await runTests({
             extensionDevelopmentPath: RAIZ,
-            extensionTestsPath: path.join(RAIZ, 'scripts', 'demo', 'guion.cjs'),
+            extensionTestsPath: path.join(RAIZ, 'scripts', 'demo', 'script.cjs'),
             launchArgs: [
-                trabajo,
+                work,
                 `--user-data-dir=${path.join(RAIZ, '.vscode-test', 'demo-user-data')}`,
                 '--disable-extensions',
                 '--disable-workspace-trust',
@@ -163,7 +163,7 @@ async function main() {
         hijo.kill();
         await new Promise((r) => capturador.on('close', r));
         fs.rmSync(tmpServidor, { recursive: true, force: true });
-        fs.rmSync(trabajo, { recursive: true, force: true });
+        fs.rmSync(work, { recursive: true, force: true });
     }
 
     const fotogramas = fs.readdirSync(SALIDA).filter((f) => /^f\d+\.png$/.test(f)).length;

@@ -12,4 +12,4 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit rep
 
 Exit code 0 when every assertion passes, 1 when one fails, `--json` for machines, `--junit` for CI dashboards. `restclient mcp` starts an MCP server so agents (Claude Code, Cursor, Copilot) can run your `.http` files as a tool.
 
-This is the runner of the [Vscode Rest Client](https://marketplace.visualstudio.com/items?itemName=vscode-restclient.rest-client) VS Code extension, a maintained fork of REST Client by Huachao Mao (MIT). Docs and source: https://github.com/vscode-restclient/vscode-restclient
+This is the runner of the [Vscode Rest Client](https://marketplace.visualstudio.com/items?itemName=vscode-restclient.restclient) VS Code extension, a maintained fork of REST Client by Huachao Mao (MIT). Docs and source: https://github.com/vscode-restclient/vscode-restclient

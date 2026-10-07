@@ -2,19 +2,19 @@ import got from 'got';
 import type { BeforeRequestHook } from 'got';
 
 /**
- * Autenticación con AWS Cognito.
+ * AWS Cognito authentication.
  *
- * La implementación original importaba `aws-amplify` entero —GraphQL, DataStore,
- * predicciones de aprendizaje automático, pubsub, notificaciones— para hacer un
- * inicio de sesión: 17 MB en disco y 41 paquetes con vulnerabilidades conocidas.
+ * The original implementation imported the whole of `aws-amplify` — GraphQL,
+ * DataStore, machine-learning predictions, pubsub, notifications — to perform
+ * one sign-in: 17 MB on disk and 41 packages with known vulnerabilities.
  *
- * Cognito es una API HTTP normal, así que aquí se llama directamente. Mismo
- * comportamiento, misma sintaxis en el fichero `.http`, sin el SDK.
+ * Cognito is an ordinary HTTP API, so here it is called directly. Same
+ * behaviour, same syntax in the `.http` file, no SDK.
  */
 
-const OBJETIVO = 'AWSCognitoIdentityProviderService.InitiateAuth';
+const TARGET = 'AWSCognitoIdentityProviderService.InitiateAuth';
 
-interface RespuestaCognito {
+interface CognitoResponse {
   AuthenticationResult?: {
     AccessToken?: string;
     IdToken?: string;
@@ -31,13 +31,13 @@ async function login(
   _userPoolId: string,
   clientId: string,
 ): Promise<{ idToken: string; accessToken: string }> {
-  let cuerpo: RespuestaCognito;
+  let body: CognitoResponse;
   try {
-    cuerpo = await got
+    body = await got
       .post(`https://cognito-idp.${region}.amazonaws.com/`, {
         headers: {
           'content-type': 'application/x-amz-json-1.1',
-          'x-amz-target': OBJETIVO,
+          'x-amz-target': TARGET,
         },
         json: {
           AuthFlow: 'USER_PASSWORD_AUTH',
@@ -47,18 +47,18 @@ async function login(
         responseType: 'json',
         throwHttpErrors: false,
       })
-      .json<RespuestaCognito>();
+      .json<CognitoResponse>();
   } catch (e) {
-    throw new Error(`Cognito no respondió: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`Cognito did not respond: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  const r = cuerpo.AuthenticationResult;
+  const r = body.AuthenticationResult;
   if (!r?.AccessToken || !r?.IdToken) {
-    // Un desafío pendiente (cambio de contraseña, MFA) no se puede resolver aquí.
-    const motivo = cuerpo.ChallengeName
-      ? `Cognito pide resolver "${cuerpo.ChallengeName}" antes de dar un token`
-      : cuerpo.message || cuerpo.__type || 'respuesta sin tokens';
-    throw new Error(`Invalid auth response: ${motivo}`);
+    // A pending challenge (password change, MFA) cannot be resolved here.
+    const reason = body.ChallengeName
+      ? `Cognito requires "${body.ChallengeName}" to be resolved before it issues a token`
+      : body.message || body.__type || 'response without tokens';
+    throw new Error(`Invalid auth response: ${reason}`);
   }
   return { idToken: r.IdToken, accessToken: r.AccessToken };
 }

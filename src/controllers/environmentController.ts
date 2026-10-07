@@ -2,7 +2,7 @@ import { EventEmitter, l10n, QuickPickItem, window } from 'vscode';
 import * as Constants from '../common/constants';
 import { SystemSettings } from '../models/configurationSettings';
 import { trace } from "../utils/decorator";
-import { entornosDeFichero } from '../utils/entornosEditor';
+import { fileEnvironments } from '../utils/editorEnvironments';
 import { EnvironmentStatusEntry } from '../utils/environmentStatusBarEntry';
 import { UserDataManager } from '../utils/userDataManager';
 
@@ -33,32 +33,32 @@ export class EnvironmentController {
     }
 
     /**
-     * Sin argumento pregunta; con nombre cambia directamente (lo usan las
-     * pruebas y cualquier automatización). `''` vuelve a «sin entorno».
+     * With no argument it asks; with a name it switches directly (the tests
+     * and any automation use this). `''` goes back to «no environment».
      */
     @trace('Switch Environment')
-    public async switchEnvironment(nombre?: string) {
-        const deAjustes = Object.keys(this.settings.environmentVariables)
+    public async switchEnvironment(name?: string) {
+        const fromSettings = Object.keys(this.settings.environmentVariables)
             .filter(name => name !== EnvironmentController.sharedEnvironmentName);
-        const deFichero = Object.keys(entornosDeFichero());
-        const nombres = [...new Set([...deAjustes, ...deFichero])];
+        const fromFile = Object.keys(fileEnvironments());
+        const names = [...new Set([...fromSettings, ...fromFile])];
 
-        const userEnvironments: EnvironmentPickItem[] = nombres.map(name => ({
+        const userEnvironments: EnvironmentPickItem[] = names.map(name => ({
             name,
             label: name,
             description: [
                 name === this.currentEnvironment.name ? '$(check)' : '',
-                deFichero.includes(name) ? l10n.t('from http-client.env.json') : ''
+                fromFile.includes(name) ? l10n.t('from http-client.env.json') : ''
             ].filter(Boolean).join(' ') || undefined
         }));
 
         const itemPickList: EnvironmentPickItem[] = [EnvironmentController.noEnvironmentPickItem, ...userEnvironments];
 
         let item: EnvironmentPickItem | undefined;
-        if (nombre !== undefined) {
-            item = nombre === '' ? EnvironmentController.noEnvironmentPickItem : userEnvironments.find(e => e.name === nombre);
+        if (name !== undefined) {
+            item = name === '' ? EnvironmentController.noEnvironmentPickItem : userEnvironments.find(e => e.name === name);
             if (!item) {
-                window.showWarningMessage(l10n.t('There is no environment named "{0}"', nombre));
+                window.showWarningMessage(l10n.t('There is no environment named "{0}"', name));
                 return;
             }
         } else {

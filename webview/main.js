@@ -76,10 +76,10 @@
 
   window.addEventListener('message', event => {
     const message = event.data;
-    if (message.command === 'trozo' || message.command === 'fin') {
+    if (message.command === 'chunk' || message.command === 'end') {
       const stream = document.getElementById('stream');
       if (stream) {
-        stream.appendChild(document.createTextNode(message.command === 'trozo' ? message.texto : '\n-- ' + (message.nota || '')));
+        stream.appendChild(document.createTextNode(message.command === 'chunk' ? message.text : '\n-- ' + (message.note || '')));
         window.scrollTo(0, document.body.scrollHeight);
       }
       return;

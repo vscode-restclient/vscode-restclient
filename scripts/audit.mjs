@@ -4,21 +4,21 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-let fallos = 0;
+let failures = 0;
 const ok = (n, c, extra = '') => {
   console.log(`  ${c ? 'OK   ' : 'FALLA'} ${n}${extra ? ' · ' + extra : ''}`);
-  if (!c) fallos++;
+  if (!c) failures++;
 };
 const seccion = (t) => console.log(`\n== ${t}`);
 // Lo que depende de un servicio ajeno no puede tumbar la bateria: si no se
 // pudo comprobar se dice, pero no cuenta como fallo del proyecto.
-const aviso = (n, extra = '') => console.log(`  AVISO ${n}${extra ? ' · ' + extra : ''}`);
+const warning = (n, extra = '') => console.log(`  AVISO ${n}${extra ? ' · ' + extra : ''}`);
 const correr = (cmd, env) => {
-  const opciones = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } };
+  const options = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } };
   try {
-    return { salida: execSync(cmd, opciones), codigo: 0 };
+    return { output: execSync(cmd, options), exitCode: 0 };
   } catch (e) {
-    return { salida: (e.stdout ?? '') + (e.stderr ?? ''), codigo: e.status ?? 1 };
+    return { output: (e.stdout ?? '') + (e.stderr ?? ''), exitCode: e.status ?? 1 };
   }
 };
 const leer = (f) => fs.readFileSync(f, 'utf8');
@@ -30,14 +30,14 @@ const leer = (f) => fs.readFileSync(f, 'utf8');
  * plataformas sin que nada del proyecto hubiera cambiado, asi que aqui se
  * extrae el objeto en vez de confiar en que venga limpio.
  */
-const json = (salida) => {
-  const i = salida.indexOf('{');
-  const f = salida.lastIndexOf('}');
+const json = (output) => {
+  const i = output.indexOf('{');
+  const f = output.lastIndexOf('}');
   if (i < 0 || f < i) {
     return {};
   }
   try {
-    return JSON.parse(salida.slice(i, f + 1));
+    return JSON.parse(output.slice(i, f + 1));
   } catch {
     return {};
   }
@@ -72,19 +72,19 @@ ok('la licencia declarada es MIT', pkg.license === 'MIT');
 // BSD y Apache exigen reproducir el aviso en la distribucion binaria; el
 // bundle de webpack solo conserva los comentarios /*! */, asi que ademas viaja
 // un fichero con la licencia de cada paquete de produccion.
-const avisos = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
-ok('existe el fichero de avisos de terceros', avisos.length > 0);
-// El fichero se genera con scripts/generar-notices.mjs: si alguien añade una
+const notices = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
+ok('existe el fichero de avisos de terceros', notices.length > 0);
+// El fichero se genera con scripts/generate-notices.mjs: si alguien añade una
 // dependencia y no lo regenera, aqui se le dice, en vez de descubrirlo un abogado.
-ok('los avisos de terceros estan al dia (generar-notices --check)', correr('node scripts/generar-notices.mjs --check').codigo === 0);
-const arbol = json(correr('npm ls --omit=dev --all --json').salida);
+ok('los avisos de terceros estan al dia (generate-notices --check)', correr('node scripts/generate-notices.mjs --check').exitCode === 0);
+const arbol = json(correr('npm ls --omit=dev --all --json').output);
 const paquetes = new Set();
 // Sin version = dependencia opcional que npm no instalo; no viaja, no cuenta.
 const recorrerArbol = (nodo) => { for (const [n, v] of Object.entries(nodo?.dependencies ?? {})) { if (v.version) { paquetes.add(`${n}@${v.version}`); recorrerArbol(v); } } };
 recorrerArbol(arbol);
-const sinAviso = [...paquetes].filter((pq) => !avisos.includes(`\n${pq}\n`));
+const sinAviso = [...paquetes].filter((pq) => !notices.includes(`\n${pq}\n`));
 ok('todo paquete de produccion tiene su aviso', paquetes.size > 0 && sinAviso.length === 0, sinAviso.length ? sinAviso.slice(0, 5).join(', ') : `${paquetes.size} paquetes`);
-const copyleft = [...avisos.matchAll(/^License: (.+)$/gm)].map((m) => m[1]).filter((l) => /GPL|SSPL|UNKNOWN|UNLICENSED|CC-BY-NC|EUPL|OSL/i.test(l));
+const copyleft = [...notices.matchAll(/^License: (.+)$/gm)].map((m) => m[1]).filter((l) => /GPL|SSPL|UNKNOWN|UNLICENSED|CC-BY-NC|EUPL|OSL/i.test(l));
 ok('ninguna licencia copyleft ni desconocida', copyleft.length === 0, copyleft.join(', '));
 
 seccion('activos propios (no se hereda la imagen de nadie)');
@@ -95,7 +95,7 @@ ok('sin los gif de demostración del original', !imagenes.some(f => /demo|respon
 
 seccion('privacidad: no habla con nadie');
 ok('sin dependencia de telemetría', !JSON.stringify(pkg.dependencies).includes('applicationinsights'));
-const conTelemetria = correr('git grep -l "applicationinsights\\|trackEvent\\|AiKey" -- src').salida.trim();
+const conTelemetria = correr('git grep -l "applicationinsights\\|trackEvent\\|AiKey" -- src').output.trim();
 ok('sin rastro de telemetría en el código', conTelemetria === '', conTelemetria);
 ok('sin ajuste de telemetría en la ficha', !JSON.stringify(pkg.contributes.configuration).includes('Telemetry'));
 
@@ -103,7 +103,7 @@ seccion('dependencias');
 // `npm audit` sale a la red en cada ejecucion: si el registro va lento, esta
 // caido o cambia el formato, no es un problema de este repositorio. Se le da
 // un limite de tiempo y, sin datos, queda como aviso en vez de tumbar la CI.
-const audit = json(correr('npm audit --omit=dev --json --fetch-timeout=60000').salida);
+const audit = json(correr('npm audit --omit=dev --json --fetch-timeout=60000').output);
 const v = audit.metadata?.vulnerabilities ?? {};
 
 // Excepciones: avisos que NO se pueden arreglar hoy y que no alcanzamos.
@@ -137,15 +137,15 @@ if (typeof v.total === 'number') {
     );
   }
 } else {
-  aviso('vulnerabilidades en produccion: npm audit no devolvio datos', 'sin red o formato inesperado');
+  warning('vulnerabilidades en produccion: npm audit no devolvio datos', 'sin red o formato inesperado');
 }
 ok('aws-amplify fuera', !JSON.stringify(pkg.dependencies).includes('aws-amplify'));
 ok('xmldom sin mantenimiento fuera', pkg.dependencies.xmldom === undefined);
 
 seccion('el núcleo no depende del editor');
-for (const f of ['src/cli/index.ts', 'src/cli/mcp.ts', 'src/cli/parserMinimo.ts', 'src/core/secuencia.ts', 'src/core/aserciones.ts', 'src/core/entornosJetBrains.ts', 'src/core/importaciones.ts', 'src/core/sse.ts', 'src/core/websocket.ts', 'src/core/junit.ts', 'src/utils/httpClient.ts']) {
-  const r = correr(`node scripts/rastrear-vscode.mjs ${f}`);
-  ok(`${path.basename(f)} no arrastra vscode`, r.codigo === 0, r.codigo === 0 ? '' : r.salida.split('\n')[0]);
+for (const f of ['src/cli/index.ts', 'src/cli/mcp.ts', 'src/cli/minimalParser.ts', 'src/core/sequence.ts', 'src/core/assertions.ts', 'src/core/jetBrainsEnvironments.ts', 'src/core/imports.ts', 'src/core/sse.ts', 'src/core/websocket.ts', 'src/core/junit.ts', 'src/utils/httpClient.ts']) {
+  const r = correr(`node scripts/track-vscode.mjs ${f}`);
+  ok(`${path.basename(f)} no arrastra vscode`, r.exitCode === 0, r.exitCode === 0 ? '' : r.output.split('\n')[0]);
 }
 const compilado = fs.existsSync('dist-cli/cli/index.js');
 ok('el runner está compilado', compilado);
@@ -169,7 +169,7 @@ seccion('el cambio de nombre no dejo cabos sueltos');
 // El fork renombro comandos y ajustes. Lo que se quedo a medias no rompe la
 // compilacion: el enlace de un documento llamaba a `rest-client._openDocumentLink`
 // y, con REST Client instalado, se lo abria la otra extension.
-const fuentes = correr('git ls-files src').salida.split(/\r?\n/).filter((f) => f.endsWith('.ts') && !f.startsWith('src/test'));
+const fuentes = correr('git ls-files src').output.split(/\r?\n/).filter((f) => f.endsWith('.ts') && !f.startsWith('src/test'));
 const registrados = new Set([...leer('package.json').matchAll(/"command":\s*"([^"]+)"/g)].map((m) => m[1]));
 for (const f of fuentes) {
   for (const m of leer(f).matchAll(/registerCommand(?:Safely)?\('([^']+)'/g)) registrados.add(m[1]);
@@ -200,11 +200,11 @@ ok('el id del código es publisher.name del manifiesto', idDeclarado === `${pkg.
 // s-kainet 2018) y no encontre ninguno cuyo miembro mas nuevo sea de 2022 o
 // posterior. Mientras no estemos publicados, que otro tenga el nombre es un
 // fallo; una vez publicados, aparecemos en la lista y la comprobacion pasa.
-const consultarGaleria = async (texto) => {
+const consultarGaleria = async (text) => {
     const r = await fetch('https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json;api-version=7.2-preview.1' },
-        body: JSON.stringify({ filters: [{ criteria: [{ filterType: 10, value: texto }], pageSize: 200 }], flags: 914 }),
+        body: JSON.stringify({ filters: [{ criteria: [{ filterType: 10, value: text }], pageSize: 200 }], flags: 914 }),
         signal: AbortSignal.timeout(10000),
     });
     if (!r.ok) { throw new Error('HTTP ' + r.status); }
@@ -224,28 +224,109 @@ try {
         );
     }
 } catch (e) {
-    aviso('no pude consultar el Marketplace por el nombre', e.message);
+    warning('no pude consultar el Marketplace por el nombre', e.message);
 }
 
 seccion('nivel 2: formato JetBrains, streaming, agentes y runner');
 const cliFuente = leer('src/cli/index.ts');
 ok('el runner entiende --env, --secret, --junit y --timeout', ['--env', '--secret', '--junit', '--timeout'].every((o) => cliFuente.includes(`'${o}'`)));
-ok('el runner lee http-client.env.json e import/run', cliFuente.includes('carpetaDeEntornos') && cliFuente.includes('resolverRun'));
+ok('el runner lee http-client.env.json e import/run', cliFuente.includes('environmentsFolder') && cliFuente.includes('resolveRun'));
 const selector = leer('src/utils/selector.ts');
-ok('el editor resuelve run #nombre y salta las lineas import', selector.includes('resolverRun') && selector.includes('isImportLine'));
+ok('el editor resuelve run #nombre y salta las lineas import', selector.includes('resolveRun') && selector.includes('isImportLine'));
 const sistema = leer('src/utils/httpVariableProviders/systemVariableProvider.ts');
 ok('el editor tiene $secret y los alias de JetBrains', sistema.includes('SecretVariableName') && sistema.includes('UuidVariableName') && sistema.includes('IsoTimestampVariableName'));
 const controlador = leer('src/controllers/requestController.ts');
-ok('el panel pinta text/event-stream segun llega', controlador.includes('iniciarStreaming') && controlador.includes('anadirTrozo'));
-ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/parserMinimo.ts').includes("'WEBSOCKET'"));
-const herramientas = leer('src/utils/herramientasLm.ts');
+ok('el panel pinta text/event-stream segun llega', controlador.includes('startStreaming') && controlador.includes('appendChunk'));
+
+// The extension and the response webview talk through postMessage, and the
+// webview side (webview/main.js) is plain JavaScript that nothing type-checks.
+// During the English pass a variable rename turned `{ command: 'trozo', texto }`
+// into `{ command: 'trozo', text }` while main.js kept reading `message.texto`:
+// every streamed chunk would have rendered as "undefined", and all 68 tests
+// stayed green. So the contract is written down here and both sides are held
+// to it, textually, on every run. A new message means a new line in CONTRACT.
+//
+// It is a textual guard and it is strict on purpose: it knows one way of
+// sending (`postMessage({ command: '…', key: value })`) and one way of reading
+// (`message.command === '…'`, `message.key`), and anything else fails it rather
+// than slipping past. What it cannot see is WHICH command a key is read under:
+// swapping `message.text` and `message.note` in main.js would pass.
+{
+  const CONTRACT = { chunk: ['text'], end: ['note'], foldAll: [], unfoldAll: [] };
+  const sinComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+  const lado = sinComentarios(leer('src/views/httpResponseWebview.ts'));
+  const web = sinComentarios(leer('webview/main.js'));
+  const enviados = [...lado.matchAll(/postMessage\(\{([^}]*)\}\)/g)].map((m) => {
+    const cuerpo = m[1];
+    const orden = /['"]?command['"]?\s*:\s*['"]([^'"]+)['"]/.exec(cuerpo)?.[1];
+    const claves = [...cuerpo.matchAll(/(?:^|,)\s*['"]?([A-Za-z_]\w*)['"]?\s*(?=:|,|$)/g)].map((k) => k[1]).filter((k) => k !== 'command');
+    return { orden, claves, raro: /\.\.\.|\[/.test(cuerpo) };
+  });
+  const forma = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
+  const mandado = Object.fromEntries(enviados.map((e) => [e.orden, e.claves]));
+  const nPost = (lado.match(/postMessage\(/g) ?? []).length;
+  // Every postMessage call has to be one this guard can read: an object
+  // literal with a literal command, no spread, no computed key, and no command
+  // sent from two places (the second would hide the first).
+  ok('la guarda entiende todos los postMessage de la extension', enviados.length === nPost && enviados.every((e) => e.orden && !e.raro) && new Set(enviados.map((e) => e.orden)).size === enviados.length, `${enviados.length} de ${nPost}`);
+  ok('la extension manda exactamente los mensajes del contrato', forma(mandado) === forma(CONTRACT), forma(mandado));
+
+  // The webview handles `unfoldAll` by elimination (anything that is not
+  // `foldAll`), so it need not name every command; but each one it does name
+  // has to exist, and the three it tells apart have to be there.
+  const comparadas = [...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  const atendidas = [...new Set(comparadas)];
+  ok('toda orden que el webview comprueba esta en el contrato', atendidas.length >= 3 && atendidas.every((o) => Object.hasOwn(CONTRACT, o)), atendidas.join(', '));
+  // Every mention of message.command has to be one of those comparisons: a
+  // `!==`, a `switch` or a lookup table would name a command unseen.
+  const menciones = (web.match(/message\s*\??\.\s*command/g) ?? []).length;
+  ok('el webview solo compara la orden con === y un literal', menciones === comparadas.length, `${comparadas.length} de ${menciones}`);
+  const leidas = [...new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'))].sort();
+  const delContrato = [...new Set(Object.values(CONTRACT).flat())].sort();
+  ok('el webview lee exactamente las claves del contrato', JSON.stringify(leidas) === JSON.stringify(delContrato), leidas.join(', '));
+  // The message is read as `const message = event.data;` and then `message.x`,
+  // nothing else: no alias, no destructuring, no bracket or optional access.
+  const otraForma = /message\s*\[|message\?\.|switch\s*\(\s*message|\}\s*=\s*message\b|\}\s*=\s*event\.data|event\.data\s*[.[?]|[^=!]=\s*message\s*[;,)\n]/.test(web);
+  ok('el webview no lee el mensaje de una forma que esta guarda no ve', !otraForma && (web.match(/event\.data/g) ?? []).length === 1);
+
+  // The same kind of contract, through the DOM: every id and attribute that
+  // main.js looks up by name has to be written into the page by the extension.
+  // The lists are exact, so a new lookup has to be added here knowingly.
+  const escribe = (atributo) => new RegExp(`(?<![\\w-])${atributo}="`).test(lado);
+  const atributos = [...new Set([...web.matchAll(/(?:hasAttribute|getAttribute|getNamedItem)\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
+  const ids = [...new Set([...web.matchAll(/getElementById\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
+  const sinEscribir = [...atributos.filter((a) => !escribe(a)), ...ids.filter((i) => !lado.includes(`id="${i}"`))];
+  ok('todo id y atributo que el webview busca, la extension lo escribe',
+    sinEscribir.length === 0 && JSON.stringify(atributos) === JSON.stringify(['range-end', 'range-start', 'start']) && JSON.stringify(ids) === JSON.stringify(['stream']),
+    sinEscribir.length ? `sin escribir: ${sinEscribir.join(', ')}` : [...atributos, ...ids].join(', '));
+}
+// And through argv: the editor launches the MCP server of the bundled runner.
+ok('el editor lanza el servidor MCP con la opcion que el runner lee', leer('src/utils/lmTools.ts').includes("'mcp', '--root'") && leer('src/cli/index.ts').includes("=== '--root'"));
+// And through the environment: the audit points the runner's own test at the
+// published bundle. If the test stopped reading the variable it would quietly
+// test the other build and come back green.
+ok('las pruebas del runner leen la ruta que el audit les pasa', leer('scripts/test-cli.mjs').includes('process.env.CLI_RUTA') && leer('scripts/test-mcp.mjs').includes('process.env.CLI_RUTA'));
+// And through stdout: the test servers announce their port as JSON and five
+// readers parse it untyped. One of them was renamed alone during the English
+// pass (`.puerto` -> `.port`) and every integration test timed out.
+{
+  const anuncian = ['scripts/test-server.cjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs'];
+  const leen = ['scripts/test-cli.mjs', 'scripts/test-mcp.mjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs', 'src/test/integration/runTest.ts'];
+  const mal = [
+    ...anuncian.filter((f) => !leer(f).includes('JSON.stringify({ port: s.address().port })')),
+    ...leen.filter((f) => !leer(f).includes('JSON.parse(d.toString()).port)')),
+  ];
+  ok('los servidores de prueba y quienes los leen llaman igual al puerto', mal.length === 0, mal.join(', '));
+}
+ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
+const herramientas = leer('src/utils/lmTools.ts');
 ok('la herramienta de envio para agentes pide confirmacion', herramientas.includes('prepareInvocation') && herramientas.includes('confirmationMessages'));
 ok('la herramienta rechaza ficheros fuera del espacio de trabajo', herramientas.includes('is outside the workspace'));
 ok('las herramientas van declaradas en el manifiesto', (pkg.contributes.languageModelTools ?? []).length === 2 && (pkg.contributes.mcpServerDefinitionProviders ?? []).length === 1);
 const mcp = leer('src/cli/mcp.ts');
-ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('dentroDeLaRaiz') && !/fs\.write|writeFileSync/.test(mcp));
-const mcpPrueba = correr('node scripts/probar-mcp.mjs');
-ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.codigo === 0, /(\d+) fallos/.exec(mcpPrueba.salida)?.[0] ?? '');
+ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('insideRoot') && !/fs\.write|writeFileSync/.test(mcp));
+const mcpPrueba = correr('node scripts/test-mcp.mjs');
+ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.exitCode === 0, /===== (\d+) failures/.exec(mcpPrueba.output)?.[0] ?? '');
 ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('restclient.js'));
 ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/release.yml').includes('restclient.js'));
 // Este audit corre las pruebas unitarias (out-test/) y las del runner
@@ -274,11 +355,11 @@ ok('el paquete npm es solo el runner', npmPkg.bin?.restclient === 'cli.js' && JS
 ok('la gramatica pinta import y run', leer('syntaxes/http.tmLanguage.json').includes('http.import') && leer('syntaxes/http.tmLanguage.json').includes('http.run'));
 
 seccion('las dos lenguas estan completas');
-const l10n = correr('node scripts/comprobar-l10n.mjs');
-ok('ingles y castellano sin huecos', l10n.codigo === 0, /=+ (\d+) fallos/.exec(l10n.salida)?.[1] + ' fallos');
+const l10n = correr('node scripts/check-l10n.mjs');
+ok('ingles y castellano sin huecos', l10n.exitCode === 0, /=+ (\d+) failures/.exec(l10n.output)?.[1] + ' fallos');
 
 seccion('el paquete lleva lo que promete y nada mas');
-const empaquetados = correr('npx vsce ls --no-dependencies').salida.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+const empaquetados = correr('npx vsce ls --no-dependencies').output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 const enPaquete = (f) => empaquetados.includes(f);
 ok('el bundle del runner viaja en el paquete', enPaquete('dist/cli.js'));
 ok('el binario declarado es el que viaja', enPaquete(pkg.bin.restclient.replace('./', '')));
@@ -296,22 +377,22 @@ if (fs.existsSync('dist/cli.js')) {
   ok('el runner publicado arranca solo (shebang)', cli.startsWith('#!/usr/bin/env node'));
   ok('el runner publicado no carga el editor', !cli.includes('require("vscode")'));
   const r = correr('node dist/cli.js');
-  ok('el runner publicado explica su uso', r.codigo === 2 && r.salida.includes('uso:'));
+  ok('el runner publicado explica su uso', r.exitCode === 2 && r.output.includes('usage:'));
 }
 
 seccion('compila y pasa las pruebas');
-ok('el código compila', correr('npx tsc -p ./ --noEmit --skipLibCheck').codigo === 0);
-ok('el runner compila', correr('npx tsc -p tsconfig.cli.json --noEmit').codigo === 0);
+ok('el código compila', correr('npx tsc -p ./ --noEmit --skipLibCheck').exitCode === 0);
+ok('el runner compila', correr('npx tsc -p tsconfig.cli.json --noEmit').exitCode === 0);
 const unit = correr('npx mocha "out-test/test/unit/**/*.test.js"');
-const nUnit = /(\d+) passing/.exec(unit.salida)?.[1] ?? '0';
-ok('pruebas unitarias en verde', unit.codigo === 0 && Number(nUnit) >= 15, `${nUnit} pruebas`);
-const cli = correr('node scripts/probar-cli.mjs');
-ok('el runner pasa su prueba de punta a punta', cli.codigo === 0, /(\d+) fallos/.exec(cli.salida)?.[0] ?? '');
-const cliPub = correr('node scripts/probar-cli.mjs', { CLI_RUTA: 'dist/cli.js' });
-ok('el runner publicado pasa la misma prueba', cliPub.codigo === 0, /(\d+) fallos/.exec(cliPub.salida)?.[0] ?? '');
+const nUnit = /(\d+) passing/.exec(unit.output)?.[1] ?? '0';
+ok('pruebas unitarias en verde', unit.exitCode === 0 && Number(nUnit) >= 15, `${nUnit} pruebas`);
+const cli = correr('node scripts/test-cli.mjs');
+ok('el runner pasa su prueba de punta a punta', cli.exitCode === 0, /===== (\d+) failures/.exec(cli.output)?.[0] ?? '');
+const cliPub = correr('node scripts/test-cli.mjs', { CLI_RUTA: 'dist/cli.js' });
+ok('el runner publicado pasa la misma prueba', cliPub.exitCode === 0, /===== (\d+) failures/.exec(cliPub.output)?.[0] ?? '');
 
 seccion('compatibilidad con REST Client');
-const troceo = leer('src/core/secuencia.ts');
+const troceo = leer('src/core/sequence.ts');
 ok('el troceo por ### se comporta como el original', troceo.includes('getDelimiterRows'));
 
 seccion('promesas del README');
@@ -329,5 +410,5 @@ ok('las unitarias que corren son las que estan escritas', Number(nUnit) === cuen
 ok('promete 400 paquetes', leer('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
 ok('promete cero telemetría', leer('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
 
-console.log(`\n===== ${fallos} fallos`);
-process.exit(fallos ? 1 : 0);
+console.log(`\n===== ${failures} fallos`);
+process.exit(failures ? 1 : 0);

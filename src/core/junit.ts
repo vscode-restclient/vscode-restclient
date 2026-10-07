@@ -1,46 +1,46 @@
 /**
- * Informe JUnit XML: lo que GitHub, GitLab y Jenkins pintan como resultados de
- * pruebas. Un `testsuite` por fichero, un `testcase` por petición, un
- * `failure` por aserción fallida y un `error` por petición que no pudo
- * enviarse. Sin `vscode`: lo usa el runner.
+ * JUnit XML report: what GitHub, GitLab and Jenkins render as test results.
+ * One `testsuite` per file, one `testcase` per request, one `failure` per
+ * failed assertion and one `error` per request that could not be sent. No
+ * `vscode` import: the runner uses this.
  */
-export interface CasoJunit {
-    nombre: string;
+export interface JunitCase {
+    name: string;
     ms: number;
-    /** Una línea por aserción fallida: «lo que se esperaba -> lo que llegó». */
-    fallos: string[];
-    /** La petición no llegó a responder. */
+    /** One line per failed assertion: «what was expected -> what arrived». */
+    failures: string[];
+    /** The request never got a response. */
     error?: string;
 }
 
-export function aJunit(suite: string, casos: CasoJunit[]): string {
-    const fallos = casos.filter(c => c.fallos.length > 0).length;
-    const errores = casos.filter(c => c.error).length;
-    const total = casos.reduce((s, c) => s + c.ms, 0) / 1000;
-    const lineas = [
+export function toJunit(suite: string, cases: JunitCase[]): string {
+    const failures = cases.filter(c => c.failures.length > 0).length;
+    const errors = cases.filter(c => c.error).length;
+    const total = cases.reduce((s, c) => s + c.ms, 0) / 1000;
+    const lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        `<testsuite name="${x(suite)}" tests="${casos.length}" failures="${fallos}" errors="${errores}" time="${total.toFixed(3)}">`,
+        `<testsuite name="${x(suite)}" tests="${cases.length}" failures="${failures}" errors="${errors}" time="${total.toFixed(3)}">`,
     ];
-    for (const c of casos) {
-        const abre = `  <testcase name="${x(c.nombre)}" classname="${x(suite)}" time="${(c.ms / 1000).toFixed(3)}"`;
-        if (!c.error && c.fallos.length === 0) {
-            lineas.push(`${abre}/>`);
+    for (const c of cases) {
+        const opens = `  <testcase name="${x(c.name)}" classname="${x(suite)}" time="${(c.ms / 1000).toFixed(3)}"`;
+        if (!c.error && c.failures.length === 0) {
+            lines.push(`${opens}/>`);
             continue;
         }
-        lineas.push(`${abre}>`);
+        lines.push(`${opens}>`);
         if (c.error) {
-            lineas.push(`    <error message="${x(c.error)}"/>`);
+            lines.push(`    <error message="${x(c.error)}"/>`);
         }
-        for (const f of c.fallos) {
-            lineas.push(`    <failure message="${x(f)}"/>`);
+        for (const f of c.failures) {
+            lines.push(`    <failure message="${x(f)}"/>`);
         }
-        lineas.push('  </testcase>');
+        lines.push('  </testcase>');
     }
-    lineas.push('</testsuite>', '');
-    return lineas.join('\n');
+    lines.push('</testsuite>', '');
+    return lines.join('\n');
 }
 
 const x = (s: string) => String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-    // Un control (salvo tabulador y saltos) no es XML válido: se sustituye.
+    // A control character (other than tab and line breaks) is not valid XML: it is replaced.
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '?');

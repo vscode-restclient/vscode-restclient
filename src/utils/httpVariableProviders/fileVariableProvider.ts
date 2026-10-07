@@ -1,6 +1,6 @@
 import { TextDocument } from 'vscode';
 import * as Constants from '../../common/constants';
-import { cerrarImportaciones } from '../../core/importaciones';
+import { closeImports } from '../../core/imports';
 import { DocumentCache } from '../../models/documentCache';
 import { ResolveErrorMessage } from '../../models/httpVariableResolveResult';
 import { VariableType } from '../../models/variableType';
@@ -77,12 +77,12 @@ export class FileVariableProvider implements HttpVariableProvider {
 
         const fileContent = document.getText();
         const variables = new Map<string, FileVariableValue>();
-        // Primero las de los ficheros importados (`import ./comun.http`), en
-        // orden; después las propias, que por tanto mandan.
-        const textos = document.uri.scheme === 'file'
-            ? [...cerrarImportaciones(document.fileName, fileContent).importados.map(i => i.texto), fileContent]
+        // First those of the imported files (`import ./common.http`), in
+        // order; then the file's own, which therefore win.
+        const texts = document.uri.scheme === 'file'
+            ? [...closeImports(document.fileName, fileContent).imported.map(i => i.text), fileContent]
             : [fileContent];
-        for (const line of textos.flatMap(t => t.split(Constants.LineSplitterRegex))) {
+        for (const line of texts.flatMap(t => t.split(Constants.LineSplitterRegex))) {
             const regex = new RegExp(Constants.FileVariableDefinitionRegex, 'g');
             let match: RegExpExecArray | null;
             while (match = regex.exec(line)) {

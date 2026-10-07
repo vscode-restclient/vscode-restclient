@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import { faker } from '@faker-js/faker/locale/en';
-import { sustituir } from '../../cli/index';
+import { substitute } from '../../cli/index';
 import { fakerRegex, resolveFakerPath } from '../../utils/fakerShared';
 
 describe('faker: {{$faker module.property [params]}} (ported from rest-client-next)', () => {
@@ -31,12 +31,12 @@ describe('faker: {{$faker module.property [params]}} (ported from rest-client-ne
     });
 
     it('P-62 · el runner sustituye {{$faker ...}} igual que el editor', () => {
-        const salida = sustituir('GET https://x/?u={{$faker internet.username}}', {});
-        assert.ok(!salida.includes('{{'), `quedó sin sustituir: ${salida}`);
+        const output = substitute('GET https://x/?u={{$faker internet.username}}', {});
+        assert.ok(!output.includes('{{'), `quedó sin sustituir: ${output}`);
     });
 
     it('P-63 · en el runner, una ruta inexistente deja la variable como estaba', () => {
-        const salida = sustituir('{{$faker no.existe}}', {});
-        assert.strictEqual(salida, '{{$faker no.existe}}');
+        const output = substitute('{{$faker no.existe}}', {});
+        assert.strictEqual(output, '{{$faker no.existe}}');
     });
 });

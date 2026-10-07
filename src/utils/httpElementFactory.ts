@@ -23,7 +23,7 @@ export class HttpElementFactory {
         originalElements.push(new HttpElement('OPTIONS', ElementType.Method));
         originalElements.push(new HttpElement('TRACE', ElementType.Method));
         originalElements.push(new HttpElement('CONNECT', ElementType.Method));
-        // QUERY: metodo seguro e idempotente CON cuerpo (draft-ietf-httpbis-safe-method-w-body)
+        // QUERY: a safe, idempotent method WITH a body (draft-ietf-httpbis-safe-method-w-body)
         originalElements.push(new HttpElement('QUERY', ElementType.Method));
 
         // add http headers

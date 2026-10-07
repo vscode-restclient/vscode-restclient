@@ -1,102 +1,103 @@
 /**
- * WebSocket básico (#173 del original, +28 votos), con la sintaxis de
- * JetBrains: `WEBSOCKET wss://host/ruta`, cabeceras, y los mensajes en el
- * cuerpo separados por líneas `===`.
+ * Basic WebSocket (#173 upstream, +28 votes), with the JetBrains syntax:
+ * `WEBSOCKET wss://host/path`, headers, and the messages in the body separated
+ * by `===` lines.
  *
- * Abre, envía los mensajes en orden, escucha durante `ms` y cierra. Lo que
- * devuelve es una transcripción: `>> ` lo enviado, `<< ` lo recibido. Usa el
- * `WebSocket` global de Node ≥ 22: sin dependencias, y sin él se dice claro.
- * Sin `vscode`: lo usan el editor y el runner.
+ * Opens, sends the messages in order, listens for `ms` and closes. What comes
+ * back is a transcript: `>> ` for what was sent, `<< ` for what was received.
+ * Uses the global `WebSocket` of Node >= 22: no dependencies, and without it
+ * the error says so plainly. No `vscode` import: the editor and the runner
+ * both use this.
  */
-export interface ResultadoWs {
-    transcripcion: string;
-    enviados: string[];
-    recibidos: string[];
-    cerradoPor: 'tiempo' | 'servidor' | 'error';
-    detalle?: string;
+export interface WsResult {
+    transcript: string;
+    sent: string[];
+    received: string[];
+    closedBy: 'timeout' | 'server' | 'error';
+    detail?: string;
 }
 
-export const MS_ESCUCHA_POR_DEFECTO = 3000;
+export const DEFAULT_LISTEN_MS = 3000;
 
-/** Los mensajes del cuerpo: separados por líneas `===`; los vacíos no se envían. */
-export function mensajesDelCuerpo(cuerpo: string | undefined): string[] {
-    if (!cuerpo) {
+/** The messages in the body: separated by `===` lines; empty ones are not sent. */
+export function bodyMessages(body: string | undefined): string[] {
+    if (!body) {
         return [];
     }
-    return cuerpo.split(/^\s*===\s*$/m).map(m => m.trim()).filter(m => m.length > 0);
+    return body.split(/^\s*===\s*$/m).map(m => m.trim()).filter(m => m.length > 0);
 }
 
-export function hablar(url: string, cabeceras: Record<string, string>, mensajes: string[], ms: number = MS_ESCUCHA_POR_DEFECTO): Promise<ResultadoWs> {
-    const Ws = (globalThis as { WebSocket?: new (url: string, opciones?: unknown) => WebSocketMinimo }).WebSocket;
+export function talk(url: string, headers: Record<string, string>, messages: string[], ms: number = DEFAULT_LISTEN_MS): Promise<WsResult> {
+    const Ws = (globalThis as { WebSocket?: new (url: string, options?: unknown) => MinimalWebSocket }).WebSocket;
     if (!Ws) {
         return Promise.reject(new Error('WebSocket needs Node 22 or newer (no WebSocket global in this runtime)'));
     }
-    return new Promise(resolver => {
-        const enviados: string[] = [];
-        const recibidos: string[] = [];
-        const lineas: string[] = [];
-        let terminado = false;
-        let socket: WebSocketMinimo;
+    return new Promise(resolve => {
+        const sent: string[] = [];
+        const received: string[] = [];
+        const lines: string[] = [];
+        let finished = false;
+        let socket: MinimalWebSocket;
 
-        const cerrar = (cerradoPor: ResultadoWs['cerradoPor'], detalle?: string) => {
-            if (terminado) {
+        const close = (closedBy: WsResult['closedBy'], detail?: string) => {
+            if (finished) {
                 return;
             }
-            terminado = true;
-            clearTimeout(temporizador);
+            finished = true;
+            clearTimeout(timer);
             try {
                 socket.close();
-            } catch { /* ya cerrado */ }
-            if (detalle) {
-                lineas.push(`-- ${detalle}`);
+            } catch { /* already closed */ }
+            if (detail) {
+                lines.push(`-- ${detail}`);
             }
-            resolver({ transcripcion: lineas.join('\n'), enviados, recibidos, cerradoPor, detalle });
+            resolve({ transcript: lines.join('\n'), sent, received, closedBy, detail });
         };
-        const temporizador = setTimeout(() => cerrar('tiempo', `closed after ${ms} ms`), ms);
+        const timer = setTimeout(() => close('timeout', `closed after ${ms} ms`), ms);
 
         try {
-            // undici admite cabeceras propias como extensión de la API estándar.
-            socket = new Ws(url, { headers: cabeceras });
+            // undici accepts custom headers as an extension to the standard API.
+            socket = new Ws(url, { headers: headers });
         } catch (e) {
-            clearTimeout(temporizador);
-            resolver({ transcripcion: `-- ${mensajeDe(e)}`, enviados, recibidos, cerradoPor: 'error', detalle: mensajeDe(e) });
+            clearTimeout(timer);
+            resolve({ transcript: `-- ${messageOf(e)}`, sent, received, closedBy: 'error', detail: messageOf(e) });
             return;
         }
         socket.addEventListener('open', () => {
-            for (const m of mensajes) {
+            for (const m of messages) {
                 socket.send(m);
-                enviados.push(m);
-                lineas.push(`>> ${m}`);
+                sent.push(m);
+                lines.push(`>> ${m}`);
             }
         });
         socket.addEventListener('message', (ev: { data: unknown }) => {
-            const texto = typeof ev.data === 'string' ? ev.data : `[binary ${(ev.data as { byteLength?: number })?.byteLength ?? '?'} bytes]`;
-            recibidos.push(texto);
-            lineas.push(`<< ${texto}`);
+            const text = typeof ev.data === 'string' ? ev.data : `[binary ${(ev.data as { byteLength?: number })?.byteLength ?? '?'} bytes]`;
+            received.push(text);
+            lines.push(`<< ${text}`);
         });
-        socket.addEventListener('close', (ev: { code?: number; reason?: string }) => cerrar('servidor', `server closed (${ev.code ?? ''}${ev.reason ? ' ' + ev.reason : ''})`));
-        socket.addEventListener('error', (ev: { message?: string; error?: unknown }) => cerrar('error', ev.message ?? mensajeDe(ev.error) ?? 'connection error'));
+        socket.addEventListener('close', (ev: { code?: number; reason?: string }) => close('server', `server closed (${ev.code ?? ''}${ev.reason ? ' ' + ev.reason : ''})`));
+        socket.addEventListener('error', (ev: { message?: string; error?: unknown }) => close('error', ev.message ?? messageOf(ev.error) ?? 'connection error'));
     });
 }
 
-/** Lo que las aserciones necesitan de una transcripción: cuántos mensajes llegaron y cuál fue el último. */
-export function leerTranscripcion(texto: string): { recibidos: string[]; enviados: string[] } {
-    const recibidos: string[] = [];
-    const enviados: string[] = [];
-    for (const l of texto.split(/\r?\n/)) {
+/** What assertions need from a transcript: how many messages arrived and which was the last. */
+export function readTranscript(text: string): { received: string[]; sent: string[] } {
+    const received: string[] = [];
+    const sent: string[] = [];
+    for (const l of text.split(/\r?\n/)) {
         if (l.startsWith('<< ')) {
-            recibidos.push(l.slice(3));
+            received.push(l.slice(3));
         } else if (l.startsWith('>> ')) {
-            enviados.push(l.slice(3));
+            sent.push(l.slice(3));
         }
     }
-    return { recibidos, enviados };
+    return { received, sent };
 }
 
-const mensajeDe = (e: unknown) => (e instanceof Error ? e.message : e === undefined ? undefined : String(e));
+const messageOf = (e: unknown) => (e instanceof Error ? e.message : e === undefined ? undefined : String(e));
 
-interface WebSocketMinimo {
-    send(datos: string): void;
+interface MinimalWebSocket {
+    send(data: string): void;
     close(): void;
-    addEventListener(tipo: string, escucha: (ev: never) => void): void;
+    addEventListener(eventType: string, listener: (ev: never) => void): void;
 }

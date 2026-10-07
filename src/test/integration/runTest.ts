@@ -7,23 +7,23 @@ import { runTests } from '@vscode/test-electron';
 /** Levanta un servidor de prueba local y corre la suite contra él. */
 async function main(): Promise<void> {
   delete process.env.ELECTRON_RUN_AS_NODE;
-  const raiz = path.resolve(__dirname, '../../../');
+  const root = path.resolve(__dirname, '../../../');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-it-'));
-  // Servidor de pruebas compartido con la suite del runner (scripts/servidor-pruebas.cjs):
+  // Servidor de pruebas compartido con la suite del runner (scripts/test-server.cjs):
   // eco, códigos de estado, JSON, XML, redirección, SSE y un WebSocket de eco.
-  const servidor = path.join(raiz, 'scripts', 'servidor-pruebas.cjs');
-  const hijo = cp.spawn(process.execPath, [servidor, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
-  const puerto: string = await new Promise((res, rej) => {
-    hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).puerto)));
+  const server = path.join(root, 'scripts', 'test-server.cjs');
+  const hijo = cp.spawn(process.execPath, [server, '::1'], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const port: string = await new Promise((res, rej) => {
+    hijo.stdout!.once('data', (d) => res(String(JSON.parse(d.toString()).port)));
     setTimeout(() => rej(new Error('el servidor de prueba no arrancó')), 10000);
   });
-  console.log(`servidor de prueba en el puerto ${puerto}`);
+  console.log(`servidor de prueba en el puerto ${port}`);
 
   // Se simula a alguien que YA tenía REST Client: sus ajustes viven en el
   // settings.json del usuario. VS Code no deja escribirlos desde la API si la
   // sección no está declarada por ninguna extensión instalada, así que la única
   // forma fiel de probar la herencia es dejarlos puestos de antemano.
-  const userDir = path.join(raiz, '.vscode-test', 'user-data', 'User');
+  const userDir = path.join(root, '.vscode-test', 'user-data', 'User');
   fs.mkdirSync(userDir, { recursive: true });
   fs.writeFileSync(
     path.join(userDir, 'settings.json'),
@@ -32,10 +32,10 @@ async function main(): Promise<void> {
 
   try {
     await runTests({
-      extensionDevelopmentPath: raiz,
+      extensionDevelopmentPath: root,
       extensionTestsPath: path.resolve(__dirname, './suite/index'),
-      launchArgs: [tmp, `--user-data-dir=${path.join(raiz, '.vscode-test', 'user-data')}`, '--disable-extensions'],
-      extensionTestsEnv: { RC_TEST_PUERTO: puerto, HK_SOLO: process.env.HK_SOLO ?? '' },
+      launchArgs: [tmp, `--user-data-dir=${path.join(root, '.vscode-test', 'user-data')}`, '--disable-extensions'],
+      extensionTestsEnv: { RC_TEST_PUERTO: port, HK_SOLO: process.env.HK_SOLO ?? '' },
     });
   } finally {
     hijo.kill();

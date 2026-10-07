@@ -5,15 +5,15 @@
 // y un WebSocket de eco escrito a mano (RFC 6455, tramas de texto), para no
 // meter una dependencia solo para probar.
 //
-//   node servidor-pruebas.cjs [host]   -> imprime {"puerto": N}
+//   node test-server.cjs [host]   -> imprime {"port": N}
 const http = require('http');
 const crypto = require('crypto');
 
 const host = process.argv[2] || '127.0.0.1';
 
-const json = (r, codigo, cuerpo, extra = {}) => {
-  r.writeHead(codigo, { 'content-type': 'application/json', ...extra });
-  r.end(JSON.stringify(cuerpo, null, 1));
+const json = (r, status, body, extra = {}) => {
+  r.writeHead(status, { 'content-type': 'application/json', ...extra });
+  r.end(JSON.stringify(body, null, 1));
 };
 
 const s = http.createServer((q, r) => {
@@ -21,30 +21,30 @@ const s = http.createServer((q, r) => {
   q.on('data', c => b += c);
   q.on('end', () => {
     const u = q.url;
-    const eco = () => ({ metodo: q.method, ruta: u, cabecera: q.headers['x-prueba'] || null, agente: q.headers['user-agent'] || null, recibido: b });
-    if (u.startsWith('/estado/')) { const c = Number(u.split('/')[2]) || 500; return json(r, c, { error: 'vaya', estado: c }, { 'x-ruta': u }); }
+    const eco = () => ({ method: q.method, path: u, header: q.headers['x-test'] || null, agent: q.headers['user-agent'] || null, received: b });
+    if (u.startsWith('/status/')) { const c = Number(u.split('/')[2]) || 500; return json(r, c, { error: 'oops', status: c }, { 'x-path': u }); }
     if (u === '/redirige') { r.writeHead(302, { location: '/destino' }); return r.end(); }
-    if (u === '/lento') { return setTimeout(() => json(r, 200, eco(), { 'x-ruta': u }), 1500); }
-    if (u === '/lista') { return json(r, 200, { items: [{ id: 7 }, { id: 9 }] }, { 'x-ruta': u }); }
-    if (u === '/json') { return json(r, 200, { anidado: { a: 1, b: [1, 2, 3] } }, { 'x-ruta': u }); }
-    if (u === '/texto') { r.writeHead(200, { 'content-type': 'text/plain', 'x-ruta': u }); return r.end('soy texto plano'); }
-    if (u === '/xml') { r.writeHead(200, { 'content-type': 'application/xml', 'x-ruta': u }); return r.end('<raiz><hijo>valor</hijo></raiz>'); }
+    if (u === '/slow') { return setTimeout(() => json(r, 200, eco(), { 'x-path': u }), 1500); }
+    if (u === '/list') { return json(r, 200, { items: [{ id: 7 }, { id: 9 }] }, { 'x-path': u }); }
+    if (u === '/json') { return json(r, 200, { nested: { a: 1, b: [1, 2, 3] } }, { 'x-path': u }); }
+    if (u === '/text') { r.writeHead(200, { 'content-type': 'text/plain', 'x-path': u }); return r.end('plain text here'); }
+    if (u === '/xml') { r.writeHead(200, { 'content-type': 'application/xml', 'x-path': u }); return r.end('<root><child>value</child></root>'); }
     if (u === '/auth') { return json(r, 200, { token: 'tok-123' }); }
-    if (u.startsWith('/eco')) { return json(r, 200, { ruta: u, cabecera: q.headers['x-prueba'] || null, autorizacion: q.headers.authorization || null, recibido: b }); }
+    if (u.startsWith('/echo')) { return json(r, 200, { path: u, header: q.headers['x-test'] || null, authorization: q.headers.authorization || null, received: b }); }
     if (u.startsWith('/facturas')) {
       const ok = q.headers.authorization === 'Bearer tok-123';
-      return json(r, ok ? 200 : 401, { total: ok ? 3 : 0, autorizacion: q.headers.authorization || null });
+      return json(r, ok ? 200 : 401, { total: ok ? 3 : 0, authorization: q.headers.authorization || null });
     }
-    if (u === '/no-existe') { return json(r, 404, { error: 'no existe' }); }
+    if (u === '/not-found') { return json(r, 404, { error: 'no existe' }); }
     if (u.startsWith('/sse')) {
       // Tres eventos espaciados: el panel tiene que pintarlos según llegan.
-      r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-ruta': u });
+      r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-path': u });
       r.write(': latido\n\n');
-      const eventos = ['{"delta":"Hola"}', '{"delta":" mundo"}', '[DONE]'];
+      const events = ['{"delta":"Hola"}', '{"delta":" mundo"}', '[DONE]'];
       let i = 0;
       const tic = setInterval(() => {
-        if (i < eventos.length) {
-          r.write(`id: ${i + 1}\nevent: token\ndata: ${eventos[i++]}\n\n`);
+        if (i < events.length) {
+          r.write(`id: ${i + 1}\nevent: token\ndata: ${events[i++]}\n\n`);
         } else {
           clearInterval(tic);
           r.end();
@@ -52,27 +52,27 @@ const s = http.createServer((q, r) => {
       }, 200);
       return;
     }
-    json(r, 200, eco(), { 'x-ruta': u });
+    json(r, 200, eco(), { 'x-path': u });
   });
 });
 
 // --- WebSocket de eco: saluda al conectar y devuelve "eco: <mensaje>" ---------
 s.on('upgrade', (q, socket) => {
-  const clave = q.headers['sec-websocket-key'];
-  if (!clave) { socket.destroy(); return; }
-  const aceptar = crypto.createHash('sha1').update(clave + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+  const key = q.headers['sec-websocket-key'];
+  if (!key) { socket.destroy(); return; }
+  const aceptar = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
   socket.write(['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade', `Sec-WebSocket-Accept: ${aceptar}`, '', ''].join('\r\n'));
-  const enviar = (texto) => {
-    const datos = Buffer.from(texto, 'utf8');
-    const cabecera = datos.length < 126
-      ? Buffer.from([0x81, datos.length])
-      : Buffer.concat([Buffer.from([0x81, 126]), Buffer.from([(datos.length >> 8) & 0xff, datos.length & 0xff])]);
-    socket.write(Buffer.concat([cabecera, datos]));
+  const enviar = (text) => {
+    const data = Buffer.from(text, 'utf8');
+    const header = data.length < 126
+      ? Buffer.from([0x81, data.length])
+      : Buffer.concat([Buffer.from([0x81, 126]), Buffer.from([(data.length >> 8) & 0xff, data.length & 0xff])]);
+    socket.write(Buffer.concat([header, data]));
   };
-  enviar(`hola ${q.headers['x-prueba'] || 'anonimo'}`);
+  enviar(`hola ${q.headers['x-test'] || 'anonimo'}`);
   let resto = Buffer.alloc(0);
-  socket.on('data', (trozo) => {
-    resto = Buffer.concat([resto, trozo]);
+  socket.on('data', (chunk) => {
+    resto = Buffer.concat([resto, chunk]);
     for (;;) {
       if (resto.length < 2) return;
       const op = resto[0] & 0x0f;
@@ -97,4 +97,4 @@ s.on('upgrade', (q, socket) => {
   socket.on('error', () => { /* el cliente se fue */ });
 });
 
-s.listen(0, host, () => console.log(JSON.stringify({ puerto: s.address().port })));
+s.listen(0, host, () => console.log(JSON.stringify({ port: s.address().port })));

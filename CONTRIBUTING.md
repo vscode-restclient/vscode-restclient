@@ -27,4 +27,4 @@ licensing, privacy, packaging, e2e of the runner and the MCP server) plus the
 unit and integration suites (`npm test`). CI runs all of it on the three
 platforms; running it locally first saves everyone a round trip. If you add a
 production dependency, regenerate the third-party notices with
-`node scripts/generar-notices.mjs` — the audit fails if you forget.
+`node scripts/generate-notices.mjs` — the audit fails if you forget.

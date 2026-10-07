@@ -10,7 +10,7 @@ import { trace } from '../utils/decorator';
 import { disposeAll } from '../utils/dispose';
 import { MimeUtility } from '../utils/mimeUtility';
 import { base64, formatHeaders, getHeader, isJSONString } from '../utils/misc';
-import { MetaRespuesta } from '../utils/httpClient';
+import { ResponseMeta } from '../utils/httpClient';
 import { ResponseFormatUtility } from '../utils/responseFormatUtility';
 import { UserDataManager } from '../utils/userDataManager';
 import { BaseWebview } from './baseWebview';
@@ -72,8 +72,8 @@ export class HttpResponseWebview extends BaseWebview {
     }
 
     public async render(response: HttpResponse, column: ViewColumn) {
-        const panel = this.obtenerPanel(column, this.getTitle(response));
-        this.panelStreaming = undefined;
+        const panel = this.getPanel(column, this.getTitle(response));
+        this.streamingPanel = undefined;
 
         panel.webview.html = this.getHtmlForWebview(panel, response);
 
@@ -87,13 +87,13 @@ export class HttpResponseWebview extends BaseWebview {
         this.setIsHTMLResponse(this.activeResponse);
     }
 
-    private panelStreaming: WebviewPanel | undefined;
+    private streamingPanel: WebviewPanel | undefined;
 
-    /** Abre (o reutiliza) el panel con la línea de estado y las cabeceras; el cuerpo llega por trozos. */
-    public iniciarStreaming(request: HttpRequest, meta: MetaRespuesta, column: ViewColumn) {
-        const prefijo = (this.settings.requestNameAsResponseTabTitle && request.name) || 'Response';
-        const panel = this.obtenerPanel(column, `${prefijo} (streaming…)`);
-        const cabecera = hljs.highlight('http', `HTTP/${meta.version} ${meta.estado} ${meta.mensaje}\n${formatHeaders(meta.cabeceras)}`).value;
+    /** Opens (or reuses) the panel with the status line and the headers; the body arrives in chunks. */
+    public startStreaming(request: HttpRequest, meta: ResponseMeta, column: ViewColumn) {
+        const prefix = (this.settings.requestNameAsResponseTabTitle && request.name) || 'Response';
+        const panel = this.getPanel(column, `${prefix} (streaming…)`);
+        const header = hljs.highlight('http', `HTTP/${meta.version} ${meta.status} ${meta.message}\n${formatHeaders(meta.headers)}`).value;
         const nonce = new Date().getTime() + '' + new Date().getMilliseconds();
         panel.webview.html = `
     <head>
@@ -105,31 +105,35 @@ export class HttpResponseWebview extends BaseWebview {
     </head>
     <body>
         <div>
-            <pre><code>${cabecera}</code></pre>
+            <pre><code>${header}</code></pre>
             <pre id="stream" class="stream"></pre>
         </div>
         <script type="text/javascript" src="${panel.webview.asWebviewUri(this.scriptFilePath)}" nonce="${nonce}" charset="UTF-8"></script>
     </body>`;
         panel.reveal(column, !this.settings.previewResponsePanelTakeFocus);
-        this.panelStreaming = panel;
+        this.streamingPanel = panel;
         this.activePanel = panel;
     }
 
-    public anadirTrozo(texto: string) {
-        this.panelStreaming?.webview.postMessage({ command: 'trozo', texto });
+    // The keys below are a contract with webview/main.js, which is plain
+    // JavaScript outside the TypeScript program: nothing type-checks it. They
+    // are spelled out rather than written as shorthand so that renaming a
+    // variable here cannot silently rename a message key there.
+    public appendChunk(text: string) {
+        this.streamingPanel?.webview.postMessage({ command: 'chunk', text: text });
     }
 
-    public terminarStreaming(nota: string) {
-        this.panelStreaming?.webview.postMessage({ command: 'fin', nota });
-        this.panelStreaming = undefined;
+    public finishStreaming(note: string) {
+        this.streamingPanel?.webview.postMessage({ command: 'end', note: note });
+        this.streamingPanel = undefined;
     }
 
-    private obtenerPanel(column: ViewColumn, titulo: string): WebviewPanel {
+    private getPanel(column: ViewColumn, title: string): WebviewPanel {
         let panel: WebviewPanel;
         if (this.settings.showResponseInDifferentTab || this.panels.length === 0) {
             panel = window.createWebviewPanel(
                 this.viewType,
-                titulo,
+                title,
                 { viewColumn: column, preserveFocus: !this.settings.previewResponsePanelTakeFocus },
                 {
                     enableFindWidget: true,
@@ -166,7 +170,7 @@ export class HttpResponseWebview extends BaseWebview {
             this.panels.push(panel);
         } else {
             panel = this.panels[this.panels.length - 1];
-            panel.title = titulo;
+            panel.title = title;
         }
         return panel;
     }

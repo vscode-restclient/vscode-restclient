@@ -1,7 +1,7 @@
 // Guion de la demo: se ejecuta DENTRO de VS Code (extensionTestsPath) y hace
 // lo que haria una persona, con los comandos de verdad de la extension. No hay
 // nada montado para la camara: las respuestas salen del servidor local que
-// levanta lanzar.mjs.
+// levanta launch.mjs.
 //
 // Cada plano deja la escena limpia antes de posar, escribe una senal en disco
 // para que el capturador sepa como se llama el PNG, y espera.
@@ -13,7 +13,7 @@ const SALIDA = process.env.DEMO_SALIDA;
 const PUERTO = process.env.DEMO_PUERTO;
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const senal = (nombre) => fs.writeFileSync(path.join(SALIDA, 'plano.txt'), nombre);
+const senal = (name) => fs.writeFileSync(path.join(SALIDA, 'plano.txt'), name);
 
 async function limpiar() {
     for (const c of [
@@ -26,17 +26,17 @@ async function limpiar() {
     }
 }
 
-async function abrir(fichero, columna = vscode.ViewColumn.One) {
-    const uri = vscode.Uri.file(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, fichero));
+async function abrir(file, columna = vscode.ViewColumn.One) {
+    const uri = vscode.Uri.file(path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, file));
     const doc = await vscode.workspace.openTextDocument(uri);
     return vscode.window.showTextDocument(doc, { viewColumn: columna, preview: false });
 }
 
-/** Deja el cursor en la peticion que empieza por `texto` y la envia. */
-async function enviar(editor, texto) {
-    const linea = editor.document.getText().split(/\r?\n/).findIndex((l) => l.startsWith(texto));
-    if (linea < 0) throw new Error(`no encuentro la peticion "${texto}"`);
-    const pos = new vscode.Position(linea, 0);
+/** Deja el cursor en la peticion que empieza por `text` y la envia. */
+async function enviar(editor, text) {
+    const line = editor.document.getText().split(/\r?\n/).findIndex((l) => l.startsWith(text));
+    if (line < 0) throw new Error(`no encuentro la peticion "${text}"`);
+    const pos = new vscode.Position(line, 0);
     editor.selection = new vscode.Selection(pos, pos);
     editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
     await espera(400);

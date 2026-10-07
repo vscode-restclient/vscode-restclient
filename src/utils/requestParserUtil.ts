@@ -36,8 +36,8 @@ export function parseRequestHeaders(headerLines: string[], defaultHeaders: Reque
     return { ...defaultHeaders, ...headers };
 }
 
-/** Utilidades del editor, sólo si estamos dentro de él. */
-function enEditor(): typeof import('./workspaceUtility') | undefined {
+/** Editor utilities, only when we are running inside it. */
+function inEditor(): typeof import('./workspaceUtility') | undefined {
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         require('vscode');
@@ -53,9 +53,9 @@ export async function resolveRequestBodyPath(refPath: string): Promise<string | 
         return (await fs.pathExists(refPath)) ? refPath : undefined;
     }
 
-    // El editor se consulta en diferido: fuera de VS Code este bloque no corre
-    // y la ruta se resuelve contra el fichero actual, más abajo.
-    const workspaceRoot = enEditor()?.getWorkspaceRootPath();
+    // The editor is consulted lazily: outside VS Code this block does not run
+    // and the path is resolved against the current file, further down.
+    const workspaceRoot = inEditor()?.getWorkspaceRootPath();
     if (workspaceRoot) {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { Uri } = require('vscode');
@@ -65,7 +65,7 @@ export async function resolveRequestBodyPath(refPath: string): Promise<string | 
         }
     }
 
-    const currentFile = enEditor()?.getCurrentTextDocument()?.fileName;
+    const currentFile = inEditor()?.getCurrentTextDocument()?.fileName;
     if (currentFile) {
         const absolutePath = path.join(path.dirname(currentFile), refPath);
         if (await fs.pathExists(absolutePath)) {

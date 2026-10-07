@@ -17,7 +17,7 @@ const RECORTE_ARRIBA = 34; // la barra de titulo delata el "Extension Developmen
 
 const ffmpeg = process.env.FFMPEG ?? 'ffmpeg';
 
-const indice = fs.readFileSync(path.join(DEMO, 'indice.csv'), 'utf8')
+const index = fs.readFileSync(path.join(DEMO, 'indice.csv'), 'utf8')
     .replace(/^﻿/, '')
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -25,7 +25,7 @@ const indice = fs.readFileSync(path.join(DEMO, 'indice.csv'), 'utf8')
     .map((l) => { const [n, plano] = l.split(','); return { n: Number(n), plano }; });
 
 const primeros = new Map();
-for (const { n, plano } of indice) if (!primeros.has(plano)) primeros.set(plano, n);
+for (const { n, plano } of index) if (!primeros.has(plano)) primeros.set(plano, n);
 
 fs.rmSync(SHOTS, { recursive: true, force: true });
 fs.mkdirSync(SHOTS, { recursive: true });

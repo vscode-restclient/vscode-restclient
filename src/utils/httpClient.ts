@@ -15,35 +15,35 @@ import { proxyAgents } from './proxyAgents';
 import { base64, getHeader, removeHeader } from './misc';
 import { convertBufferToStream, convertStreamToBuffer } from './streamUtility';
 import { UserDataManager } from './userDataManager';
-import { Entorno } from '../core/entorno';
+import { EnvironmentData } from '../core/environment';
 
-function ajustesDelEditor(): IRestClientSettings {
+function editorSettings(): IRestClientSettings {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require('../models/configurationSettings').SystemSettings.Instance;
 }
 
 /**
- * Entorno por defecto: el del editor. Es el único punto de este fichero que
- * conoce VS Code, y se carga en diferido para que el runner de terminal nunca
- * llegue a importarlo.
+ * Default environment: the editor's. This is the only place in this file that
+ * knows about VS Code, and it loads lazily so the terminal runner never ends
+ * up importing it.
  */
-const ENTORNO_EDITOR: Entorno = {
-    avisar: (mensaje: string) => {
+const EDITOR_ENVIRONMENT: EnvironmentData = {
+    warn: (message: string) => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { window } = require('vscode');
-        window.showWarningMessage(mensaje);
+        window.showWarningMessage(message);
     },
-    raiz: () => {
+    root: () => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const raiz = require('./workspaceUtility').getWorkspaceRootPath();
-        if (!raiz) {
+        const root = require('./workspaceUtility').getWorkspaceRootPath();
+        if (!root) {
             return undefined;
         }
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { Uri } = require('vscode');
-        return Uri.parse(raiz).fsPath as string;
+        return Uri.parse(root).fsPath as string;
     },
-    ficheroActual: () => {
+    currentFile: () => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         return require('./workspaceUtility').getCurrentHttpFileName();
     }
@@ -56,16 +56,16 @@ import * as crypto from 'crypto';
 const encodeUrl = require('encodeurl');
 const CookieFileStore = require('tough-cookie-file-store').FileCookieStore;
 
-/** Meta de la respuesta en cuanto llegan las cabeceras, antes del cuerpo. */
-export interface MetaRespuesta {
-    estado: number;
-    mensaje: string;
+/** Response metadata as soon as the headers arrive, before the body. */
+export interface ResponseMeta {
+    status: number;
+    message: string;
     version: string;
-    cabeceras: ResponseHeaders;
+    headers: ResponseHeaders;
 }
 
-/** Se llama por cada trozo del cuerpo según llega: es lo que permite pintar un stream en vivo. */
-export type AlRecibir = (trozo: Buffer, meta: MetaRespuesta) => void;
+/** Called for each chunk of the body as it arrives: this is what lets a stream be painted live. */
+export type OnReceive = (chunk: Buffer, meta: ResponseMeta) => void;
 
 type Certificate = {
     cert?: Buffer;
@@ -77,16 +77,16 @@ type Certificate = {
 export class HttpClient {
     private cookieStore: Store;
 
-    public constructor(private readonly _entorno?: Entorno) {
+    public constructor(private readonly _environment?: EnvironmentData) {
         const cookieFilePath = UserDataManager.cookieFilePath;
         this.cookieStore = new CookieFileStore(cookieFilePath) as Store;
     }
 
-    public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, alRecibir?: AlRecibir): Promise<HttpResponse> {
-        // Los ajustes del editor se cargan en diferido: quien llame desde la
-        // terminal pasa los suyos y nunca entra aquí, que es lo que mantiene
-        // este fichero libre de VS Code.
-        settings = settings || ajustesDelEditor();
+    public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, onReceive?: OnReceive): Promise<HttpResponse> {
+        // Editor settings load lazily: a caller from the terminal passes its
+        // own and never reaches this line, which is what keeps this file free
+        // of VS Code.
+        settings = settings || editorSettings();
 
         const options = await this.prepareOptions(httpRequest, settings);
 
@@ -100,15 +100,15 @@ export class HttpClient {
                 headersSize += res.rawHeaders.map(h => h.length).reduce((a, b) => a + b, 0);
                 headersSize += (res.rawHeaders.length) / 2;
             }
-            const meta: MetaRespuesta = {
-                estado: res.statusCode ?? 0,
-                mensaje: res.statusMessage ?? '',
+            const meta: ResponseMeta = {
+                status: res.statusCode ?? 0,
+                message: res.statusMessage ?? '',
                 version: res.httpVersion ?? '1.1',
-                cabeceras: HttpClient.normalizeHeaderNames(res.headers, res.rawHeaders ?? [])
+                headers: HttpClient.normalizeHeaderNames(res.headers, res.rawHeaders ?? [])
             };
             res.on('data', chunk => {
                 bodySize += chunk.length;
-                alRecibir?.(chunk, meta);
+                onReceive?.(chunk, meta);
             });
         });
 
@@ -220,27 +220,27 @@ export class HttpClient {
             const [scheme, user, ...args] = authorization.split(/\s+/);
             const normalizedScheme = scheme.toLowerCase();
             if (normalizedScheme === 'basic' && user !== undefined) {
-                // `Basic usuario:contraseña` con dos puntos o espacios DENTRO de
-                // la contraseña: se parte por el PRIMER `:` de todo lo que sigue
-                // al esquema. Antes se partía por cada espacio y por cada `:`, así
-                // que «admin:it's a total eclipse» llegaba truncada (upstream
+                // `Basic user:password` with colons or spaces INSIDE the
+                // password: split on the FIRST `:` of everything after the
+                // scheme. It used to split on every space and every `:`, so
+                // «admin:it's a total eclipse» arrived truncated (upstream
                 // #1419).
-                const resto = [user, ...args].join(' ');
-                const dosPuntos = resto.indexOf(':');
-                let credencial: string | undefined;
-                if (dosPuntos >= 0) {
-                    credencial = resto;
+                const rest = [user, ...args].join(' ');
+                const colon = rest.indexOf(':');
+                let credential: string | undefined;
+                if (colon >= 0) {
+                    credential = rest;
                 } else if (args.length > 0) {
-                    credencial = `${user}:${args.join(' ')}`;
+                    credential = `${user}:${args.join(' ')}`;
                 }
-                // Sin `:` y sin segundo argumento, lo que hay ya es el base64 de
-                // `usuario:contraseña`: se deja intacto, como siempre.
-                if (credencial !== undefined) {
-                    // La cabecera se construye aquí en vez de dejársela a `got`
-                    // por `username`/`password`: got la mete en la URL y sale
-                    // con escapes («it's%20a%20total%3A%20eclipse»).
+                // With no `:` and no second argument, what is there is already
+                // the base64 of `user:password`: left untouched, as always.
+                if (credential !== undefined) {
+                    // The header is built here rather than left to `got` via
+                    // `username`/`password`: got puts it in the URL, which
+                    // escapes it («it's%20a%20total%3A%20eclipse»).
                     removeHeader(options.headers!, 'Authorization');
-                    (options.headers as Record<string, string>)['Authorization'] = `Basic ${base64(credencial)}`;
+                    (options.headers as Record<string, string>)['Authorization'] = `Basic ${base64(credential)}`;
                 }
             } else if (args.length > 0) {
                 const pass = args.join(' ');
@@ -322,11 +322,11 @@ export class HttpClient {
     }
 
     /**
-     * Avisos y raíz de rutas. Inyectarlos es lo único que separaba a este
-     * cliente de poder ejecutarse fuera de VS Code.
+     * Warnings and the root for paths. Injecting them was the only thing
+     * standing between this client and running outside VS Code.
      */
-    private get entorno(): Entorno {
-        return this._entorno ?? ENTORNO_EDITOR;
+    private get environment(): EnvironmentData {
+        return this._environment ?? EDITOR_ENVIRONMENT;
     }
 
     private resolveCertificate(absoluteOrRelativePath: string | undefined): Buffer | undefined {
@@ -336,7 +336,7 @@ export class HttpClient {
 
         if (path.isAbsolute(absoluteOrRelativePath)) {
             if (!fs.existsSync(absoluteOrRelativePath)) {
-                this.entorno.avisar(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+                this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
                 return undefined;
             } else {
                 return fs.readFileSync(absoluteOrRelativePath);
@@ -344,19 +344,19 @@ export class HttpClient {
         }
 
         // the path should be relative path
-        const rootPath = this.entorno.raiz();
+        const rootPath = this.environment.root();
         let absolutePath = '';
         if (rootPath) {
             absolutePath = path.join(rootPath, absoluteOrRelativePath);
             if (fs.existsSync(absolutePath)) {
                 return fs.readFileSync(absolutePath);
             } else {
-                this.entorno.avisar(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+                this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
                 return undefined;
             }
         }
 
-        const currentFilePath = this.entorno.ficheroActual();
+        const currentFilePath = this.environment.currentFile();
         if (!currentFilePath) {
             return undefined;
         }
@@ -365,7 +365,7 @@ export class HttpClient {
         if (fs.existsSync(absolutePath)) {
             return fs.readFileSync(absolutePath);
         } else {
-            this.entorno.avisar(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+            this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
             return undefined;
         }
     }
