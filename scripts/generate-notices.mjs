@@ -1,23 +1,22 @@
-// Genera THIRD-PARTY-NOTICES.txt a partir del arbol real de produccion.
+// Generates THIRD-PARTY-NOTICES.txt from the real production tree.
 //
-//   node scripts/generate-notices.mjs           reescribe el fichero
-//   node scripts/generate-notices.mjs --check   sale 1 si el fichero esta desfasado
+//   node scripts/generate-notices.mjs           rewrites the file
+//   node scripts/generate-notices.mjs --check   exits 1 if the file is out of date
 //
-// Recorre `npm ls --omit=dev --all --json` (lo que de verdad viaja en el
-// paquete), y para cada paquete unico copia su fichero de licencia desde
-// node_modules. Si un paquete no adjunta el fichero, se deja constancia del
-// identificador SPDX que declara: mejor un aviso honesto que un texto
-// inventado. La auditoria sigue comprobando aparte que ningun paquete de
-// produccion quede sin entrada.
+// Walks `npm ls --omit=dev --all --json` (what actually ships in the package)
+// and, for every unique package, copies its license file from node_modules. If
+// a package ships no such file, the SPDX identifier it declares is recorded: an
+// honest notice beats an invented text. The audit checks separately that no
+// production package is left without an entry.
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const RAIZ = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
-const SALIDA = path.join(RAIZ, 'THIRD-PARTY-NOTICES.txt');
+const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+const OUTPUT = path.join(ROOT, 'THIRD-PARTY-NOTICES.txt');
 const SEP = '='.repeat(78);
 
-// npm mete avisos en la salida --json (nos tumbo la CI una vez): extraer el objeto.
+// npm puts notices into the --json output (it took our CI down once): extract the object.
 const json = (output) => {
   const i = output.indexOf('{');
   const f = output.lastIndexOf('}');
@@ -31,124 +30,124 @@ const json = (output) => {
   }
 };
 
-let arbolCrudo = '';
+let rawTree = '';
 try {
-  arbolCrudo = execSync('npm ls --omit=dev --all --json', { cwd: RAIZ, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  rawTree = execSync('npm ls --omit=dev --all --json', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
 } catch (e) {
-  arbolCrudo = e.stdout ?? '';
+  rawTree = e.stdout ?? '';
 }
-const arbol = json(arbolCrudo);
+const tree = json(rawTree);
 
-const paquetes = new Map(); // "nombre@version" -> nombre
-const recorrer = (nodo) => {
-  for (const [name, v] of Object.entries(nodo?.dependencies ?? {})) {
+const packages = new Map(); // "name@version" -> name
+const walk = (node) => {
+  for (const [name, v] of Object.entries(node?.dependencies ?? {})) {
     if (!v.version) {
-      continue; // opcional que npm no instalo: no viaja, no cuenta
+      continue; // optional dependency npm did not install: it does not ship, it does not count
     }
-    paquetes.set(`${name}@${v.version}`, name);
-    recorrer(v);
+    packages.set(`${name}@${v.version}`, name);
+    walk(v);
   }
 };
-recorrer(arbol);
+walk(tree);
 
-// npm anida paquetes cuando conviven dos versiones (p. ej.
-// string-width/node_modules/is-fullwidth-code-point): el directorio real de
-// cada nombre@version se localiza recorriendo el arbol de disco una vez.
-const dirPorClave = new Map();
-const escanear = (dirNM) => {
-  let hijos = [];
+// npm nests packages when two versions coexist (e.g.
+// string-width/node_modules/is-fullwidth-code-point): the real directory of
+// each name@version is found by walking the tree on disk once.
+const dirByKey = new Map();
+const scan = (dirNM) => {
+  let children = [];
   try {
-    hijos = fs.readdirSync(dirNM);
+    children = fs.readdirSync(dirNM);
   } catch {
     return;
   }
-  for (const hijo of hijos) {
-    if (hijo.startsWith('.')) {
+  for (const child of children) {
+    if (child.startsWith('.')) {
       continue;
     }
-    const candidatos = hijo.startsWith('@')
-      ? (() => { try { return fs.readdirSync(path.join(dirNM, hijo)).map((x) => `${hijo}/${x}`); } catch { return []; } })()
-      : [hijo];
-    for (const name of candidatos) {
+    const candidates = child.startsWith('@')
+      ? (() => { try { return fs.readdirSync(path.join(dirNM, child)).map((x) => `${child}/${x}`); } catch { return []; } })()
+      : [child];
+    for (const name of candidates) {
       const dir = path.join(dirNM, ...name.split('/'));
       try {
         const m = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-        if (m.name && m.version && !dirPorClave.has(`${m.name}@${m.version}`)) {
-          dirPorClave.set(`${m.name}@${m.version}`, dir);
+        if (m.name && m.version && !dirByKey.has(`${m.name}@${m.version}`)) {
+          dirByKey.set(`${m.name}@${m.version}`, dir);
         }
-      } catch { /* carpeta sin manifiesto: seguir */ }
-      escanear(path.join(dir, 'node_modules'));
+      } catch { /* folder without a manifest: carry on */ }
+      scan(path.join(dir, 'node_modules'));
     }
   }
 };
-escanear(path.join(RAIZ, 'node_modules'));
+scan(path.join(ROOT, 'node_modules'));
 
-const leerLicencia = (dir) => {
+const readLicense = (dir) => {
   let files = [];
   try {
     files = fs.readdirSync(dir);
   } catch {
     return null;
   }
-  const candidato = files
+  const candidate = files
     .filter((f) => /^(licen[cs]e|copying)(\.|-|$)/i.test(f))
     .sort((a, b) => a.length - b.length)[0];
-  return candidato ? fs.readFileSync(path.join(dir, candidato), 'utf8').replace(/\r\n/g, '\n').trim() : null;
+  return candidate ? fs.readFileSync(path.join(dir, candidate), 'utf8').replace(/\r\n/g, '\n').trim() : null;
 };
 
-const entradas = [...paquetes.keys()].sort((a, b) => a.localeCompare(b, 'en')).map((key) => {
-  const name = paquetes.get(key);
-  const dir = dirPorClave.get(key) ?? path.join(RAIZ, 'node_modules', ...name.split('/'));
-  let manifiesto = {};
+const noticeEntries = [...packages.keys()].sort((a, b) => a.localeCompare(b, 'en')).map((key) => {
+  const name = packages.get(key);
+  const dir = dirByKey.get(key) ?? path.join(ROOT, 'node_modules', ...name.split('/'));
+  let manifest = {};
   try {
-    manifiesto = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-  } catch { /* sin manifiesto legible: se emite igualmente la entrada minima */ }
-  // Formatos historicos: string, {type}, array de ambos, y el plural `licenses`.
-  const normalizar = (v) => Array.isArray(v)
+    manifest = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  } catch { /* no readable manifest: the minimal entry is emitted anyway */ }
+  // Historical formats: string, {type}, an array of either, and the plural `licenses`.
+  const normalise = (v) => Array.isArray(v)
     ? v.map((x) => (typeof x === 'object' ? x?.type : x)).filter(Boolean).join(' OR ')
     : (typeof v === 'object' ? v?.type : v);
-  const licencia = normalizar(manifiesto.license) || normalizar(manifiesto.licenses);
-  const repo = typeof manifiesto.repository === 'string'
-    ? manifiesto.repository
-    : manifiesto.repository?.url ?? '';
-  const repoLimpio = repo.replace(/^git\+/, '').replace(/\.git$/, '').replace(/^git:\/\//, 'https://').replace(/^ssh:\/\/git@/, 'https://');
-  const autor = typeof manifiesto.author === 'string' ? manifiesto.author : manifiesto.author?.name ?? '';
+  const licenseId = normalise(manifest.license) || normalise(manifest.licenses);
+  const repo = typeof manifest.repository === 'string'
+    ? manifest.repository
+    : manifest.repository?.url ?? '';
+  const cleanRepo = repo.replace(/^git\+/, '').replace(/\.git$/, '').replace(/^git:\/\//, 'https://').replace(/^ssh:\/\/git@/, 'https://');
+  const authorName = typeof manifest.author === 'string' ? manifest.author : manifest.author?.name ?? '';
 
-  const lines = [key, `License: ${licencia ?? 'unknown'}`];
-  if (repoLimpio) {
-    lines.push(`Repository: ${repoLimpio}`);
+  const lines = [key, `License: ${licenseId ?? 'unknown'}`];
+  if (cleanRepo) {
+    lines.push(`Repository: ${cleanRepo}`);
   }
-  if (autor) {
-    lines.push(`Author: ${autor}`);
+  if (authorName) {
+    lines.push(`Author: ${authorName}`);
   }
-  const text = leerLicencia(dir);
-  lines.push('', text ?? `(The package ships no license file; it declares "${licencia ?? 'unknown'}" in its package.json.)`);
+  const text = readLicense(dir);
+  lines.push('', text ?? `(The package ships no license file; it declares "${licenseId ?? 'unknown'}" in its package.json.)`);
   return lines.join('\n');
 });
 
-const nombreVisible = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8')).displayName ?? 'REST Client';
+const visibleName = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).displayName ?? 'REST Client';
 const header = [
-  `${nombreVisible} — third-party notices`,
+  `${visibleName} — third-party notices`,
   '',
-  `${nombreVisible} continues REST Client, Copyright (c) 2016 - present Huachao Mao,`,
+  `${visibleName} continues REST Client, Copyright (c) 2016 - present Huachao Mao,`,
   'MIT License (see LICENSE). The packages below are bundled into the extension',
   'and the terminal runner. Each is reproduced with its own license text.',
   '',
   `Generated by scripts/generate-notices.mjs from the production dependency tree`,
-  `(${entradas.length} packages). Regenerate with: node scripts/generate-notices.mjs`,
+  `(${noticeEntries.length} packages). Regenerate with: node scripts/generate-notices.mjs`,
 ].join('\n');
 
-const contenido = header + '\n\n' + SEP + '\n\n' + entradas.join('\n\n' + SEP + '\n\n') + '\n';
+const content = header + '\n\n' + SEP + '\n\n' + noticeEntries.join('\n\n' + SEP + '\n\n') + '\n';
 
 if (process.argv.includes('--check')) {
-  const actual = fs.existsSync(SALIDA) ? fs.readFileSync(SALIDA, 'utf8').replace(/\r\n/g, '\n') : '';
-  if (actual === contenido) {
-    console.log(`THIRD-PARTY-NOTICES.txt al dia (${entradas.length} paquetes).`);
+  const actual = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, 'utf8').replace(/\r\n/g, '\n') : '';
+  if (actual === content) {
+    console.log(`THIRD-PARTY-NOTICES.txt is up to date (${noticeEntries.length} packages).`);
     process.exit(0);
   }
-  console.error('THIRD-PARTY-NOTICES.txt esta desfasado: ejecuta `node scripts/generate-notices.mjs` y commitea el resultado.');
+  console.error('THIRD-PARTY-NOTICES.txt is out of date: run `node scripts/generate-notices.mjs` and commit the result.');
   process.exit(1);
 }
 
-fs.writeFileSync(SALIDA, contenido);
-console.log(`THIRD-PARTY-NOTICES.txt regenerado: ${entradas.length} paquetes.`);
+fs.writeFileSync(OUTPUT, content);
+console.log(`THIRD-PARTY-NOTICES.txt regenerated: ${noticeEntries.length} packages.`);
