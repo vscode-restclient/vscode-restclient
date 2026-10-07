@@ -1,19 +1,19 @@
-// Auditoría del fork: comprueba de una vez todo lo que el plan promete.
-// Cada afirmación del README y del plan tiene aquí su comprobación.
+// The audit of the fork: checks in one go everything the plan promises.
+// Every claim in the README and in the plan has its check here.
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
 let failures = 0;
 const ok = (n, c, extra = '') => {
-  console.log(`  ${c ? 'OK   ' : 'FALLA'} ${n}${extra ? ' · ' + extra : ''}`);
+  console.log(`  ${c ? 'OK   ' : 'FAIL '} ${n}${extra ? ' · ' + extra : ''}`);
   if (!c) failures++;
 };
-const seccion = (t) => console.log(`\n== ${t}`);
-// Lo que depende de un servicio ajeno no puede tumbar la bateria: si no se
-// pudo comprobar se dice, pero no cuenta como fallo del proyecto.
-const warning = (n, extra = '') => console.log(`  AVISO ${n}${extra ? ' · ' + extra : ''}`);
-const correr = (cmd, env) => {
+const section = (t) => console.log(`\n== ${t}`);
+// What depends on someone else's service cannot bring the battery down: if it
+// could not be checked it is said, but it does not count as a failure of ours.
+const warning = (n, extra = '') => console.log(`  WARN  ${n}${extra ? ' · ' + extra : ''}`);
+const run = (cmd, env) => {
   const options = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } };
   try {
     return { output: execSync(cmd, options), exitCode: 0 };
@@ -21,14 +21,14 @@ const correr = (cmd, env) => {
     return { output: (e.stdout ?? '') + (e.stderr ?? ''), exitCode: e.status ?? 1 };
   }
 };
-const leer = (f) => fs.readFileSync(f, 'utf8');
+const read = (f) => fs.readFileSync(f, 'utf8');
 
 /**
- * `npm --json` no garantiza que la salida sea solo JSON: desde septiembre de
- * 2026 npm intercala avisos como «npm notice This endpoint is being retired»
- * y `JSON.parse` de la salida entera revienta. Eso tumbó la CI en las tres
- * plataformas sin que nada del proyecto hubiera cambiado, asi que aqui se
- * extrae el objeto en vez de confiar en que venga limpio.
+ * `npm --json` does not guarantee that the output is only JSON: since September
+ * 2026 npm interleaves notices like "npm notice This endpoint is being retired"
+ * and `JSON.parse` of the whole output blows up. That took the CI down on all
+ * three platforms with nothing in the project changed, so the object is
+ * extracted here instead of trusting it to come clean.
  */
 const json = (output) => {
   const i = output.indexOf('{');
@@ -43,164 +43,164 @@ const json = (output) => {
   }
 };
 
-seccion('identidad');
-const pkg = JSON.parse(leer('package.json'));
-ok('el nombre es el del original y el editor el nuestro', pkg.name === 'restclient' && pkg.publisher === 'vscode-restclient');
-ok('se publica gratis', pkg.pricing === 'Free');
-// `onLanguage:markdown` está por los bloques ```http dentro de markdown, que es
-// una función real. Lo inaceptable sería `*`: activarse siempre, pase lo que pase.
-ok('no se activa en todo arranque', !(pkg.activationEvents ?? []).includes('*'), `eventos: ${JSON.stringify(pkg.activationEvents)}`);
-ok('sigue aportando el lenguaje http', pkg.contributes.languages?.some((l) => l.id === 'http'));
-// Los comandos publicos son la API original de REST Client, restaurada a
-// peticion de la organizacion (issue #1): la lista exacta la congela
-// src/test/integration/suite/commandIds.test.ts; aqui se vigila la forma.
-ok('los comandos publicos llevan el prefijo original', pkg.contributes.commands.length === 21 && pkg.contributes.commands.every((c) => c.command.startsWith('rest-client.')), pkg.contributes.commands.map((c) => c.command).filter((c) => !c.startsWith('rest-client.')).join(', '));
-ok('el runner se publica como binario', pkg.bin?.restclient !== undefined, pkg.bin?.restclient);
+section('identity');
+const pkg = JSON.parse(read('package.json'));
+ok('the name is the original one and the publisher is ours', pkg.name === 'restclient' && pkg.publisher === 'vscode-restclient');
+ok('it is published for free', pkg.pricing === 'Free');
+// `onLanguage:markdown` is there for the ```http blocks inside markdown, which is
+// a real feature. The unacceptable one would be `*`: always on, no matter what.
+ok('it does not activate on every start-up', !(pkg.activationEvents ?? []).includes('*'), `events: ${JSON.stringify(pkg.activationEvents)}`);
+ok('it still contributes the http language', pkg.contributes.languages?.some((l) => l.id === 'http'));
+// The public commands are REST Client's original API, restored at the
+// organisation's request (issue #1): the exact list is frozen by
+// src/test/integration/suite/commandIds.test.ts; here the shape is watched.
+ok('the public commands carry the original prefix', pkg.contributes.commands.length === 21 && pkg.contributes.commands.every((c) => c.command.startsWith('rest-client.')), pkg.contributes.commands.map((c) => c.command).filter((c) => !c.startsWith('rest-client.')).join(', '));
+ok('the runner is published as a binary', pkg.bin?.restclient !== undefined, pkg.bin?.restclient);
 
-seccion('crédito al autor original (es MIT, pero se dice)');
-const readme = leer('README.md');
-ok('el README nombra a Huachao Mao', readme.includes('Huachao Mao'));
-ok('el README enlaza al repositorio original', readme.includes('github.com/Huachao/vscode-restclient'));
-ok('la licencia MIT original se conserva', leer('LICENSE').includes('MIT'));
+section('credit to the original author (it is MIT, but it is said)');
+const readme = read('README.md');
+ok('the README names Huachao Mao', readme.includes('Huachao Mao'));
+ok('the README links to the original repository', readme.includes('github.com/Huachao/vscode-restclient'));
+ok('the original MIT license is kept', read('LICENSE').includes('MIT'));
 
-seccion('copyright: lo que exige cada licencia se cumple');
-const licencia = leer('LICENSE');
-ok('el aviso de copyright original esta verbatim', licencia.includes('Copyright (c) 2016 - present Huachao Mao'));
-ok('el aviso de permiso MIT esta completo', licencia.includes('The above copyright notice and this permission notice shall be included'));
-ok('el manifiesto reconoce al autor original', JSON.stringify(pkg.contributors ?? []).includes('Huachao Mao'));
-ok('la licencia declarada es MIT', pkg.license === 'MIT');
-// BSD y Apache exigen reproducir el aviso en la distribucion binaria; el
-// bundle de webpack solo conserva los comentarios /*! */, asi que ademas viaja
-// un fichero con la licencia de cada paquete de produccion.
-const notices = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? leer('THIRD-PARTY-NOTICES.txt') : '';
-ok('existe el fichero de avisos de terceros', notices.length > 0);
-// El fichero se genera con scripts/generate-notices.mjs: si alguien añade una
-// dependencia y no lo regenera, aqui se le dice, en vez de descubrirlo un abogado.
-ok('los avisos de terceros estan al dia (generate-notices --check)', correr('node scripts/generate-notices.mjs --check').exitCode === 0);
-const arbol = json(correr('npm ls --omit=dev --all --json').output);
-const paquetes = new Set();
-// Sin version = dependencia opcional que npm no instalo; no viaja, no cuenta.
-const recorrerArbol = (nodo) => { for (const [n, v] of Object.entries(nodo?.dependencies ?? {})) { if (v.version) { paquetes.add(`${n}@${v.version}`); recorrerArbol(v); } } };
-recorrerArbol(arbol);
-const sinAviso = [...paquetes].filter((pq) => !notices.includes(`\n${pq}\n`));
-ok('todo paquete de produccion tiene su aviso', paquetes.size > 0 && sinAviso.length === 0, sinAviso.length ? sinAviso.slice(0, 5).join(', ') : `${paquetes.size} paquetes`);
+section('copyright: what each license demands is met');
+const licenseText = read('LICENSE');
+ok('the original copyright notice is verbatim', licenseText.includes('Copyright (c) 2016 - present Huachao Mao'));
+ok('the MIT permission notice is complete', licenseText.includes('The above copyright notice and this permission notice shall be included'));
+ok('the manifest credits the original author', JSON.stringify(pkg.contributors ?? []).includes('Huachao Mao'));
+ok('the declared license is MIT', pkg.license === 'MIT');
+// BSD and Apache require the notice to be reproduced in the binary distribution;
+// the webpack bundle only keeps the /*! */ comments, so a file with the license
+// of every production package travels along as well.
+const notices = fs.existsSync('THIRD-PARTY-NOTICES.txt') ? read('THIRD-PARTY-NOTICES.txt') : '';
+ok('the third-party notices file exists', notices.length > 0);
+// The file is generated by scripts/generate-notices.mjs: if someone adds a
+// dependency and does not regenerate it, they hear it here rather than from a lawyer.
+ok('the third-party notices are up to date (generate-notices --check)', run('node scripts/generate-notices.mjs --check').exitCode === 0);
+const tree = json(run('npm ls --omit=dev --all --json').output);
+const packages = new Set();
+// No version = optional dependency npm did not install; it does not ship, it does not count.
+const walkTree = (node) => { for (const [n, v] of Object.entries(node?.dependencies ?? {})) { if (v.version) { packages.add(`${n}@${v.version}`); walkTree(v); } } };
+walkTree(tree);
+const withoutNotice = [...packages].filter((pq) => !notices.includes(`\n${pq}\n`));
+ok('every production package has its notice', packages.size > 0 && withoutNotice.length === 0, withoutNotice.length ? withoutNotice.slice(0, 5).join(', ') : `${packages.size} packages`);
 const copyleft = [...notices.matchAll(/^License: (.+)$/gm)].map((m) => m[1]).filter((l) => /GPL|SSPL|UNKNOWN|UNLICENSED|CC-BY-NC|EUPL|OSL/i.test(l));
-ok('ninguna licencia copyleft ni desconocida', copyleft.length === 0, copyleft.join(', '));
+ok('no copyleft or unknown license', copyleft.length === 0, copyleft.join(', '));
 
-seccion('activos propios (no se hereda la imagen de nadie)');
-ok('el icono declarado existe', fs.existsSync(pkg.icon ?? ''), pkg.icon);
-const imagenes = fs.existsSync('images') ? fs.readdirSync('images') : [];
-ok('sin el icono del proyecto original', !imagenes.includes('rest_icon.png'));
-ok('sin los gif de demostración del original', !imagenes.some(f => /demo|response|code-snippet|usage/.test(f)), imagenes.join(', '));
+section('assets of our own (nobody else\'s image is inherited)');
+ok('the declared icon exists', fs.existsSync(pkg.icon ?? ''), pkg.icon);
+const images = fs.existsSync('images') ? fs.readdirSync('images') : [];
+ok('without the original project\'s icon', !images.includes('rest_icon.png'));
+ok('without the original\'s demo gifs', !images.some(f => /demo|response|code-snippet|usage/.test(f)), images.join(', '));
 
-seccion('privacidad: no habla con nadie');
-ok('sin dependencia de telemetría', !JSON.stringify(pkg.dependencies).includes('applicationinsights'));
-const conTelemetria = correr('git grep -l "applicationinsights\\|trackEvent\\|AiKey" -- src').output.trim();
-ok('sin rastro de telemetría en el código', conTelemetria === '', conTelemetria);
-ok('sin ajuste de telemetría en la ficha', !JSON.stringify(pkg.contributes.configuration).includes('Telemetry'));
+section('privacy: it talks to nobody');
+ok('no telemetry dependency', !JSON.stringify(pkg.dependencies).includes('applicationinsights'));
+const withTelemetry = run('git grep -l "applicationinsights\\|trackEvent\\|AiKey" -- src').output.trim();
+ok('no trace of telemetry in the code', withTelemetry === '', withTelemetry);
+ok('no telemetry setting in the manifest', !JSON.stringify(pkg.contributes.configuration).includes('Telemetry'));
 
-seccion('dependencias');
-// `npm audit` sale a la red en cada ejecucion: si el registro va lento, esta
-// caido o cambia el formato, no es un problema de este repositorio. Se le da
-// un limite de tiempo y, sin datos, queda como aviso en vez de tumbar la CI.
-const audit = json(correr('npm audit --omit=dev --json --fetch-timeout=60000').output);
+section('dependencies');
+// `npm audit` goes out to the network on every run: if the registry is slow,
+// down, or changes its format, that is not this repository's problem. It gets a
+// time limit and, without data, it ends as a warning instead of failing the CI.
+const audit = json(run('npm audit --omit=dev --json --fetch-timeout=60000').output);
 const v = audit.metadata?.vulnerabilities ?? {};
 
-// Excepciones: avisos que NO se pueden arreglar hoy y que no alcanzamos.
-// Cada una lleva por que, y la comprobacion de abajo las caduca sola en cuanto
-// aparezca un arreglo, para que ninguna se quede aqui por inercia.
-const EXCEPCIONES = {
-  // (vacio) El 2026-10-03 hubo tres entradas por http-cache-semantics <=4.2.0,
-  // sin arreglo publicado y sin alcanzar (got solo usa cacheable-request con
-  // options.cache). Al dia siguiente salio 4.3.0 y esta misma comprobacion
-  // exigio quitarlas. Asi es como debe morir una excepcion.
+// Exceptions: advisories that CANNOT be fixed today and that we do not reach.
+// Each carries its why, and the check below expires them by itself as soon as
+// a fix appears, so that none stays here out of inertia.
+const EXCEPTIONS = {
+  // (empty) On 2026-10-03 there were three entries for http-cache-semantics
+  // <=4.2.0, with no fix published and out of reach (got only uses
+  // cacheable-request with options.cache). The next day 4.3.0 came out and this
+  // very check demanded their removal. That is how an exception should die.
 };
 
 if (typeof v.total === 'number') {
-  const paquetes = Object.keys(audit.vulnerabilities ?? {});
-  const sinExcusa = paquetes.filter((n) => !EXCEPCIONES[n]);
+  const packages = Object.keys(audit.vulnerabilities ?? {});
+  const unexcused = packages.filter((n) => !EXCEPTIONS[n]);
   ok(
-    'ninguna vulnerabilidad en produccion sin excepcion escrita',
-    sinExcusa.length === 0,
-    sinExcusa.length ? sinExcusa.join(', ') : `${paquetes.length} con excepcion, 0 sin ella`
+    'no production vulnerability without a written exception',
+    unexcused.length === 0,
+    unexcused.length ? unexcused.join(', ') : `${packages.length} with an exception, 0 without`
   );
 
-  // Una excepcion deja de valer en cuanto hay arreglo. `fixAvailable` como
-  // objeto con isSemVerMajor es npm proponiendo un downgrade: eso no cuenta.
-  for (const n of paquetes.filter((x) => EXCEPCIONES[x])) {
+  // An exception stops being valid as soon as there is a fix. `fixAvailable`
+  // as an object with isSemVerMajor is npm proposing a downgrade: that does not count.
+  for (const n of packages.filter((x) => EXCEPTIONS[x])) {
     const fix = audit.vulnerabilities[n]?.fixAvailable;
-    const arreglable = fix === true || (fix && typeof fix === 'object' && !fix.isSemVerMajor);
+    const fixable = fix === true || (fix && typeof fix === 'object' && !fix.isSemVerMajor);
     ok(
-      `la excepcion de ${n} sigue siendo necesaria`,
-      !arreglable,
-      arreglable ? `ya hay arreglo (${JSON.stringify(fix)}): quitala y actualiza` : EXCEPCIONES[n].porque.slice(0, 80)
+      `the exception for ${n} is still needed`,
+      !fixable,
+      fixable ? `there is a fix now (${JSON.stringify(fix)}): remove it and update` : EXCEPTIONS[n].why.slice(0, 80)
     );
   }
 } else {
-  warning('vulnerabilidades en produccion: npm audit no devolvio datos', 'sin red o formato inesperado');
+  warning('production vulnerabilities: npm audit returned no data', 'no network or unexpected format');
 }
-ok('aws-amplify fuera', !JSON.stringify(pkg.dependencies).includes('aws-amplify'));
-ok('xmldom sin mantenimiento fuera', pkg.dependencies.xmldom === undefined);
+ok('aws-amplify is out', !JSON.stringify(pkg.dependencies).includes('aws-amplify'));
+ok('unmaintained xmldom is out', pkg.dependencies.xmldom === undefined);
 
-seccion('el núcleo no depende del editor');
+section('the core does not depend on the editor');
 for (const f of ['src/cli/index.ts', 'src/cli/mcp.ts', 'src/cli/minimalParser.ts', 'src/core/sequence.ts', 'src/core/assertions.ts', 'src/core/jetBrainsEnvironments.ts', 'src/core/imports.ts', 'src/core/sse.ts', 'src/core/websocket.ts', 'src/core/junit.ts', 'src/utils/httpClient.ts']) {
-  const r = correr(`node scripts/track-vscode.mjs ${f}`);
-  ok(`${path.basename(f)} no arrastra vscode`, r.exitCode === 0, r.exitCode === 0 ? '' : r.output.split('\n')[0]);
+  const r = run(`node scripts/track-vscode.mjs ${f}`);
+  ok(`${path.basename(f)} does not drag vscode in`, r.exitCode === 0, r.exitCode === 0 ? '' : r.output.split('\n')[0]);
 }
-const compilado = fs.existsSync('dist-cli/cli/index.js');
-ok('el runner está compilado', compilado);
-if (compilado) {
-  const cargados = fs.readdirSync('dist-cli', { recursive: true }).filter((f) => String(f).endsWith('.js'));
-  ok('el runner no empaqueta controladores del editor', !cargados.some((f) => String(f).includes('controllers')), cargados.length + ' ficheros');
+const compiled = fs.existsSync('dist-cli/cli/index.js');
+ok('the runner is compiled', compiled);
+if (compiled) {
+  const loaded = fs.readdirSync('dist-cli', { recursive: true }).filter((f) => String(f).endsWith('.js'));
+  ok('the runner does not bundle editor controllers', !loaded.some((f) => String(f).includes('controllers')), loaded.length + ' files');
 }
 
-seccion('los recursos que pide el codigo existen y viajan');
-// Tres fallos reales salieron de aqui: un css renombrado a medias, el js del
-// webview excluido del paquete y un icono heredado que ya no existia. Ninguno
-// rompe la compilacion; se ven al abrir la pestana de respuesta ya instalada.
-const recursos = [...leer('src/views/baseWebview.ts').matchAll(/asAbsolutePath\(path\.join\('([^']+)', '([^']+)'\)\)/g)]
+section('the resources the code asks for exist and ship');
+// Three real failures came out of here: a half-renamed css, the webview's js
+// excluded from the package and an inherited icon that no longer existed. None
+// breaks the build; they show up when opening the response tab once installed.
+const resources = [...read('src/views/baseWebview.ts').matchAll(/asAbsolutePath\(path\.join\('([^']+)', '([^']+)'\)\)/g)]
   .map((m) => `${m[1]}/${m[2]}`);
-ok('el codigo pide recursos por ruta', recursos.length > 0, recursos.join(', '));
-for (const r of recursos) {
-  ok(`existe ${r}`, fs.existsSync(r));
+ok('the code asks for resources by path', resources.length > 0, resources.join(', '));
+for (const r of resources) {
+  ok(`${r} exists`, fs.existsSync(r));
 }
 
-seccion('el cambio de nombre no dejo cabos sueltos');
-// El fork renombro comandos y ajustes. Lo que se quedo a medias no rompe la
-// compilacion: el enlace de un documento llamaba a `rest-client._openDocumentLink`
-// y, con REST Client instalado, se lo abria la otra extension.
-const fuentes = correr('git ls-files src').output.split(/\r?\n/).filter((f) => f.endsWith('.ts') && !f.startsWith('src/test'));
-const registrados = new Set([...leer('package.json').matchAll(/"command":\s*"([^"]+)"/g)].map((m) => m[1]));
-for (const f of fuentes) {
-  for (const m of leer(f).matchAll(/registerCommand(?:Safely)?\('([^']+)'/g)) registrados.add(m[1]);
+section('the rename left no loose ends');
+// The fork renamed commands and settings. What was left half done does not
+// break the build: a document link called `rest-client._openDocumentLink` and,
+// with REST Client installed, the other extension opened it.
+const sources = run('git ls-files src').output.split(/\r?\n/).filter((f) => f.endsWith('.ts') && !f.startsWith('src/test'));
+const registered = new Set([...read('package.json').matchAll(/"command":\s*"([^"]+)"/g)].map((m) => m[1]));
+for (const f of sources) {
+  for (const m of read(f).matchAll(/registerCommand(?:Safely)?\('([^']+)'/g)) registered.add(m[1]);
 }
-const invocados = new Set();
-for (const f of fuentes) {
-  for (const m of leer(f).matchAll(/command:([a-z0-9-]+\.[A-Za-z0-9._-]+)/g)) invocados.add(m[1]);
+const invoked = new Set();
+for (const f of sources) {
+  for (const m of read(f).matchAll(/command:([a-z0-9-]+\.[A-Za-z0-9._-]+)/g)) invoked.add(m[1]);
 }
-const huerfanos = [...invocados].filter((c) => !registrados.has(c));
-ok('todo comando invocado por enlace existe', huerfanos.length === 0, huerfanos.join(', '));
+const orphans = [...invoked].filter((c) => !registered.has(c));
+ok('every command invoked through a link exists', orphans.length === 0, orphans.join(', '));
 
-// Solo se miran las cadenas con guion: los identificadores internos
-// (RestClientSettings y compania) se dejan como estan para que los parches del
-// proyecto original sigan aplicando sin ruido.
-// El identificador que el código anuncia tiene que ser el que publica el
-// manifiesto: si no, `extensions.getExtension(...)` devuelve undefined y la
-// extensión no se encuentra a sí misma (pasó al renombrar el fork).
-// Con comillas simples o dobles: el formateador de cada cual no debe cegar la comprobacion.
-const idDeclarado = /ExtensionId: string = ['"]([^'"]+)['"]/.exec(leer('src/common/constants.ts'))?.[1];
-ok('el id del código es publisher.name del manifiesto', idDeclarado === `${pkg.publisher}.${pkg.name}`, `${idDeclarado} vs ${pkg.publisher}.${pkg.name}`);
+// Only the hyphenated strings are looked at: the internal identifiers
+// (RestClientSettings and company) are left as they are so that patches from
+// the original project keep applying without noise.
+// The identifier the code announces has to be the one the manifest publishes:
+// otherwise `extensions.getExtension(...)` returns undefined and the extension
+// cannot find itself (it happened when the fork was renamed).
+// Single or double quotes: nobody's formatter should blind the check.
+const declaredId = /ExtensionId: string = ['"]([^'"]+)['"]/.exec(read('src/common/constants.ts'))?.[1];
+ok('the id in the code is the manifest\'s publisher.name', declaredId === `${pkg.publisher}.${pkg.name}`, `${declaredId} vs ${pkg.publisher}.${pkg.name}`);
 
-// El Marketplace puede negarse a CREAR una extension cuyo `name` ya use otro
-// publisher, aunque el identificador completo publisher.name sea libre. Paso el
-// 28-09-2026: la 1.2.0 supero la bateria entera en CI y murio en el paso de
-// publicacion con «The extension 'rest-client' already exists in the
-// Marketplace». Once minutos para averiguar algo que se pregunta en un segundo.
-// Que existan duplicados no prueba nada: los que hay son heredados (humao 2016,
-// s-kainet 2018) y no encontre ninguno cuyo miembro mas nuevo sea de 2022 o
-// posterior. Mientras no estemos publicados, que otro tenga el nombre es un
-// fallo; una vez publicados, aparecemos en la lista y la comprobacion pasa.
-const consultarGaleria = async (text) => {
+// The Marketplace may refuse to CREATE an extension whose `name` another
+// publisher already uses, even if the full publisher.name identifier is free.
+// It happened on 2026-09-28: 1.2.0 passed the whole battery in CI and died at
+// the publish step with "The extension 'rest-client' already exists in the
+// Marketplace". Eleven minutes to find out something that takes a second to ask.
+// That duplicates exist proves nothing: the ones there are inherited (humao
+// 2016, s-kainet 2018) and I found none whose newest member is from 2022 or
+// later. Until we are published, someone else holding the name is a failure;
+// once published, we show up in the list and the check passes.
+const queryGallery = async (text) => {
     const r = await fetch('https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json;api-version=7.2-preview.1' },
@@ -211,32 +211,32 @@ const consultarGaleria = async (text) => {
     return (await r.json())?.results?.[0]?.extensions ?? [];
 };
 try {
-    const homonimas = (await consultarGaleria(pkg.name)).filter((e) => e.extensionName === pkg.name);
-    const nuestra = homonimas.find((e) => e.publisher?.publisherName?.toLowerCase() === pkg.publisher.toLowerCase());
-    const ajenas = homonimas.filter((e) => e !== nuestra);
-    if (nuestra) {
-        ok(`el Marketplace ya conoce ${pkg.publisher}.${pkg.name}`, true, `publicada, v${nuestra.versions?.[0]?.version ?? '?'}`);
+    const sameName = (await queryGallery(pkg.name)).filter((e) => e.extensionName === pkg.name);
+    const ours = sameName.find((e) => e.publisher?.publisherName?.toLowerCase() === pkg.publisher.toLowerCase());
+    const others = sameName.filter((e) => e !== ours);
+    if (ours) {
+        ok(`the Marketplace already knows ${pkg.publisher}.${pkg.name}`, true, `published, v${ours.versions?.[0]?.version ?? '?'}`);
     } else {
         ok(
-            `el nombre "${pkg.name}" esta libre para crear la extension`,
-            ajenas.length === 0,
-            ajenas.length ? `lo usan ${ajenas.map((e) => `${e.publisher.publisherName} (${String(e.publishedDate).slice(0, 7)})`).join(', ')} — publicar fallaria con "already exists"` : 'ningun otro publisher lo usa'
+            `the name "${pkg.name}" is free to create the extension`,
+            others.length === 0,
+            others.length ? `used by ${others.map((e) => `${e.publisher.publisherName} (${String(e.publishedDate).slice(0, 7)})`).join(', ')} — publishing would fail with "already exists"` : 'no other publisher uses it'
         );
     }
 } catch (e) {
-    warning('no pude consultar el Marketplace por el nombre', e.message);
+    warning('could not query the Marketplace for the name', e.message);
 }
 
-seccion('nivel 2: formato JetBrains, streaming, agentes y runner');
-const cliFuente = leer('src/cli/index.ts');
-ok('el runner entiende --env, --secret, --junit y --timeout', ['--env', '--secret', '--junit', '--timeout'].every((o) => cliFuente.includes(`'${o}'`)));
-ok('el runner lee http-client.env.json e import/run', cliFuente.includes('environmentsFolder') && cliFuente.includes('resolveRun'));
-const selector = leer('src/utils/selector.ts');
-ok('el editor resuelve run #nombre y salta las lineas import', selector.includes('resolveRun') && selector.includes('isImportLine'));
-const sistema = leer('src/utils/httpVariableProviders/systemVariableProvider.ts');
-ok('el editor tiene $secret y los alias de JetBrains', sistema.includes('SecretVariableName') && sistema.includes('UuidVariableName') && sistema.includes('IsoTimestampVariableName'));
-const controlador = leer('src/controllers/requestController.ts');
-ok('el panel pinta text/event-stream segun llega', controlador.includes('startStreaming') && controlador.includes('appendChunk'));
+section('level 2: JetBrains format, streaming, agents and runner');
+const cliSource = read('src/cli/index.ts');
+ok('the runner understands --env, --secret, --junit and --timeout', ['--env', '--secret', '--junit', '--timeout'].every((o) => cliSource.includes(`'${o}'`)));
+ok('the runner reads http-client.env.json and import/run', cliSource.includes('environmentsFolder') && cliSource.includes('resolveRun'));
+const selectorSource = read('src/utils/selector.ts');
+ok('the editor resolves run #name and skips the import lines', selectorSource.includes('resolveRun') && selectorSource.includes('isImportLine'));
+const systemVariables = read('src/utils/httpVariableProviders/systemVariableProvider.ts');
+ok('the editor has $secret and the JetBrains aliases', systemVariables.includes('SecretVariableName') && systemVariables.includes('UuidVariableName') && systemVariables.includes('IsoTimestampVariableName'));
+const controller = read('src/controllers/requestController.ts');
+ok('the panel paints text/event-stream as it arrives', controller.includes('startStreaming') && controller.includes('appendChunk'));
 
 // The extension and the response webview talk through postMessage, and the
 // webview side (webview/main.js) is plain JavaScript that nothing type-checks.
@@ -253,162 +253,162 @@ ok('el panel pinta text/event-stream segun llega', controlador.includes('startSt
 // swapping `message.text` and `message.note` in main.js would pass.
 {
   const CONTRACT = { chunk: ['text'], end: ['note'], foldAll: [], unfoldAll: [] };
-  const sinComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
-  const lado = sinComentarios(leer('src/views/httpResponseWebview.ts'));
-  const web = sinComentarios(leer('webview/main.js'));
-  const enviados = [...lado.matchAll(/postMessage\(\{([^}]*)\}\)/g)].map((m) => {
-    const cuerpo = m[1];
-    const orden = /['"]?command['"]?\s*:\s*['"]([^'"]+)['"]/.exec(cuerpo)?.[1];
-    const claves = [...cuerpo.matchAll(/(?:^|,)\s*['"]?([A-Za-z_]\w*)['"]?\s*(?=:|,|$)/g)].map((k) => k[1]).filter((k) => k !== 'command');
-    return { orden, claves, raro: /\.\.\.|\[/.test(cuerpo) };
+  const withoutComments = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+  const extensionSide = withoutComments(read('src/views/httpResponseWebview.ts'));
+  const web = withoutComments(read('webview/main.js'));
+  const sent = [...extensionSide.matchAll(/postMessage\(\{([^}]*)\}\)/g)].map((m) => {
+    const literalBody = m[1];
+    const commandName = /['"]?command['"]?\s*:\s*['"]([^'"]+)['"]/.exec(literalBody)?.[1];
+    const messageKeys = [...literalBody.matchAll(/(?:^|,)\s*['"]?([A-Za-z_]\w*)['"]?\s*(?=:|,|$)/g)].map((k) => k[1]).filter((k) => k !== 'command');
+    return { commandName, messageKeys, odd: /\.\.\.|\[/.test(literalBody) };
   });
-  const forma = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
-  const mandado = Object.fromEntries(enviados.map((e) => [e.orden, e.claves]));
-  const nPost = (lado.match(/postMessage\(/g) ?? []).length;
+  const shape = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, [...o[k]].sort()]));
+  const byCommand = Object.fromEntries(sent.map((e) => [e.commandName, e.messageKeys]));
+  const nPost = (extensionSide.match(/postMessage\(/g) ?? []).length;
   // Every postMessage call has to be one this guard can read: an object
   // literal with a literal command, no spread, no computed key, and no command
   // sent from two places (the second would hide the first).
-  ok('la guarda entiende todos los postMessage de la extension', enviados.length === nPost && enviados.every((e) => e.orden && !e.raro) && new Set(enviados.map((e) => e.orden)).size === enviados.length, `${enviados.length} de ${nPost}`);
-  ok('la extension manda exactamente los mensajes del contrato', forma(mandado) === forma(CONTRACT), forma(mandado));
+  ok('the guard understands every postMessage of the extension', sent.length === nPost && sent.every((e) => e.commandName && !e.odd) && new Set(sent.map((e) => e.commandName)).size === sent.length, `${sent.length} of ${nPost}`);
+  ok('the extension sends exactly the messages of the contract', shape(byCommand) === shape(CONTRACT), shape(byCommand));
 
   // The webview handles `unfoldAll` by elimination (anything that is not
   // `foldAll`), so it need not name every command; but each one it does name
   // has to exist, and the three it tells apart have to be there.
-  const comparadas = [...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
-  const atendidas = [...new Set(comparadas)];
-  ok('toda orden que el webview comprueba esta en el contrato', atendidas.length >= 3 && atendidas.every((o) => Object.hasOwn(CONTRACT, o)), atendidas.join(', '));
+  const compared = [...web.matchAll(/message\.command\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  const handled = [...new Set(compared)];
+  ok('every command the webview checks is in the contract', handled.length >= 3 && handled.every((o) => Object.hasOwn(CONTRACT, o)), handled.join(', '));
   // Every mention of message.command has to be one of those comparisons: a
   // `!==`, a `switch` or a lookup table would name a command unseen.
-  const menciones = (web.match(/message\s*\??\.\s*command/g) ?? []).length;
-  ok('el webview solo compara la orden con === y un literal', menciones === comparadas.length, `${comparadas.length} de ${menciones}`);
-  const leidas = [...new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'))].sort();
-  const delContrato = [...new Set(Object.values(CONTRACT).flat())].sort();
-  ok('el webview lee exactamente las claves del contrato', JSON.stringify(leidas) === JSON.stringify(delContrato), leidas.join(', '));
+  const mentions = (web.match(/message\s*\??\.\s*command/g) ?? []).length;
+  ok('the webview only compares the command with === and a literal', mentions === compared.length, `${compared.length} of ${mentions}`);
+  const readKeys = [...new Set([...web.matchAll(/message\.([A-Za-z_]\w*)/g)].map((m) => m[1]).filter((k) => k !== 'command'))].sort();
+  const inContract = [...new Set(Object.values(CONTRACT).flat())].sort();
+  ok('the webview reads exactly the keys of the contract', JSON.stringify(readKeys) === JSON.stringify(inContract), readKeys.join(', '));
   // The message is read as `const message = event.data;` and then `message.x`,
   // nothing else: no alias, no destructuring, no bracket or optional access.
-  const otraForma = /message\s*\[|message\?\.|switch\s*\(\s*message|\}\s*=\s*message\b|\}\s*=\s*event\.data|event\.data\s*[.[?]|[^=!]=\s*message\s*[;,)\n]/.test(web);
-  ok('el webview no lee el mensaje de una forma que esta guarda no ve', !otraForma && (web.match(/event\.data/g) ?? []).length === 1);
+  const otherForm = /message\s*\[|message\?\.|switch\s*\(\s*message|\}\s*=\s*message\b|\}\s*=\s*event\.data|event\.data\s*[.[?]|[^=!]=\s*message\s*[;,)\n]/.test(web);
+  ok('the webview does not read the message in a way this guard cannot see', !otherForm && (web.match(/event\.data/g) ?? []).length === 1);
 
   // The same kind of contract, through the DOM: every id and attribute that
   // main.js looks up by name has to be written into the page by the extension.
   // The lists are exact, so a new lookup has to be added here knowingly.
-  const escribe = (atributo) => new RegExp(`(?<![\\w-])${atributo}="`).test(lado);
-  const atributos = [...new Set([...web.matchAll(/(?:hasAttribute|getAttribute|getNamedItem)\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
+  const writes = (attribute) => new RegExp(`(?<![\\w-])${attribute}="`).test(extensionSide);
+  const attributes = [...new Set([...web.matchAll(/(?:hasAttribute|getAttribute|getNamedItem)\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
   const ids = [...new Set([...web.matchAll(/getElementById\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]))].sort();
-  const sinEscribir = [...atributos.filter((a) => !escribe(a)), ...ids.filter((i) => !lado.includes(`id="${i}"`))];
-  ok('todo id y atributo que el webview busca, la extension lo escribe',
-    sinEscribir.length === 0 && JSON.stringify(atributos) === JSON.stringify(['range-end', 'range-start', 'start']) && JSON.stringify(ids) === JSON.stringify(['stream']),
-    sinEscribir.length ? `sin escribir: ${sinEscribir.join(', ')}` : [...atributos, ...ids].join(', '));
+  const unwritten = [...attributes.filter((a) => !writes(a)), ...ids.filter((i) => !extensionSide.includes(`id="${i}"`))];
+  ok('every id and attribute the webview looks up, the extension writes',
+    unwritten.length === 0 && JSON.stringify(attributes) === JSON.stringify(['range-end', 'range-start', 'start']) && JSON.stringify(ids) === JSON.stringify(['stream']),
+    unwritten.length ? `not written: ${unwritten.join(', ')}` : [...attributes, ...ids].join(', '));
 }
 // And through argv: the editor launches the MCP server of the bundled runner.
-ok('el editor lanza el servidor MCP con la opcion que el runner lee', leer('src/utils/lmTools.ts').includes("'mcp', '--root'") && leer('src/cli/index.ts').includes("=== '--root'"));
+ok('the editor launches the MCP server with the option the runner reads', read('src/utils/lmTools.ts').includes("'mcp', '--root'") && read('src/cli/index.ts').includes("=== '--root'"));
 // And through the environment: the audit points the runner's own test at the
 // published bundle. If the test stopped reading the variable it would quietly
 // test the other build and come back green.
-ok('las pruebas del runner leen la ruta que el audit les pasa', leer('scripts/test-cli.mjs').includes('process.env.CLI_RUTA') && leer('scripts/test-mcp.mjs').includes('process.env.CLI_RUTA'));
+ok('the runner tests read the path the audit hands them', read('scripts/test-cli.mjs').includes('process.env.CLI_PATH') && read('scripts/test-mcp.mjs').includes('process.env.CLI_PATH'));
 // And through stdout: the test servers announce their port as JSON and five
 // readers parse it untyped. One of them was renamed alone during the English
 // pass (`.puerto` -> `.port`) and every integration test timed out.
 {
-  const anuncian = ['scripts/test-server.cjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs'];
-  const leen = ['scripts/test-cli.mjs', 'scripts/test-mcp.mjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs', 'src/test/integration/runTest.ts'];
-  const mal = [
-    ...anuncian.filter((f) => !leer(f).includes('JSON.stringify({ port: s.address().port })')),
-    ...leen.filter((f) => !leer(f).includes('JSON.parse(d.toString()).port)')),
+  const announcers = ['scripts/test-server.cjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs'];
+  const readers = ['scripts/test-cli.mjs', 'scripts/test-mcp.mjs', 'scripts/test-vsix.mjs', 'scripts/demo/launch.mjs', 'src/test/integration/runTest.ts'];
+  const wrong = [
+    ...announcers.filter((f) => !read(f).includes('JSON.stringify({ port: s.address().port })')),
+    ...readers.filter((f) => !read(f).includes('JSON.parse(d.toString()).port)')),
   ];
-  ok('los servidores de prueba y quienes los leen llaman igual al puerto', mal.length === 0, mal.join(', '));
+  ok('the test servers and their readers agree on the port key', wrong.length === 0, wrong.join(', '));
 }
-ok('WEBSOCKET se atiende en el editor y en el runner', controlador.includes("'WEBSOCKET'") && leer('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
-const herramientas = leer('src/utils/lmTools.ts');
-ok('la herramienta de envio para agentes pide confirmacion', herramientas.includes('prepareInvocation') && herramientas.includes('confirmationMessages'));
-ok('la herramienta rechaza ficheros fuera del espacio de trabajo', herramientas.includes('is outside the workspace'));
-ok('las herramientas van declaradas en el manifiesto', (pkg.contributes.languageModelTools ?? []).length === 2 && (pkg.contributes.mcpServerDefinitionProviders ?? []).length === 1);
-const mcp = leer('src/cli/mcp.ts');
-ok('el servidor MCP acota la raiz y no escribe en disco', mcp.includes('insideRoot') && !/fs\.write|writeFileSync/.test(mcp));
-const mcpPrueba = correr('node scripts/test-mcp.mjs');
-ok('el servidor MCP pasa su prueba de punta a punta', mcpPrueba.exitCode === 0, /===== (\d+) failures/.exec(mcpPrueba.output)?.[0] ?? '');
-ok('existe la accion de GitHub y descarga el runner de la publicacion', fs.existsSync('action.yml') && leer('action.yml').includes('using: composite') && leer('action.yml').includes('restclient.js'));
-ok('el flujo de release adjunta el runner suelto', leer('.github/workflows/release.yml').includes('restclient.js'));
-// Este audit corre las pruebas unitarias (out-test/) y las del runner
-// (dist-cli/), asi que quien lo lance tiene que haber compilado las dos cosas
-// antes. El job `publish` de release-please.yml no lo hacia: en un checkout
-// limpio el audit fallaba y la publicacion se habria quedado ahi. Nadie lo vio
-// porque las dos releases que se intentaron fueron por release.yml.
+ok('WEBSOCKET is handled in the editor and in the runner', controller.includes("'WEBSOCKET'") && read('src/cli/minimalParser.ts').includes("'WEBSOCKET'"));
+const tools = read('src/utils/lmTools.ts');
+ok('the send tool for agents asks for confirmation', tools.includes('prepareInvocation') && tools.includes('confirmationMessages'));
+ok('the tool rejects files outside the workspace', tools.includes('is outside the workspace'));
+ok('the tools are declared in the manifest', (pkg.contributes.languageModelTools ?? []).length === 2 && (pkg.contributes.mcpServerDefinitionProviders ?? []).length === 1);
+const mcp = read('src/cli/mcp.ts');
+ok('the MCP server confines the root and does not write to disk', mcp.includes('insideRoot') && !/fs\.write|writeFileSync/.test(mcp));
+const mcpTest = run('node scripts/test-mcp.mjs');
+ok('the MCP server passes its end-to-end test', mcpTest.exitCode === 0, /===== (\d+) failures/.exec(mcpTest.output)?.[0] ?? '');
+ok('the GitHub action exists and downloads the runner from the release', fs.existsSync('action.yml') && read('action.yml').includes('using: composite') && read('action.yml').includes('restclient.js'));
+ok('the release workflow attaches the standalone runner', read('.github/workflows/release.yml').includes('restclient.js'));
+// This audit runs the unit tests (out-test/) and the runner's (dist-cli/), so
+// whoever launches it has to have compiled both first. The `publish` job of
+// release-please.yml did not: on a clean checkout the audit failed and the
+// publication would have stopped there. Nobody saw it because the two releases
+// attempted so far went through release.yml.
 {
-  const flujos = fs.readdirSync('.github/workflows').filter((f) => /\.ya?ml$/.test(f));
-  const conAudit = flujos.filter((f) => /^\s*(-\s+)?run:\s*npm run audit\s*$/m.test(leer(`.github/workflows/${f}`)));
-  const sinCompilar = conAudit.filter((f) => {
-    const antes = leer(`.github/workflows/${f}`).split(/^\s*(?:-\s+)?run:\s*npm run audit\s*$/m)[0];
-    const paso = (...scripts) => scripts.some((s) => new RegExp(`^[ \\t]*(?:-[ \\t]+)?run:\\s*(?:xvfb-run -a )?npm run ${s}\\s*$`, 'm').test(antes));
-    return !(paso('compile-tests', 'test:unit', 'test:integration') && paso('build:cli', 'test:cli'));
+  const workflows = fs.readdirSync('.github/workflows').filter((f) => /\.ya?ml$/.test(f));
+  const withAudit = workflows.filter((f) => /^\s*(-\s+)?run:\s*npm run audit\s*$/m.test(read(`.github/workflows/${f}`)));
+  const uncompiled = withAudit.filter((f) => {
+    const before = read(`.github/workflows/${f}`).split(/^\s*(?:-\s+)?run:\s*npm run audit\s*$/m)[0];
+    const step = (...scripts) => scripts.some((s) => new RegExp(`^[ \\t]*(?:-[ \\t]+)?run:\\s*(?:xvfb-run -a )?npm run ${s}\\s*$`, 'm').test(before));
+    return !(step('compile-tests', 'test:unit', 'test:integration') && step('build:cli', 'test:cli'));
   });
-  // Es una comprobacion por texto: reconoce un paso `run: npm run <script>` en
-  // su propia linea, y mira lo que hay antes del audit en el fichero, no en el
-  // job. Si un flujo deja de lanzar el audit de esa forma, tambien falla.
-  const detalle = conAudit.length < 3 ? `solo ${conAudit.length} flujos lanzan el audit de una forma que esta guarda reconoce: ${conAudit.join(', ')}`
-    : sinCompilar.length ? `sin compilar antes: ${sinCompilar.join(', ')}` : conAudit.join(', ');
-  ok('todo flujo que lanza el audit compila antes las pruebas y el runner', conAudit.length >= 3 && sinCompilar.length === 0, detalle);
+  // It is a textual check: it recognises a `run: npm run <script>` step on its
+  // own line, and looks at what comes before the audit in the file, not in the
+  // job. If a workflow stops launching the audit that way, it fails too.
+  const detail = withAudit.length < 3 ? `only ${withAudit.length} workflows launch the audit in a way this guard recognises: ${withAudit.join(', ')}`
+    : uncompiled.length ? `without compiling first: ${uncompiled.join(', ')}` : withAudit.join(', ');
+  ok('every workflow that launches the audit compiles the tests and the runner first', withAudit.length >= 3 && uncompiled.length === 0, detail);
 }
-const npmPkg = JSON.parse(leer('npm/package.json'));
-ok('el paquete npm tiene el mismo numero de version', npmPkg.version === pkg.version, `npm ${npmPkg.version} / extension ${pkg.version}`);
-ok('el paquete npm es solo el runner', npmPkg.bin?.restclient === 'cli.js' && JSON.stringify(npmPkg.files) === JSON.stringify(['cli.js', 'README.md', 'LICENSE']) && !npmPkg.dependencies);
-ok('la gramatica pinta import y run', leer('syntaxes/http.tmLanguage.json').includes('http.import') && leer('syntaxes/http.tmLanguage.json').includes('http.run'));
+const npmPkg = JSON.parse(read('npm/package.json'));
+ok('the npm package has the same version number', npmPkg.version === pkg.version, `npm ${npmPkg.version} / extension ${pkg.version}`);
+ok('the npm package is just the runner', npmPkg.bin?.restclient === 'cli.js' && JSON.stringify(npmPkg.files) === JSON.stringify(['cli.js', 'README.md', 'LICENSE']) && !npmPkg.dependencies);
+ok('the grammar highlights import and run', read('syntaxes/http.tmLanguage.json').includes('http.import') && read('syntaxes/http.tmLanguage.json').includes('http.run'));
 
-seccion('las dos lenguas estan completas');
-const l10n = correr('node scripts/check-l10n.mjs');
-ok('ingles y castellano sin huecos', l10n.exitCode === 0, /=+ (\d+) failures/.exec(l10n.output)?.[1] + ' fallos');
+section('both languages are complete');
+const l10n = run('node scripts/check-l10n.mjs');
+ok('English and Spanish without gaps', l10n.exitCode === 0, /=+ (\d+) failures/.exec(l10n.output)?.[1] + ' failures');
 
-seccion('el paquete lleva lo que promete y nada mas');
-const empaquetados = correr('npx vsce ls --no-dependencies').output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-const enPaquete = (f) => empaquetados.includes(f);
-ok('el bundle del runner viaja en el paquete', enPaquete('dist/cli.js'));
-ok('el binario declarado es el que viaja', enPaquete(pkg.bin.restclient.replace('./', '')));
-ok('los avisos de terceros viajan', enPaquete('THIRD-PARTY-NOTICES.txt') && enPaquete('LICENSE'));
-ok('los dos idiomas viajan', enPaquete('package.nls.json') && enPaquete('package.nls.es.json'));
-for (const r of recursos) {
-  ok(`${r} viaja en el paquete`, enPaquete(r));
+section('the package carries what it promises and nothing else');
+const packaged = run('npx vsce ls --no-dependencies').output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+const inPackage = (f) => packaged.includes(f);
+ok('the runner bundle ships in the package', inPackage('dist/cli.js'));
+ok('the declared binary is the one that ships', inPackage(pkg.bin.restclient.replace('./', '')));
+ok('the third-party notices ship', inPackage('THIRD-PARTY-NOTICES.txt') && inPackage('LICENSE'));
+ok('both languages ship', inPackage('package.nls.json') && inPackage('package.nls.es.json'));
+for (const r of resources) {
+  ok(`${r} ships in the package`, inPackage(r));
 }
-ok('sin codigo fuente dentro', !empaquetados.some((f) => f.startsWith('src/')));
-ok('sin mapas de codigo dentro', !empaquetados.some((f) => f.endsWith('.map')));
-ok('sin los documentos internos dentro', !empaquetados.some((f) => f.startsWith('docs/') || f.startsWith('scripts/')));
-ok('sin el paquete npm ni la accion dentro', !empaquetados.some((f) => f.startsWith('npm/') || f === 'action.yml'));
+ok('no source code inside', !packaged.some((f) => f.startsWith('src/')));
+ok('no source maps inside', !packaged.some((f) => f.endsWith('.map')));
+ok('no internal documents inside', !packaged.some((f) => f.startsWith('docs/') || f.startsWith('scripts/')));
+ok('neither the npm package nor the action inside', !packaged.some((f) => f.startsWith('npm/') || f === 'action.yml'));
 if (fs.existsSync('dist/cli.js')) {
-  const cli = leer('dist/cli.js');
-  ok('el runner publicado arranca solo (shebang)', cli.startsWith('#!/usr/bin/env node'));
-  ok('el runner publicado no carga el editor', !cli.includes('require("vscode")'));
-  const r = correr('node dist/cli.js');
-  ok('el runner publicado explica su uso', r.exitCode === 2 && r.output.includes('usage:'));
+  const cli = read('dist/cli.js');
+  ok('the published runner starts on its own (shebang)', cli.startsWith('#!/usr/bin/env node'));
+  ok('the published runner does not load the editor', !cli.includes('require("vscode")'));
+  const r = run('node dist/cli.js');
+  ok('the published runner explains its usage', r.exitCode === 2 && r.output.includes('usage:'));
 }
 
-seccion('compila y pasa las pruebas');
-ok('el código compila', correr('npx tsc -p ./ --noEmit --skipLibCheck').exitCode === 0);
-ok('el runner compila', correr('npx tsc -p tsconfig.cli.json --noEmit').exitCode === 0);
-const unit = correr('npx mocha "out-test/test/unit/**/*.test.js"');
+section('it compiles and passes the tests');
+ok('the code compiles', run('npx tsc -p ./ --noEmit --skipLibCheck').exitCode === 0);
+ok('the runner compiles', run('npx tsc -p tsconfig.cli.json --noEmit').exitCode === 0);
+const unit = run('npx mocha "out-test/test/unit/**/*.test.js"');
 const nUnit = /(\d+) passing/.exec(unit.output)?.[1] ?? '0';
-ok('pruebas unitarias en verde', unit.exitCode === 0 && Number(nUnit) >= 15, `${nUnit} pruebas`);
-const cli = correr('node scripts/test-cli.mjs');
-ok('el runner pasa su prueba de punta a punta', cli.exitCode === 0, /===== (\d+) failures/.exec(cli.output)?.[0] ?? '');
-const cliPub = correr('node scripts/test-cli.mjs', { CLI_RUTA: 'dist/cli.js' });
-ok('el runner publicado pasa la misma prueba', cliPub.exitCode === 0, /===== (\d+) failures/.exec(cliPub.output)?.[0] ?? '');
+ok('unit tests green', unit.exitCode === 0 && Number(nUnit) >= 15, `${nUnit} tests`);
+const cli = run('node scripts/test-cli.mjs');
+ok('the runner passes its end-to-end test', cli.exitCode === 0, /===== (\d+) failures/.exec(cli.output)?.[0] ?? '');
+const cliPub = run('node scripts/test-cli.mjs', { CLI_PATH: 'dist/cli.js' });
+ok('the published runner passes the same test', cliPub.exitCode === 0, /===== (\d+) failures/.exec(cliPub.output)?.[0] ?? '');
 
-seccion('compatibilidad con REST Client');
-const troceo = leer('src/core/sequence.ts');
-ok('el troceo por ### se comporta como el original', troceo.includes('getDelimiterRows'));
+section('compatibility with REST Client');
+const splitting = read('src/core/sequence.ts');
+ok('splitting on ### behaves like the original', splitting.includes('getDelimiterRows'));
 
-seccion('promesas del README');
-// El numero de pruebas es lo primero que se queda viejo en un README, y aqui
-// es ademas el argumento central del fork. Se cuenta, no se cree.
-const cuentaIts = (dir) => fs.readdirSync(dir, { recursive: true })
+section('promises of the README');
+// The number of tests is the first thing to go stale in a README, and here it
+// is also the fork's central argument. It is counted, not believed.
+const countIts = (dir) => fs.readdirSync(dir, { recursive: true })
   .filter((f) => String(f).endsWith('.test.ts'))
-  .reduce((n, f) => n + (leer(path.join(dir, String(f))).match(/\bit\(/g)?.length ?? 0), 0);
-const nPruebas = cuentaIts('src/test/unit') + cuentaIts('src/test/integration');
+  .reduce((n, f) => n + (read(path.join(dir, String(f))).match(/\bit\(/g)?.length ?? 0), 0);
+const nTests = countIts('src/test/unit') + countIts('src/test/integration');
 for (const f of ['docs/HTTPKEEPER.md', 'docs/HTTPKEEPER.es.md']) {
-  const prometido = /\*\*(\d+)\*\*\s*\(/.exec(leer(f))?.[1];
-  ok(`${f} promete el numero de pruebas que hay`, Number(prometido) === nPruebas, `dice ${prometido}, hay ${nPruebas}`);
+  const promised = /\*\*(\d+)\*\*\s*\(/.exec(read(f))?.[1];
+  ok(`${f} promises the number of tests there are`, Number(promised) === nTests, `says ${promised}, there are ${nTests}`);
 }
-ok('las unitarias que corren son las que estan escritas', Number(nUnit) === cuentaIts('src/test/unit'), `${nUnit} corriendo`);
-ok('promete 400 paquetes', leer('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
-ok('promete cero telemetría', leer('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
+ok('the unit tests that run are the ones written', Number(nUnit) === countIts('src/test/unit'), `${nUnit} running`);
+ok('promises 400 packages', read('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
+ok('promises zero telemetry', read('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
 
-console.log(`\n===== ${failures} fallos`);
+console.log(`\n===== ${failures} failures`);
 process.exit(failures ? 1 : 0);

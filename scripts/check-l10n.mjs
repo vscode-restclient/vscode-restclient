@@ -1,89 +1,89 @@
-// Comprueba que las dos traducciones estan completas y sin sobras.
+// Checks that both translations are complete and carry nothing extra.
 //
-// Son dos mecanismos distintos y hay que mirar los dos:
-//   - package.nls*.json  -> lo que se ve en la ficha, los comandos y los ajustes
-//   - l10n/bundle.*.json -> las cadenas que el codigo pasa por vscode.l10n.t()
-// Una clave que falta no rompe nada: sale en ingles y nadie se entera hasta que
-// lo ve un usuario. Por eso se comprueba aqui y no a ojo.
+// Two different mechanisms, and both have to be looked at:
+//   - package.nls*.json  -> what shows in the listing, the commands and the settings
+//   - l10n/bundle.*.json -> the strings the code passes through vscode.l10n.t()
+// A missing key breaks nothing: it comes out in English and nobody notices
+// until a user does. Hence a check here rather than an eyeball.
 import fs from 'node:fs';
 import path from 'node:path';
 
 let failures = 0;
 const ok = (n, c, extra = '') => {
-    console.log(`  ${c ? 'OK   ' : 'FALLA'} ${n}${extra ? ' · ' + extra : ''}`);
+    console.log(`  ${c ? 'OK   ' : 'FAIL '} ${n}${extra ? ' · ' + extra : ''}`);
     if (!c) failures++;
 };
-const leerJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
+const readJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 
-// --- 1. La ficha, los comandos y los ajustes -------------------------------
-const base = leerJson('package.nls.json');
-const es = leerJson('package.nls.es.json');
-const clavesBase = Object.keys(base);
-const faltan = clavesBase.filter((k) => !(k in es));
-const sobran = Object.keys(es).filter((k) => !(k in base));
-const sinTraducir = clavesBase.filter((k) => k in es && es[k] === base[k]);
+// --- 1. The listing, the commands and the settings -------------------------
+const base = readJson('package.nls.json');
+const es = readJson('package.nls.es.json');
+const baseKeys = Object.keys(base);
+const missing = baseKeys.filter((k) => !(k in es));
+const extraKeys = Object.keys(es).filter((k) => !(k in base));
+const untranslated = baseKeys.filter((k) => k in es && es[k] === base[k]);
 
-console.log('== package.nls (ficha, comandos y ajustes)');
-ok('el ingles tiene claves', clavesBase.length > 0, `${clavesBase.length} claves`);
-ok('el castellano no deja ninguna fuera', faltan.length === 0, faltan.join(', '));
-ok('el castellano no inventa claves', sobran.length === 0, sobran.join(', '));
-ok('ninguna quedo copiada del ingles', sinTraducir.length === 0, sinTraducir.join(', '));
+console.log('== package.nls (listing, commands and settings)');
+ok('English has keys', baseKeys.length > 0, `${baseKeys.length} keys`);
+ok('Spanish leaves none out', missing.length === 0, missing.join(', '));
+ok('Spanish invents no keys', extraKeys.length === 0, extraKeys.join(', '));
+ok('none was left copied from English', untranslated.length === 0, untranslated.join(', '));
 
-// Toda clave declarada tiene que usarse en el manifiesto, y al reves.
-const manifiesto = fs.readFileSync('package.json', 'utf8');
-const usadas = new Set([...manifiesto.matchAll(/"%([^%"]+)%"/g)].map((m) => m[1]));
-const declaradasSinUsar = clavesBase.filter((k) => !usadas.has(k));
-const usadasSinDeclarar = [...usadas].filter((k) => !(k in base));
-ok('no sobra ninguna clave declarada', declaradasSinUsar.length === 0, declaradasSinUsar.join(', '));
-ok('el manifiesto no pide claves que no existen', usadasSinDeclarar.length === 0, usadasSinDeclarar.join(', '));
+// Every declared key has to be used in the manifest, and the other way round.
+const manifest = fs.readFileSync('package.json', 'utf8');
+const used = new Set([...manifest.matchAll(/"%([^%"]+)%"/g)].map((m) => m[1]));
+const declaredUnused = baseKeys.filter((k) => !used.has(k));
+const usedUndeclared = [...used].filter((k) => !(k in base));
+ok('no declared key is unused', declaredUnused.length === 0, declaredUnused.join(', '));
+ok('the manifest asks for no key that does not exist', usedUndeclared.length === 0, usedUndeclared.join(', '));
 
-// --- 2. Las cadenas del codigo ---------------------------------------------
-console.log('\n== l10n (cadenas del codigo)');
-const pkg = leerJson('package.json');
-ok('el manifiesto declara la carpeta l10n', pkg.l10n === './l10n', pkg.l10n ?? 'sin declarar');
+// --- 2. The strings in the code --------------------------------------------
+console.log('\n== l10n (strings in the code)');
+const pkg = readJson('package.json');
+ok('the manifest declares the l10n folder', pkg.l10n === './l10n', pkg.l10n ?? 'not declared');
 
-const ficherosTs = [];
-const recorrer = (dir) => {
+const tsFiles = [];
+const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
         const p = path.join(dir, e.name);
         if (e.isDirectory()) {
-            if (e.name !== 'test') recorrer(p);
+            if (e.name !== 'test') walk(p);
         } else if (e.name.endsWith('.ts')) {
-            ficherosTs.push(p);
+            tsFiles.push(p);
         }
     }
 };
-recorrer('src');
+walk('src');
 
-// l10n.t('...') y l10n.t("...") con literal; las plantillas con backtick no se
-// pueden traducir y se cazan aparte.
-const literales = new Map();
-const conPlantilla = [];
-for (const f of ficherosTs) {
+// l10n.t('...') and l10n.t("...") with a literal; backtick templates cannot be
+// translated and are caught separately.
+const literals = new Map();
+const withTemplate = [];
+for (const f of tsFiles) {
     const text = fs.readFileSync(f, 'utf8');
     for (const m of text.matchAll(/l10n\.t\(\s*'((?:[^'\\]|\\.)*)'/g)) {
-        literales.set(m[1].replace(/\\'/g, "'").replace(/\\"/g, '"'), f);
+        literals.set(m[1].replace(/\\'/g, "'").replace(/\\"/g, '"'), f);
     }
     for (const m of text.matchAll(/l10n\.t\(\s*"((?:[^"\\]|\\.)*)"/g)) {
-        literales.set(m[1].replace(/\\"/g, '"'), f);
+        literals.set(m[1].replace(/\\"/g, '"'), f);
     }
-    if (/l10n\.t\(\s*`/.test(text)) conPlantilla.push(f);
+    if (/l10n\.t\(\s*`/.test(text)) withTemplate.push(f);
 }
 
-const bundleEs = leerJson('l10n/bundle.l10n.es.json');
-const sinBundle = [...literales.keys()].filter((k) => !(k in bundleEs));
-const bundleSobra = Object.keys(bundleEs).filter((k) => !literales.has(k));
+const bundleEs = readJson('l10n/bundle.l10n.es.json');
+const notInBundle = [...literals.keys()].filter((k) => !(k in bundleEs));
+const bundleExtra = Object.keys(bundleEs).filter((k) => !literals.has(k));
 
-ok('el codigo pasa cadenas por l10n.t', literales.size > 0, `${literales.size} cadenas`);
-ok('todas tienen castellano', sinBundle.length === 0, sinBundle.slice(0, 5).join(' | '));
-ok('el castellano no traduce fantasmas', bundleSobra.length === 0, bundleSobra.slice(0, 5).join(' | '));
-ok('ninguna se paso con plantilla (no se traduciria)', conPlantilla.length === 0, conPlantilla.join(', '));
+ok('the code passes strings through l10n.t', literals.size > 0, `${literals.size} strings`);
+ok('all of them have Spanish', notInBundle.length === 0, notInBundle.slice(0, 5).join(' | '));
+ok('Spanish translates no ghosts', bundleExtra.length === 0, bundleExtra.slice(0, 5).join(' | '));
+ok('none was passed as a template (it would not be translated)', withTemplate.length === 0, withTemplate.join(', '));
 
-// Los huecos {0}, {1}... tienen que ser los mismos a los dos lados: si el
-// castellano se deja uno, el usuario ve el texto sin el dato.
-const huecos = (s) => [...s.matchAll(/\{(\d+)\}/g)].map((m) => m[1]).sort().join(',');
-const descuadre = [...literales.keys()].filter((k) => k in bundleEs && huecos(k) !== huecos(bundleEs[k]));
-ok('los huecos {0} cuadran en las dos lenguas', descuadre.length === 0, descuadre.join(' | '));
+// The placeholders {0}, {1}... have to be the same on both sides: if Spanish
+// drops one, the user sees the text without the value.
+const placeholders = (s) => [...s.matchAll(/\{(\d+)\}/g)].map((m) => m[1]).sort().join(',');
+const mismatch = [...literals.keys()].filter((k) => k in bundleEs && placeholders(k) !== placeholders(bundleEs[k]));
+ok('the {0} placeholders match in both languages', mismatch.length === 0, mismatch.join(' | '));
 
 console.log(`\n===== ${failures} failures`);
 process.exit(failures ? 1 : 0);

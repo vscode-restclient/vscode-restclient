@@ -1,53 +1,53 @@
-// ¿Qué arrastra `vscode` desde un fichero del núcleo?
+// What drags `vscode` in from a core file?
 //
-// Sin esto el runner de terminal se rompe al primer descuido: `vscode` sólo
-// existe dentro del editor, y un import de más lo tumba al arrancar.
+// Without this the terminal runner breaks at the first slip: `vscode` only
+// exists inside the editor, and one import too many brings it down at start-up.
 //
-// Devuelve TODOS los caminos, no el primero: memorizar por fichero perdía
-// aristas y daba luz verde a un núcleo que sí arrastraba el editor.
+// It returns ALL the paths, not the first: memoising per file lost edges and
+// gave a green light to a core that did drag the editor in.
 import fs from 'node:fs';
 import path from 'node:path';
 
-const RAIZ = process.argv[2] ?? 'src/cli/index.ts';
+const ROOT = process.argv[2] ?? 'src/cli/index.ts';
 
-/** `import type` desaparece al compilar; `require('vscode')` sólo corre si se llama. */
-const importaVscode = (source) => /^\s*import\s(?!type\s)[^;]*from\s+'vscode'/m.test(source);
-const sinTipos = (source) => source.replace(/^\s*import\s+type\s[^;]*;\s*$/gm, '');
+/** `import type` disappears on compile; `require('vscode')` only runs if called. */
+const importsVscode = (source) => /^\s*import\s(?!type\s)[^;]*from\s+'vscode'/m.test(source);
+const withoutTypes = (source) => source.replace(/^\s*import\s+type\s[^;]*;\s*$/gm, '');
 
-const culpables = new Map();
-const enCurso = new Set();
+const culprits = new Map();
+const inProgress = new Set();
 
-function buscar(file, camino) {
+function search(file, trail) {
   const abs = path.resolve(file);
-  if (enCurso.has(abs) || !fs.existsSync(abs)) return;
-  enCurso.add(abs);
+  if (inProgress.has(abs) || !fs.existsSync(abs)) return;
+  inProgress.add(abs);
 
   const source = fs.readFileSync(abs, 'utf8');
   const rel = path.relative('.', abs).split(path.sep).join('/');
-  const aqui = [...camino, rel];
+  const here = [...trail, rel];
 
-  if (importaVscode(source)) {
-    if (!culpables.has(rel)) culpables.set(rel, aqui);
+  if (importsVscode(source)) {
+    if (!culprits.has(rel)) culprits.set(rel, here);
   } else {
-    for (const m of sinTipos(source).matchAll(/from '(\.[^']+)'/g)) {
+    for (const m of withoutTypes(source).matchAll(/from '(\.[^']+)'/g)) {
       const base = path.resolve(path.dirname(abs), m[1]);
-      for (const candidato of [base + '.ts', path.join(base, 'index.ts')]) {
-        buscar(candidato, aqui);
+      for (const candidate of [base + '.ts', path.join(base, 'index.ts')]) {
+        search(candidate, here);
       }
     }
   }
-  enCurso.delete(abs);
+  inProgress.delete(abs);
 }
 
-buscar(RAIZ, []);
+search(ROOT, []);
 
-if (culpables.size === 0) {
-  console.log(`${RAIZ} no arrastra vscode`);
+if (culprits.size === 0) {
+  console.log(`${ROOT} does not drag vscode in`);
   process.exit(0);
 }
-console.log(`${RAIZ} arrastra vscode por ${culpables.size} camino(s):\n`);
-for (const [quien, camino] of culpables) {
-  console.log(`  ${quien}`);
-  console.log(`     ${camino.slice(0, -1).join(' -> ')}\n`);
+console.log(`${ROOT} drags vscode in through ${culprits.size} path(s):\n`);
+for (const [who, trail] of culprits) {
+  console.log(`  ${who}`);
+  console.log(`     ${trail.slice(0, -1).join(' -> ')}\n`);
 }
 process.exit(1);

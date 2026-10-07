@@ -1,9 +1,9 @@
-# Captura la VENTANA de VS Code (no el escritorio) a 5 fps mientras corre el
-# guion, y apunta en un indice que fotograma corresponde a cada plano.
+# Captures the VS Code WINDOW (not the desktop) at 5 fps while the script
+# runs, and notes in an index which frame belongs to which shot.
 #
-# Grabar el escritorio entero colaria lo que el usuario tenga abierto detras;
-# aqui se localiza la ventana por su titulo, se le da un tamano fijo y se copia
-# solo su rectangulo.
+# Recording the whole desktop would let in whatever the user has open behind;
+# here the window is found by its title, given a fixed size, and only its
+# rectangle is copied.
 param(
     [Parameter(Mandatory = $true)][string]$Salida,
     [int]$Ancho = 1440,
@@ -27,7 +27,7 @@ public class Ventana {
 
 New-Item -ItemType Directory -Force -Path $Salida | Out-Null
 
-# La ventana tarda en existir: se espera a que aparezca en vez de fallar.
+# The window takes a while to exist: wait for it instead of failing.
 $limite = (Get-Date).AddSeconds(60)
 $ventana = $null
 while ((Get-Date) -lt $limite -and $null -eq $ventana) {
@@ -36,7 +36,7 @@ while ((Get-Date) -lt $limite -and $null -eq $ventana) {
         Select-Object -First 1
     if ($null -eq $ventana) { Start-Sleep -Milliseconds 500 }
 }
-if ($null -eq $ventana) { Write-Error 'no aparecio la ventana de VS Code'; exit 1 }
+if ($null -eq $ventana) { Write-Error 'the VS Code window never appeared'; exit 1 }
 
 $h = $ventana.MainWindowHandle
 [void][Ventana]::MoveWindow($h, 60, 40, $Ancho, $Alto, $true)
@@ -44,14 +44,14 @@ Start-Sleep -Milliseconds 800
 [void][Ventana]::SetForegroundWindow($h)
 Start-Sleep -Milliseconds 500
 
-# Se copia el area de cliente: asi no entran ni el borde ni la sombra.
+# The client area is copied: that way neither the border nor the shadow get in.
 $rect = New-Object Ventana+RECT
 [void][Ventana]::GetClientRect($h, [ref]$rect)
 $origen = New-Object Ventana+POINT
 [void][Ventana]::ClientToScreen($h, [ref]$origen)
 $w = $rect.Right - $rect.Left
 $t = $rect.Bottom - $rect.Top
-Write-Host "ventana $w x $t en ($($origen.X),$($origen.Y))"
+Write-Host "window $w x $t at ($($origen.X),$($origen.Y))"
 
 $bmp = New-Object System.Drawing.Bitmap($w, $t)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -75,4 +75,4 @@ while (-not (Test-Path $fin) -and (Get-Date) -lt $hasta) {
 $g.Dispose()
 $bmp.Dispose()
 $indice | Out-File -FilePath (Join-Path $Salida 'indice.csv') -Encoding utf8
-Write-Host "$n fotogramas"
+Write-Host "$n frames"

@@ -1,11 +1,11 @@
-// Servidor de pruebas compartido por la suite de integración y la del runner.
+// The test server shared by the integration suite and the runner's.
 //
-// Responde lo justo para poder afirmar qué llegó: un eco por defecto, códigos
-// de estado a demanda, JSON, XML, texto, redirección, lentitud, un stream SSE
-// y un WebSocket de eco escrito a mano (RFC 6455, tramas de texto), para no
-// meter una dependencia solo para probar.
+// It answers just enough to assert what arrived: an echo by default, status
+// codes on demand, JSON, XML, text, a redirect, slowness, an SSE stream and a
+// hand-written echo WebSocket (RFC 6455, text frames), so as not to pull in a
+// dependency just for testing.
 //
-//   node test-server.cjs [host]   -> imprime {"port": N}
+//   node test-server.cjs [host]   -> prints {"port": N}
 const http = require('http');
 const crypto = require('crypto');
 
@@ -37,16 +37,16 @@ const s = http.createServer((q, r) => {
     }
     if (u === '/not-found') { return json(r, 404, { error: 'no existe' }); }
     if (u.startsWith('/sse')) {
-      // Tres eventos espaciados: el panel tiene que pintarlos según llegan.
+      // Three spaced-out events: the panel has to paint them as they arrive.
       r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'x-path': u });
       r.write(': latido\n\n');
       const events = ['{"delta":"Hola"}', '{"delta":" mundo"}', '[DONE]'];
       let i = 0;
-      const tic = setInterval(() => {
+      const tick = setInterval(() => {
         if (i < events.length) {
           r.write(`id: ${i + 1}\nevent: token\ndata: ${events[i++]}\n\n`);
         } else {
-          clearInterval(tic);
+          clearInterval(tick);
           r.end();
         }
       }, 200);
@@ -56,7 +56,7 @@ const s = http.createServer((q, r) => {
   });
 });
 
-// --- WebSocket de eco: saluda al conectar y devuelve "eco: <mensaje>" ---------
+// --- Echo WebSocket: greets on connect and returns "eco: <message>" ----------
 s.on('upgrade', (q, socket) => {
   const key = q.headers['sec-websocket-key'];
   if (!key) { socket.destroy(); return; }
@@ -70,31 +70,31 @@ s.on('upgrade', (q, socket) => {
     socket.write(Buffer.concat([header, data]));
   };
   enviar(`hola ${q.headers['x-test'] || 'anonimo'}`);
-  let resto = Buffer.alloc(0);
+  let rest = Buffer.alloc(0);
   socket.on('data', (chunk) => {
-    resto = Buffer.concat([resto, chunk]);
+    rest = Buffer.concat([rest, chunk]);
     for (;;) {
-      if (resto.length < 2) return;
-      const op = resto[0] & 0x0f;
-      const enmascarado = (resto[1] & 0x80) !== 0;
-      let largo = resto[1] & 0x7f;
+      if (rest.length < 2) return;
+      const opcode = rest[0] & 0x0f;
+      const masked = (rest[1] & 0x80) !== 0;
+      let frameLength = rest[1] & 0x7f;
       let pos = 2;
-      if (largo === 126) { if (resto.length < 4) return; largo = resto.readUInt16BE(2); pos = 4; }
-      else if (largo === 127) { if (resto.length < 10) return; largo = Number(resto.readBigUInt64BE(2)); pos = 10; }
-      const fin = pos + (enmascarado ? 4 : 0) + largo;
-      if (resto.length < fin) return;
-      let carga = resto.subarray(pos + (enmascarado ? 4 : 0), fin);
-      if (enmascarado) {
-        const mascara = resto.subarray(pos, pos + 4);
-        carga = Buffer.from(carga.map((b, i) => b ^ mascara[i % 4]));
+      if (frameLength === 126) { if (rest.length < 4) return; frameLength = rest.readUInt16BE(2); pos = 4; }
+      else if (frameLength === 127) { if (rest.length < 10) return; frameLength = Number(rest.readBigUInt64BE(2)); pos = 10; }
+      const frameEnd = pos + (masked ? 4 : 0) + frameLength;
+      if (rest.length < frameEnd) return;
+      let payload = rest.subarray(pos + (masked ? 4 : 0), frameEnd);
+      if (masked) {
+        const mascara = rest.subarray(pos, pos + 4);
+        payload = Buffer.from(payload.map((b, i) => b ^ mascara[i % 4]));
       }
-      resto = resto.subarray(fin);
-      if (op === 0x8) { socket.write(Buffer.from([0x88, 0])); socket.end(); return; }
-      if (op === 0x9) { socket.write(Buffer.concat([Buffer.from([0x8a, carga.length]), carga])); continue; }
-      if (op === 0x1) enviar(`eco: ${carga.toString('utf8')}`);
+      rest = rest.subarray(frameEnd);
+      if (opcode === 0x8) { socket.write(Buffer.from([0x88, 0])); socket.end(); return; }
+      if (opcode === 0x9) { socket.write(Buffer.concat([Buffer.from([0x8a, payload.length]), payload])); continue; }
+      if (opcode === 0x1) enviar(`eco: ${payload.toString('utf8')}`);
     }
   });
-  socket.on('error', () => { /* el cliente se fue */ });
+  socket.on('error', () => { /* the client left */ });
 });
 
 s.listen(0, host, () => console.log(JSON.stringify({ port: s.address().port })));

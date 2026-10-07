@@ -1,8 +1,8 @@
-// Monta la demo entera: servidor local, carpeta de trabajo de mentira, VS Code
-// guionizado y el capturador de ventana en paralelo.
+// Puts the whole demo together: local server, make-believe workspace, scripted
+// VS Code and the window capturer running alongside.
 //
-// Lo que sale de aqui son fotogramas crudos en media/demo/. Elegir los planos y
-// montar el GIF es cosa de assemble.mjs.
+// What comes out of here are raw frames in media/demo/. Picking the shots and
+// assembling the GIF is assemble.mjs's job.
 import cp from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,10 +10,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runTests } from '@vscode/test-electron';
 
-const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const SALIDA = path.join(RAIZ, 'media', 'demo');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const OUTPUT = path.join(ROOT, 'media', 'demo');
 
-const SERVIDOR = `const http = require('http');
+const SERVER = `const http = require('http');
 const s = http.createServer((q, r) => {
   let b = ''; q.on('data', c => b += c);
   q.on('end', () => {
@@ -29,7 +29,7 @@ const s = http.createServer((q, r) => {
     }
     if (q.url === '/facturas' && q.method === 'POST') return json(201, { id: 1004 });
     if (q.url === '/chat') {
-      // Como responde una API de modelos: un evento cada 700 ms, para que se vea llegar.
+      // The way a model API answers: one event every 700 ms, so it can be seen arriving.
       r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
       const trozos = ['Las', ' facturas', ' pendientes', ' suman', ' 2.310 €', ' (CEIP', ' Plurilingüe).'];
       let i = 0;
@@ -44,7 +44,7 @@ const s = http.createServer((q, r) => {
 });
 s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ port: s.address().port })));`;
 
-const API_HTTP = (puerto) => `@host = http://127.0.0.1:${puerto}
+const API_HTTP = (serverPort) => `@host = http://127.0.0.1:${serverPort}
 
 # @name entrar
 POST {{host}}/entrar
@@ -63,7 +63,7 @@ Authorization: Bearer {{entrar.response.body.$.token}}
 Accept: application/json
 `;
 
-const PRUEBAS_HTTP = (puerto) => `@host = http://127.0.0.1:${puerto}
+const TESTS_HTTP = (serverPort) => `@host = http://127.0.0.1:${serverPort}
 
 # @name entrar
 POST {{host}}/entrar
@@ -84,7 +84,7 @@ Authorization: Bearer {{entrar.response.body.$.token}}
 # @assert header.content-type contains json
 `;
 
-const CHAT_HTTP = (puerto) => `@host = http://127.0.0.1:${puerto}
+const CHAT_HTTP = (serverPort) => `@host = http://127.0.0.1:${serverPort}
 
 # Una API de modelos responde en streaming: el panel pinta cada evento según llega.
 POST {{host}}/chat
@@ -95,7 +95,7 @@ Content-Type: application/json
 # @assert sse.last == [DONE]
 `;
 
-const AJUSTES = {
+const SETTINGS = {
     'workbench.colorTheme': 'Default Dark Modern',
     'editor.minimap.enabled': false,
     'breadcrumbs.enabled': false,
@@ -111,63 +111,63 @@ const AJUSTES = {
 };
 
 async function main() {
-    // Sin esto, Electron arranca como Node y trata la carpeta de trabajo como
-    // si fuera un modulo que cargar.
+    // Without this, Electron starts as Node and treats the workspace folder as
+    // a module to load.
     delete process.env.ELECTRON_RUN_AS_NODE;
 
-    fs.rmSync(SALIDA, { recursive: true, force: true });
-    fs.mkdirSync(SALIDA, { recursive: true });
+    fs.rmSync(OUTPUT, { recursive: true, force: true });
+    fs.mkdirSync(OUTPUT, { recursive: true });
 
-    const tmpServidor = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-srv-'));
-    const ficheroServidor = path.join(tmpServidor, 'servidor.cjs');
-    fs.writeFileSync(ficheroServidor, SERVIDOR);
-    const hijo = cp.spawn(process.execPath, [ficheroServidor], { stdio: ['ignore', 'pipe', 'inherit'] });
-    const puerto = await new Promise((res, rej) => {
-        hijo.stdout.once('data', (d) => res(JSON.parse(d.toString()).port));
-        setTimeout(() => rej(new Error('el servidor de la demo no arrancó')), 8000);
+    const serverTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-srv-'));
+    const serverFile = path.join(serverTmp, 'servidor.cjs');
+    fs.writeFileSync(serverFile, SERVER);
+    const serverProcess = cp.spawn(process.execPath, [serverFile], { stdio: ['ignore', 'pipe', 'inherit'] });
+    const serverPort = await new Promise((res, rej) => {
+        serverProcess.stdout.once('data', (d) => res(JSON.parse(d.toString()).port));
+        setTimeout(() => rej(new Error('the demo server did not start')), 8000);
     });
-    console.log(`servidor de la demo en ${puerto}`);
+    console.log(`demo server on ${serverPort}`);
 
     const work = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-ws-'));
-    fs.writeFileSync(path.join(work, 'api.http'), API_HTTP(puerto));
-    fs.writeFileSync(path.join(work, 'pruebas.http'), PRUEBAS_HTTP(puerto));
-    fs.writeFileSync(path.join(work, 'chat.http'), CHAT_HTTP(puerto));
+    fs.writeFileSync(path.join(work, 'api.http'), API_HTTP(serverPort));
+    fs.writeFileSync(path.join(work, 'pruebas.http'), TESTS_HTTP(serverPort));
+    fs.writeFileSync(path.join(work, 'chat.http'), CHAT_HTTP(serverPort));
     fs.mkdirSync(path.join(work, '.vscode'));
-    fs.writeFileSync(path.join(work, '.vscode', 'settings.json'), JSON.stringify(AJUSTES, null, 2));
+    fs.writeFileSync(path.join(work, '.vscode', 'settings.json'), JSON.stringify(SETTINGS, null, 2));
 
-    const capturador = cp.spawn('powershell.exe', [
+    const capturer = cp.spawn('powershell.exe', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', path.join(RAIZ, 'scripts', 'demo', 'capture.ps1'),
-        '-Salida', SALIDA,
+        '-File', path.join(ROOT, 'scripts', 'demo', 'capture.ps1'),
+        '-Salida', OUTPUT,
     ], { stdio: 'inherit' });
 
     try {
         await runTests({
-            extensionDevelopmentPath: RAIZ,
-            extensionTestsPath: path.join(RAIZ, 'scripts', 'demo', 'script.cjs'),
+            extensionDevelopmentPath: ROOT,
+            extensionTestsPath: path.join(ROOT, 'scripts', 'demo', 'script.cjs'),
             launchArgs: [
                 work,
-                `--user-data-dir=${path.join(RAIZ, '.vscode-test', 'demo-user-data')}`,
+                `--user-data-dir=${path.join(ROOT, '.vscode-test', 'demo-user-data')}`,
                 '--disable-extensions',
                 '--disable-workspace-trust',
             ],
             extensionTestsEnv: {
-                DEMO_SALIDA: SALIDA,
-                DEMO_PUERTO: String(puerto),
-                DEMO_CLI: path.join(RAIZ, 'dist', 'cli.js'),
+                DEMO_SALIDA: OUTPUT,
+                DEMO_PUERTO: String(serverPort),
+                DEMO_CLI: path.join(ROOT, 'dist', 'cli.js'),
                 CLAVE_API: 'no-es-una-clave-de-verdad',
             },
         });
     } finally {
-        fs.writeFileSync(path.join(SALIDA, 'fin.txt'), 'listo');
-        hijo.kill();
-        await new Promise((r) => capturador.on('close', r));
-        fs.rmSync(tmpServidor, { recursive: true, force: true });
+        fs.writeFileSync(path.join(OUTPUT, 'fin.txt'), 'listo');
+        serverProcess.kill();
+        await new Promise((r) => capturer.on('close', r));
+        fs.rmSync(serverTmp, { recursive: true, force: true });
         fs.rmSync(work, { recursive: true, force: true });
     }
 
-    const fotogramas = fs.readdirSync(SALIDA).filter((f) => /^f\d+\.png$/.test(f)).length;
-    console.log(`${fotogramas} fotogramas en ${SALIDA}`);
+    const frames = fs.readdirSync(OUTPUT).filter((f) => /^f\d+\.png$/.test(f)).length;
+    console.log(`${frames} frames in ${OUTPUT}`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
