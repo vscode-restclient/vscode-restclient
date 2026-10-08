@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **83** (43 unit, 40 integration against a real server) |
+| Tests                              | 0                    | **89** (45 unit, 44 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -65,7 +65,7 @@ Content-Type: application/json
 
 Assertions are `@` comments, so any other tool that reads the format just ignores them.
 
-Both are features of the runner (see below): `restclient api.http` runs the file in order and reports every assertion. In the editor, Send Request sends one request and shows its response; it does not evaluate the assertions yet ([#34](https://github.com/vscode-restclient/vscode-restclient/issues/34)).
+In the editor, Send Request shows the verdict of each assertion under the response, and the status bar counts them. Running the whole file in order is the runner's job (see below): `restclient api.http` runs it and reports every assertion.
 
 ### Streaming (+72)
 
