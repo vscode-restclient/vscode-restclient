@@ -18,66 +18,66 @@ const s = http.createServer((q, r) => {
   let b = ''; q.on('data', c => b += c);
   q.on('end', () => {
     const json = (codigo, cuerpo) => { r.writeHead(codigo, { 'content-type': 'application/json; charset=utf-8' }); r.end(JSON.stringify(cuerpo, null, 2)); };
-    if (q.url === '/entrar') return json(200, { token: 'eyJhbGciOiJIUzI1NiJ9.demo', expira_en: 3600, usuario: { id: 42, nombre: 'Ana Ferreiro', rol: 'admin' } });
-    if (q.url.startsWith('/facturas/')) return json(200, { id: Number(q.url.split('/')[2]), estado: 'pagada' });
-    if (q.url === '/facturas') {
-      if (q.headers.authorization !== 'Bearer eyJhbGciOiJIUzI1NiJ9.demo') return json(401, { error: 'falta el token' });
-      return json(200, { total: 3, facturas: [
-        { id: 1001, cliente: 'Papelería Besbello', importe: 148.5, estado: 'pagada' },
-        { id: 1002, cliente: 'CEIP Plurilingüe', importe: 2310, estado: 'pendiente' },
-        { id: 1003, cliente: 'Argalla, S.L.', importe: 990, estado: 'pagada' } ] });
+    if (q.url === '/login') return json(200, { token: 'eyJhbGciOiJIUzI1NiJ9.demo', expires_in: 3600, user: { id: 42, name: 'Ana Ferreiro', role: 'admin' } });
+    if (q.url.startsWith('/invoices/')) return json(200, { id: Number(q.url.split('/')[2]), status: 'paid' });
+    if (q.url === '/invoices') {
+      if (q.headers.authorization !== 'Bearer eyJhbGciOiJIUzI1NiJ9.demo') return json(401, { error: 'missing token' });
+      return json(200, { total: 3, invoices: [
+        { id: 1001, customer: 'Besbello Stationery', amount: 148.5, status: 'paid' },
+        { id: 1002, customer: 'Northside School', amount: 2310, status: 'pending' },
+        { id: 1003, customer: 'Argalla, S.L.', amount: 990, status: 'paid' } ] });
     }
-    if (q.url === '/facturas' && q.method === 'POST') return json(201, { id: 1004 });
+    if (q.url === '/invoices' && q.method === 'POST') return json(201, { id: 1004 });
     if (q.url === '/chat') {
       // The way a model API answers: one event every 700 ms, so it can be seen arriving.
       r.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
-      const trozos = ['Las', ' facturas', ' pendientes', ' suman', ' 2.310 €', ' (CEIP', ' Plurilingüe).'];
+      const chunks = ['The', ' pending', ' invoices', ' add up', ' to', ' €2,310', ' (Northside', ' School).'];
       let i = 0;
       const tic = setInterval(() => {
-        if (i < trozos.length) r.write('data: {"delta":' + JSON.stringify(trozos[i++]) + '}\\n\\n');
+        if (i < chunks.length) r.write('data: {"delta":' + JSON.stringify(chunks[i++]) + '}\\n\\n');
         else { r.write('data: [DONE]\\n\\n'); clearInterval(tic); r.end(); }
       }, 700);
       return;
     }
-    json(404, { error: 'no existe', ruta: q.url });
+    json(404, { error: 'not found', path: q.url });
   });
 });
 s.listen(0, '127.0.0.1', () => console.log(JSON.stringify({ port: s.address().port })));`;
 
 const API_HTTP = (serverPort) => `@host = http://127.0.0.1:${serverPort}
 
-# @name entrar
-POST {{host}}/entrar
+# @name login
+POST {{host}}/login
 Content-Type: application/json
 
 {
-  "usuario": "ana",
-  "clave": "{{$processEnv CLAVE_API}}"
+  "user": "ana",
+  "password": "{{$processEnv API_KEY}}"
 }
 
 ###
 
-# El token de la respuesta anterior se usa aquí. Sin copiar y pegar.
-GET {{host}}/facturas
-Authorization: Bearer {{entrar.response.body.$.token}}
+# The token from the previous response is used here. No copying and pasting.
+GET {{host}}/invoices
+Authorization: Bearer {{login.response.body.$.token}}
 Accept: application/json
 `;
 
 const TESTS_HTTP = (serverPort) => `@host = http://127.0.0.1:${serverPort}
 
-# @name entrar
-POST {{host}}/entrar
+# @name login
+POST {{host}}/login
 Content-Type: application/json
 
-{ "usuario": "ana", "clave": "secreta" }
+{ "user": "ana", "password": "secret" }
 
 # @assert status == 200
 # @assert body.$.token exists
 
 ###
 
-GET {{host}}/facturas
-Authorization: Bearer {{entrar.response.body.$.token}}
+GET {{host}}/invoices
+Authorization: Bearer {{login.response.body.$.token}}
 
 # @assert status == 200
 # @assert body.$.total == 3
@@ -86,11 +86,11 @@ Authorization: Bearer {{entrar.response.body.$.token}}
 
 const CHAT_HTTP = (serverPort) => `@host = http://127.0.0.1:${serverPort}
 
-# Una API de modelos responde en streaming: el panel pinta cada evento según llega.
+# A model API answers as a stream: the panel paints each event as it arrives.
 POST {{host}}/chat
 Content-Type: application/json
 
-{ "prompt": "¿Cuánto suman las facturas pendientes?" }
+{ "prompt": "How much do the pending invoices add up to?" }
 
 # @assert sse.last == [DONE]
 `;
@@ -119,7 +119,7 @@ async function main() {
     fs.mkdirSync(OUTPUT, { recursive: true });
 
     const serverTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-srv-'));
-    const serverFile = path.join(serverTmp, 'servidor.cjs');
+    const serverFile = path.join(serverTmp, 'server.cjs');
     fs.writeFileSync(serverFile, SERVER);
     const serverProcess = cp.spawn(process.execPath, [serverFile], { stdio: ['ignore', 'pipe', 'inherit'] });
     const serverPort = await new Promise((res, rej) => {
@@ -130,8 +130,10 @@ async function main() {
 
     const work = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-ws-'));
     fs.writeFileSync(path.join(work, 'api.http'), API_HTTP(serverPort));
-    fs.writeFileSync(path.join(work, 'pruebas.http'), TESTS_HTTP(serverPort));
+    fs.writeFileSync(path.join(work, 'tests.http'), TESTS_HTTP(serverPort));
     fs.writeFileSync(path.join(work, 'chat.http'), CHAT_HTTP(serverPort));
+    // The runner as the release ships it, so the terminal shot shows the real command.
+    fs.copyFileSync(path.join(ROOT, 'dist', 'cli.js'), path.join(work, 'restclient.js'));
     fs.mkdirSync(path.join(work, '.vscode'));
     fs.writeFileSync(path.join(work, '.vscode', 'settings.json'), JSON.stringify(SETTINGS, null, 2));
 
@@ -154,12 +156,11 @@ async function main() {
             extensionTestsEnv: {
                 DEMO_SALIDA: OUTPUT,
                 DEMO_PUERTO: String(serverPort),
-                DEMO_CLI: path.join(ROOT, 'dist', 'cli.js'),
-                CLAVE_API: 'no-es-una-clave-de-verdad',
+                API_KEY: 'not-a-real-key',
             },
         });
     } finally {
-        fs.writeFileSync(path.join(OUTPUT, 'fin.txt'), 'listo');
+        fs.writeFileSync(path.join(OUTPUT, 'fin.txt'), 'done');
         serverProcess.kill();
         await new Promise((r) => capturer.on('close', r));
         fs.rmSync(serverTmp, { recursive: true, force: true });

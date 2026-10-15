@@ -50,7 +50,7 @@ exports.run = async () => {
     // --- 1. A request and its response, side by side -----------------------
     const api = await open('api.http');
     await wait(800);
-    await send(api, 'POST {{host}}/entrar');
+    await send(api, 'POST {{host}}/login');
     await wait(3000);
     await clear();
     signal('01-send');
@@ -58,7 +58,7 @@ exports.run = async () => {
 
     // --- 2. A value from one response feeds the next -----------------------
     await vscode.window.showTextDocument(api.document, { viewColumn: vscode.ViewColumn.One });
-    await send(api, 'GET {{host}}/facturas');
+    await send(api, 'GET {{host}}/invoices');
     await wait(3000);
     await clear();
     signal('02-chain');
@@ -67,7 +67,7 @@ exports.run = async () => {
     // --- 3. Assertions: the .http file says what it expects ----------------
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     await wait(600);
-    const tests = await open('pruebas.http');
+    const tests = await open('tests.http');
     await wait(1200);
     await clear();
     signal('03-assertions');
@@ -81,7 +81,7 @@ exports.run = async () => {
     });
     term.show(false);
     await wait(1200);
-    term.sendText(`node "${process.env.DEMO_CLI}" pruebas.http`);
+    term.sendText('node restclient.js tests.http');
     await wait(6000);
     signal('04-runner');
     await wait(3500);
@@ -100,6 +100,6 @@ exports.run = async () => {
     signal('06-stream-final');
     await wait(2000);
 
-    fs.writeFileSync(path.join(OUTPUT, 'fin.txt'), 'listo');
+    fs.writeFileSync(path.join(OUTPUT, 'fin.txt'), 'done');
     await wait(1500);
 };
