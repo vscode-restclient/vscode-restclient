@@ -67,7 +67,7 @@ jobs:
             echo "::error::Missing repository secrets:$missing — the release exists but cannot be published. Add them in Settings > Secrets and variables > Actions."
             exit 1
           fi
-      - run: npx vsce package --no-dependencies -o "restclient-${TAG}.vsix"
+      - run: npx --yes @vscode/vsce@4.0.0 package --no-dependencies -o "restclient-${TAG}.vsix"
       # Adjuntar antes de publicar en tiendas, a proposito: el 28-09 la 1.2.0 murio
       # en el paso del Marketplace y se llevo por delante todo lo que venia
       # detras. Aqui la release ya existe (la crea release-please), asi que lo
@@ -84,10 +84,10 @@ jobs:
         run: |
           VER="${TAG#v}"
           ID=$(node -p "const p=require('./package.json');p.publisher+'.'+p.name")
-          if npx vsce show "$ID" --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
+          if npx --yes @vscode/vsce@4.0.0 show "$ID" --json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{let j={};try{j=JSON.parse(d)||{}}catch{}process.exit((j.versions||[]).some(v=>v.version==='$VER')?0:1)})"; then
             echo "Marketplace already has $VER"
           else
-            npx vsce publish --no-dependencies --packagePath "restclient-${TAG}.vsix"
+            npx --yes @vscode/vsce@4.0.0 publish --no-dependencies --packagePath "restclient-${TAG}.vsix"
           fi
       - name: Open VSX (skipped if this version is already there)
         env:
@@ -95,10 +95,10 @@ jobs:
         run: |
           VER="${TAG#v}"
           ID=$(node -p "const p=require('./package.json');p.publisher+'.'+p.name")
-          if npx ovsx get "$ID" -v "$VER" --metadata >/dev/null 2>&1; then
+          if npx --yes ovsx@1.2.0 get "$ID" -v "$VER" --metadata >/dev/null 2>&1; then
             echo "Open VSX already has $VER"
           else
-            npx ovsx publish "restclient-${TAG}.vsix" -p "$OVSX_PAT"
+            npx --yes ovsx@1.2.0 publish "restclient-${TAG}.vsix" -p "$OVSX_PAT"
           fi
       # Two things about this step.
       #

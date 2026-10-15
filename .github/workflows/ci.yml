@@ -57,7 +57,7 @@ jobs:
       - name: Audit (identity, credit, privacy, deps, isolation)
         run: npm run audit
       - name: Package
-        run: npx vsce package --no-dependencies -o rest-client.vsix
+        run: npx --yes @vscode/vsce@4.0.0 package --no-dependencies -o rest-client.vsix
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:

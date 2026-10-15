@@ -45,7 +45,7 @@ async function main() {
 
     const vsix = path.join(os.tmpdir(), `restclient-test-${process.pid}.vsix`);
     console.log('packaging...');
-    run('npx', ['vsce', 'package', '--no-dependencies', '-o', filePath(vsix)], { cwd: ROOT });
+    run('npx', ['--yes', '@vscode/vsce@4.0.0', 'package', '--no-dependencies', '-o', filePath(vsix)], { cwd: ROOT });
     console.log(`${(fs.statSync(vsix).size / 1024 / 1024).toFixed(2)} MB`);
 
     const executable = await downloadAndUnzipVSCode();

@@ -356,6 +356,17 @@ ok('the release workflow attaches the standalone runner', read('.github/workflow
     : uncompiled.length ? `without compiling first: ${uncompiled.join(', ')}` : withAudit.join(', ');
   ok('every workflow that launches the audit compiles the tests and the runner first', withAudit.length >= 3 && uncompiled.length === 0, detail);
 }
+// The store tools are pinned by version wherever they are invoked. Through
+// npx, the bare name of the Marketplace tool resolves to the abandoned package
+// (2.15.0, deprecated), and the Open VSX one to whatever is newest that day.
+// Nothing in the lockfile pins them: npx fetches them at run time, so the pin
+// lives in the command.
+{
+  const files = ['scripts/audit.mjs', 'scripts/test-vsix.mjs', ...fs.readdirSync('.github/workflows').map((f) => `.github/workflows/${f}`)];
+  const loose = files.filter((f) => /npx\s+(vsce|ovsx)\b|['"]vsce['"]|['"]ovsx['"]/.test(read(f)));
+  const pinned = files.filter((f) => /@vscode\/vsce@\d+\.\d+\.\d+|ovsx@\d+\.\d+\.\d+/.test(read(f)));
+  ok('the store tools are pinned by version wherever they run', loose.length === 0 && pinned.length >= 4, loose.length ? `unpinned in ${loose.join(', ')}` : pinned.join(', '));
+}
 const npmPkg = JSON.parse(read('npm/package.json'));
 ok('the npm package has the same version number', npmPkg.version === pkg.version, `npm ${npmPkg.version} / extension ${pkg.version}`);
 ok('the npm package is just the runner', npmPkg.bin?.restclient === 'cli.js' && JSON.stringify(npmPkg.files) === JSON.stringify(['cli.js', 'README.md', 'LICENSE']) && !npmPkg.dependencies);
@@ -366,7 +377,7 @@ const l10n = run('node scripts/check-l10n.mjs');
 ok('English and Spanish without gaps', l10n.exitCode === 0, /=+ (\d+) failures/.exec(l10n.output)?.[1] + ' failures');
 
 section('the package carries what it promises and nothing else');
-const packaged = run('npx vsce ls --no-dependencies').output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+const packaged = run('npx --yes @vscode/vsce@4.0.0 ls --no-dependencies').output.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 const inPackage = (f) => packaged.includes(f);
 ok('the runner bundle ships in the package', inPackage('dist/cli.js'));
 ok('the declared binary is the one that ships', inPackage(pkg.bin.restclient.replace('./', '')));
