@@ -29,7 +29,8 @@
         "url": "https://github.com/vscode-restclient/vscode-restclient.git"
     },
     "engines": {
-        "vscode": "^1.81.0"
+        "vscode": "^1.81.0",
+        "node": ">=22"
     },
     "categories": [
         "Other",
@@ -780,7 +781,7 @@
         "build:cli": "node -e \"require('fs').rmSync('dist-cli',{recursive:true,force:true})\" && tsc -p tsconfig.cli.json",
         "test:cli": "npm run build:cli && node scripts/test-cli.mjs",
         "audit": "node scripts/audit.mjs",
-        "check": "npx tsc -p ./ --noEmit --skipLibCheck && npm run test:unit && npm run build:cli && npm run test:cli && npm run test:mcp && npm run test:l10n && npm run audit && npm run test:vsix",
+        "check": "npx tsc -p ./ --noEmit --skipLibCheck && npm run test:unit && npm run build:cli && npm run test:cli && npm run test:mcp && npm run test:l10n && npm run build && npm run audit && npm run test:vsix",
         "test:l10n": "node scripts/check-l10n.mjs",
         "test:vsix": "node scripts/test-vsix.mjs",
         "demo": "node scripts/demo/launch.mjs && node scripts/demo/assemble.mjs",
