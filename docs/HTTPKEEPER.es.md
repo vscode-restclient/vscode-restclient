@@ -6,7 +6,7 @@
 
 Fork mantenido de [REST Client](https://github.com/Huachao/vscode-restclient), de **Huachao Mao** (MIT): 7,5 millones de instalaciones, 4,9 estrellas y sin una versión nueva desde junio de 2022. El mismo formato `.http`, los mismos ajustes, recogido y puesto al día.
 
-![La petición a la izquierda, la respuesta a la derecha](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/01-send.png)
+![La petición a la izquierda, la respuesta a la derecha](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/01-send.png)
 
 ## Por qué existe este fork
 
@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **89** (45 unitarias, 44 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **91** (47 unitarias, 44 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -46,7 +46,7 @@ X-Api-Key: {{$secret API_KEY}}
 
 `{{$secret NOMBRE}}` lee el almacén de secretos cifrado del editor: el fichero nunca contiene el valor, así que se puede commitear entero. `{{$uuid}}`, `{{$isoTimestamp}}` y `{{$random.integer(1,10)}}` funcionan como en IntelliJ.
 
-![El token de una respuesta usado en la petición siguiente](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/02-chain.png)
+![El token de una respuesta usado en la petición siguiente](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/02-chain.png)
 
 ### Ejecutar todas las peticiones de un fichero, en orden (+62), con comprobaciones escritas en el fichero (+59)
 
@@ -71,7 +71,7 @@ En el editor, Send Request muestra el veredicto de cada comprobación debajo de 
 
 `text/event-stream` —como responde toda API de modelos en 2026— se pinta en el panel **según llega**. Cancelar conserva lo recibido. Se puede comprobar `sse.count`, `sse.first` y `sse.last`.
 
-![Una respuesta SSE creciendo evento a evento](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/05-stream.png)
+![Una respuesta SSE creciendo evento a evento](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/05-stream.png)
 
 `WEBSOCKET wss://host/socket` con la sintaxis de JetBrains: los mensajes en el cuerpo separados por `===`, `# @timeout 3000` para decir cuánto se escucha, y una transcripción (`>>` enviado, `<<` recibido) como respuesta.
 
@@ -105,16 +105,16 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit inf
 Devuelve 0 si todas las comprobaciones pasan y 1 si falla alguna; `--json` para las máquinas y `--junit` para los paneles de pruebas de GitHub y GitLab. El cURL pegado y los cuerpos multiparte con `< fichero` también funcionan en la terminal. En GitHub Actions:
 
 ```yaml
-- uses: TecniartGalicia/httpkeeper@v1
+- uses: vscode-restclient/vscode-restclient@v1.2.0
   with:
     file: api/smoke.http
     env: staging
-    junit: httpkeeper.xml
+    junit: restclient.xml
   env:
     RESTCLIENT_SECRET_API_KEY: ${{ secrets.API_KEY }}
 ```
 
-![El mismo fichero, ejecutado en la terminal integrada](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/04-runner.png)
+![El mismo fichero, ejecutado en la terminal integrada](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/04-runner.png)
 
 ## Referencia completa
 

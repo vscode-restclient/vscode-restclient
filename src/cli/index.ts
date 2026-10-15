@@ -331,7 +331,7 @@ export async function execute(options: Options, output: (line: string) => void):
         output(JSON.stringify({
             file: options.file,
             steps: steps.map((p, i) => ({
-                name: p.name, status: p.status, ms: p.ms, error: p.error,
+                name: p.name, status: p.status, ms: p.ms, error: p.error, body: p.body,
                 assertions: (byBlock.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual }))
             }))
         }, null, 2));

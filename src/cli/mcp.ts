@@ -31,7 +31,7 @@ interface Request {
 const TOOLS = [
     {
         name: 'list_requests',
-        description: 'List the requests (name, method, url, line) defined in a .http file. Nothing is sent.',
+        description: 'List the requests (name, method, url, 1-based line) defined in a .http file. Nothing is sent.',
         inputSchema: { type: 'object', properties: { file: { type: 'string', description: 'Path to the .http file, relative to the root' } }, required: ['file'] },
     },
     {
@@ -137,7 +137,7 @@ async function callTool(params: Record<string, unknown>, root: string): Promise<
         const file = insideRoot(String(args.file ?? ''), root);
         switch (name) {
             case 'list_requests':
-                return text({ file: path.relative(root, file), requests: requestSummaries(fs.readFileSync(file, 'utf8')) });
+                return text({ file: path.relative(root, file), requests: requestSummaries(fs.readFileSync(file, 'utf8')).map(r => ({ ...r, line: r.line + 1 })) });
             case 'send_request':
             case 'run_http_file': {
                 if (name === 'send_request' && typeof args.name !== 'string') {

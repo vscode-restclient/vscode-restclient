@@ -30,11 +30,11 @@ inputs:
     required: false
     default: '30000'
   version:
-    description: 'RestClient release to use (latest, or a version like 1.1.0)'
+    description: 'RestClient release to use (latest, or a version like 1.2.0)'
     required: false
     default: 'latest'
 
-# Secrets: export them as RESTCLIENT_SECRET<NAME> in the step's env and use
+# Secrets: export them as RESTCLIENT_SECRET_<NAME> in the step's env and use
 # {{$secret NAME}} in the file. They never appear in the log.
 runs:
   using: composite

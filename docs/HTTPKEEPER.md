@@ -6,7 +6,7 @@
 
 A maintained fork of [REST Client](https://github.com/Huachao/vscode-restclient) by **Huachao Mao** (MIT) — 7.5 million installs, 4.9 stars, and no release since June 2022. Same `.http` format, same settings, picked up and kept alive.
 
-![A request on the left, the response on the right](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/01-send.png)
+![A request on the left, the response on the right](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/01-send.png)
 
 ## Why this fork exists
 
@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **89** (45 unit, 44 integration against a real server) |
+| Tests                              | 0                    | **91** (47 unit, 44 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -46,7 +46,7 @@ X-Api-Key: {{$secret API_KEY}}
 
 `{{$secret NAME}}` reads the editor's encrypted secret storage — the file never contains the value, so it can be committed whole. `{{$uuid}}`, `{{$isoTimestamp}}` and `{{$random.integer(1,10)}}` work as in IntelliJ.
 
-![The token from one response used in the next request](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/02-chain.png)
+![The token from one response used in the next request](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/02-chain.png)
 
 ### Run every request in a file, in order (+62), with assertions written in the file (+59)
 
@@ -71,7 +71,7 @@ In the editor, Send Request shows the verdict of each assertion under the respon
 
 `text/event-stream` — how every AI API answers in 2026 — is painted in the response panel **as it arrives**. Cancel keeps what came in. `sse.count`, `sse.first` and `sse.last` can be asserted.
 
-![An SSE response growing event by event](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/05-stream.png)
+![An SSE response growing event by event](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/05-stream.png)
 
 `WEBSOCKET wss://host/socket` with the JetBrains syntax: messages in the body separated by `===`, `# @timeout 3000` to say how long to listen, and a transcript (`>>` sent, `<<` received) as the response.
 
@@ -105,16 +105,16 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit rep
 Exit code 0 when every assertion passes, 1 when one fails, `--json` for machines, `--junit` for the test dashboards of GitHub and GitLab. Pasted `curl` commands and multipart bodies with `< file` work in the runner too. In GitHub Actions:
 
 ```yaml
-- uses: TecniartGalicia/httpkeeper@v1
+- uses: vscode-restclient/vscode-restclient@v1.2.0
   with:
     file: api/smoke.http
     env: staging
-    junit: httpkeeper.xml
+    junit: restclient.xml
   env:
     RESTCLIENT_SECRET_API_KEY: ${{ secrets.API_KEY }}
 ```
 
-![The same file run from the integrated terminal](https://raw.githubusercontent.com/TecniartGalicia/httpkeeper/master/media/shots/04-runner.png)
+![The same file run from the integrated terminal](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/04-runner.png)
 
 ## Full reference
 
