@@ -210,19 +210,26 @@ const queryGallery = async (text) => {
     if (!r.ok) { throw new Error('HTTP ' + r.status); }
     return (await r.json())?.results?.[0]?.extensions ?? [];
 };
-try {
-    const sameName = (await queryGallery(pkg.name)).filter((e) => e.extensionName === pkg.name);
-    const ours = sameName.find((e) => e.publisher?.publisherName?.toLowerCase() === pkg.publisher.toLowerCase());
-    const others = sameName.filter((e) => e !== ours);
+// The same goes for the display name: the 30-09-2026 run got past the name
+// and died on "display name is taken" (humao.rest-client's "REST Client").
+// Microsoft, asked twice, makes no exceptions; hence "REST Client CE".
+const checkField = async (label, field, value) => {
+    const same = (await queryGallery(value)).filter((e) => (e[field] ?? '').toLowerCase() === value.toLowerCase());
+    const ours = same.find((e) => e.publisher?.publisherName?.toLowerCase() === pkg.publisher.toLowerCase());
+    const others = same.filter((e) => e !== ours);
     if (ours) {
-        ok(`the Marketplace already knows ${pkg.publisher}.${pkg.name}`, true, `published, v${ours.versions?.[0]?.version ?? '?'}`);
+        ok(`the Marketplace already knows ${pkg.publisher}.${pkg.name} (${label} "${value}")`, true, `published, v${ours.versions?.[0]?.version ?? '?'}`);
     } else {
         ok(
-            `the name "${pkg.name}" is free to create the extension`,
+            `the ${label} "${value}" is free to create the extension`,
             others.length === 0,
-            others.length ? `used by ${others.map((e) => `${e.publisher.publisherName} (${String(e.publishedDate).slice(0, 7)})`).join(', ')} — publishing would fail with "already exists"` : 'no other publisher uses it'
+            others.length ? `used by ${others.map((e) => `${e.publisher.publisherName}.${e.extensionName} (${String(e.publishedDate).slice(0, 7)})`).join(', ')} — publishing would fail` : 'no other publisher uses it'
         );
     }
+};
+try {
+    await checkField('name', 'extensionName', pkg.name);
+    await checkField('display name', 'displayName', pkg.displayName);
 } catch (e) {
     warning('could not query the Marketplace for the name', e.message);
 }

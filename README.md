@@ -1,4 +1,4 @@
-# REST Client
+# REST Client CE
 
 **Send HTTP requests from a `.http` file and read the response in Visual Studio Code.** No account, no cloud, no paywall, no telemetry.
 
