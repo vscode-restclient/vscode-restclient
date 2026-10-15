@@ -368,10 +368,10 @@ ok('the release workflow attaches the standalone runner', read('.github/workflow
   // whatever form npx takes it (`npx --yes <tool>`, `npx @vscode/<tool>`,
   // `run('npx', ['<tool>', ...])`). The names are assembled here so that this
   // block does not trip itself.
-  const vsce = ['vs', 'ce'].join('');
-  const ovsx = ['ov', 'sx'].join('');
-  const bare = new RegExp(`(?<![\\w@/.-])(?:@vscode/)?(?:${vsce}|${ovsx})(?![\\w.-])(?!@\\d+\\.\\d+\\.\\d+)`);
-  const versioned = new RegExp(`@vscode/${vsce}@\\d+\\.\\d+\\.\\d+|(?<![\\w@/.-])${ovsx}@\\d+\\.\\d+\\.\\d+`);
+  const marketplaceTool = ['vs', 'ce'].join('');
+  const openVsxTool = ['ov', 'sx'].join('');
+  const bare = new RegExp(`(?<![\\w@/.-])(?:@vscode/)?(?:${marketplaceTool}|${openVsxTool})(?![\\w.-])(?!@\\d+\\.\\d+\\.\\d+)`);
+  const versioned = new RegExp(`@vscode/${marketplaceTool}@\\d+\\.\\d+\\.\\d+|(?<![\\w@/.-])${openVsxTool}@\\d+\\.\\d+\\.\\d+`);
   const files = ['scripts/audit.mjs', 'scripts/test-vsix.mjs', ...fs.readdirSync('.github/workflows').filter((f) => /\.ya?ml$/.test(f)).map((f) => `.github/workflows/${f}`)];
   const code = (f) => read(f).split('\n').filter((l) => !/^\s*(#|\/\/)/.test(l)).join('\n');
   const loose = files.filter((f) => bare.test(code(f)));
