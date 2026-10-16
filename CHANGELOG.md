@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1](https://github.com/vscode-restclient/vscode-restclient/compare/v1.2.0...v1.2.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* the MCP server returns the body and 1-based lines; the action and the docs point here; English demo ([#40](https://github.com/vscode-restclient/vscode-restclient/issues/40)) ([752b4c3](https://github.com/vscode-restclient/vscode-restclient/commit/752b4c3abf02322e84ae47d10c9b37e6313ed451))
+
 ## [1.2.0] - 2026-09-14
 
 First release of the community continuation, published as `vscode-restclient.restclient`.
