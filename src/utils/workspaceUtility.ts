@@ -20,6 +20,10 @@ export function getCurrentHttpFileName(): string | undefined {
     }
 }
 
+export function getCurrentHttpFilePath(): string | undefined {
+    return getCurrentTextDocument()?.fileName;
+}
+
 export function getCurrentTextDocument(): TextDocument | undefined {
     return window.activeTextEditor?.document;
 }

@@ -11,7 +11,8 @@ import { v4 as uuid } from 'uuid';
 import { env, Uri, window } from "vscode";
 import { IRestClientSettings, SystemSettings } from '../../models/configurationSettings';
 import { MemoryCache } from '../memoryCache';
-import { getCurrentHttpFileName, getWorkspaceRootPath } from '../workspaceUtility';
+import { resolveRelativePath } from '../../core/environment';
+import { getCurrentHttpFilePath, getWorkspaceRootPath } from '../workspaceUtility';
 
 type ServerAuthorizationCodeResponse = {
   // Success case
@@ -170,31 +171,17 @@ export class CodeLoopbackClient {
       }
     }
 
-    // the path should be relative path
     const rootPath = getWorkspaceRootPath();
-    let absolutePath = '';
-    if (rootPath) {
-      absolutePath = path.join(Uri.parse(rootPath).fsPath, absoluteOrRelativePath);
-      if (fs.existsSync(absolutePath)) {
-        return fs.readFileSync(absolutePath);
-      } else {
-        window.showWarningMessage(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
-        return undefined;
-      }
+    const resolved = resolveRelativePath(absoluteOrRelativePath, {
+      root: () => rootPath ? Uri.parse(rootPath).fsPath : undefined,
+      currentFile: getCurrentHttpFilePath
+    });
+    if (resolved) {
+      return fs.readFileSync(resolved);
     }
 
-    const currentFilePath = getCurrentHttpFileName();
-    if (!currentFilePath) {
-      return undefined;
-    }
-
-    absolutePath = path.join(path.dirname(currentFilePath), absoluteOrRelativePath);
-    if (fs.existsSync(absolutePath)) {
-      return fs.readFileSync(absolutePath);
-    } else {
-      window.showWarningMessage(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
-      return undefined;
-    }
+    window.showWarningMessage(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+    return undefined;
   }
 
   /**
