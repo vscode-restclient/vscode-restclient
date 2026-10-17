@@ -10,7 +10,8 @@ import * as path from 'path';
 export interface EnvironmentData {
     /** Warnings for the user: a dialog in the editor, a line on stderr outside it. */
     warn(message: string): void;
-    logWarning?(message: string): void;
+    /** A mistake in the settings that is ignored, not interrupting: the REST output channel in the editor, stderr outside it. */
+    logError?(message: string): void;
     /** Root that relative paths are resolved against. */
     root(): string | undefined;
     /** The .http file in play, if any: the last resort for relative paths. */
@@ -21,7 +22,7 @@ export interface EnvironmentData {
 export function terminalEnvironment(root: string, currentFile?: string): EnvironmentData {
     return {
         warn: (message: string) => process.stderr.write(`warning: ${message}\n`),
-        logWarning: (message: string) => process.stderr.write(`warning: ${message}\n`),
+        logError: (message: string) => process.stderr.write(`error: ${message}\n`),
         root: () => path.resolve(root),
         currentFile: () => currentFile
     };

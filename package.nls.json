@@ -40,6 +40,7 @@
     "cfg.certificates.cert": "Path to the public X.509 certificate. Absolute paths are supported. Relative paths use the workspace folder, or the HTTP file's directory when no workspace folder is available.",
     "cfg.certificates.key": "Path to the private key. Absolute paths are supported. Relative paths use the workspace folder, or the HTTP file's directory when no workspace folder is available.",
     "cfg.certificates.pfx": "Path to the PKCS #12 certificate. Absolute paths are supported. Relative paths use the workspace folder, or the HTTP file's directory when no workspace folder is available.",
+    "cfg.certificates.passphrase": "Passphrase for the private key or PKCS #12 certificate. Optional.",
     "cfg.suppressResponseBodyContentTypeValidationWarning": "Suppress response body content type validation",
     "cfg.previewOption": "Response preview output option",
     "cfg.disableHighlightResponseBodyForLargeResponse": "Controls whether to highlight response body for response whose size is larger than limit specified by `rest-client.largeResponseSizeLimitInMB`",

@@ -29,9 +29,9 @@ function editorSettings(): IRestClientSettings {
  * up importing it.
  */
 const EDITOR_ENVIRONMENT: EnvironmentData = {
-    logWarning: (message: string) => {
+    logError: (message: string) => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        require('../logger').default.warn(message);
+        require('../logger').default.error(message);
     },
     warn: (message: string) => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -305,8 +305,8 @@ export class HttpClient {
         }
         HttpClient.warnedInvalidCertificateKeys.add(key);
         const message = `Ignoring invalid key ${JSON.stringify(key)} in rest-client.certificates. A wildcard must be a leading "*." or "**." label, or a ":*" port.`;
-        if (this.environment.logWarning) {
-            this.environment.logWarning(message);
+        if (this.environment.logError) {
+            this.environment.logError(message);
         } else {
             console.warn(message);
         }

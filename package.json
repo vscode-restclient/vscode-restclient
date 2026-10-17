@@ -569,7 +569,7 @@
                                     },
                                     "passphrase": {
                                         "type": "string",
-                                        "description": "[Optional] A string of passphrase for the private key or pfx"
+                                        "description": "%cfg.certificates.passphrase%"
                                     }
                                 },
                                 "dependencies": {

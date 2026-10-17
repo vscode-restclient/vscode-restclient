@@ -37,6 +37,7 @@
     "cfg.certificates.cert": "Ruta del certificado público X.509. Se admiten rutas absolutas. Las rutas relativas se resuelven desde la carpeta de trabajo o, si no hay ninguna, desde el directorio del fichero HTTP.",
     "cfg.certificates.key": "Ruta de la clave privada. Se admiten rutas absolutas. Las rutas relativas se resuelven desde la carpeta de trabajo o, si no hay ninguna, desde el directorio del fichero HTTP.",
     "cfg.certificates.pfx": "Ruta del certificado PKCS #12. Se admiten rutas absolutas. Las rutas relativas se resuelven desde la carpeta de trabajo o, si no hay ninguna, desde el directorio del fichero HTTP.",
+    "cfg.certificates.passphrase": "Contraseña de la clave privada o del certificado PKCS #12. Opcional.",
     "cfg.suppressResponseBodyContentTypeValidationWarning": "No avisar cuando el tipo de contenido de la respuesta no cuadra con su cuerpo.",
     "cfg.previewOption": "Qué parte de la respuesta se muestra en la vista previa.",
     "cfg.disableHighlightResponseBodyForLargeResponse": "No colorear el cuerpo de las respuestas que superen el tamaño indicado abajo.",
