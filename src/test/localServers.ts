@@ -48,7 +48,7 @@ function track(server: net.Server): Set<net.Socket> {
     return sockets;
 }
 
-const answer = (scheme: string): http.RequestListener => (q, r) => {
+const answer = (scheme: string, reportPeer = false): http.RequestListener => (q, r) => {
     // `/redirect?to=<url>` sends the client somewhere else, another scheme included.
     const redirect = '/redirect?to=';
     if (q.url?.startsWith(redirect)) {
@@ -56,8 +56,14 @@ const answer = (scheme: string): http.RequestListener => (q, r) => {
         r.end();
         return;
     }
+    const body: { scheme: string; path?: string; host?: string; peer?: string | null } = { scheme, path: q.url, host: q.headers.host };
+    if (reportPeer) {
+        // `peer`: the CN of the client certificate, when the server asked for one and got it.
+        const socket = q.socket as { getPeerCertificate?: () => { subject?: { CN?: string } } | null };
+        body.peer = socket.getPeerCertificate?.()?.subject?.CN ?? null;
+    }
     r.writeHead(200, { 'content-type': 'application/json', 'x-answered-by': scheme });
-    r.end(JSON.stringify({ scheme, path: q.url, host: q.headers.host }));
+    r.end(JSON.stringify(body));
 };
 
 export async function startHttpServer(): Promise<LocalServer> {
@@ -66,8 +72,14 @@ export async function startHttpServer(): Promise<LocalServer> {
     return { port: await listen(server), close: closer(server, sockets) };
 }
 
-export async function startHttpsServer(): Promise<LocalServer> {
-    const server = https.createServer(selfSignedCertificate(), answer('https'));
+/**
+ * With `requestCert`, the server asks the client for a certificate and reports
+ * its CN as `peer`; it does not validate it (the self-signed one has no CA), so
+ * what is tested is whether the extension sent one at all.
+ */
+export async function startHttpsServer(options: { requestCert?: boolean } = {}): Promise<LocalServer> {
+    const requestCert = options.requestCert === true;
+    const server = https.createServer({ ...selfSignedCertificate(), requestCert, rejectUnauthorized: false }, answer('https', requestCert));
     const sockets = track(server);
     return { port: await listen(server), close: closer(server, sockets) };
 }
