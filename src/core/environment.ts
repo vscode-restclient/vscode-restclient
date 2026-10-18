@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 
 /**
  * The only thing the core needs from the outside world.
@@ -26,4 +27,19 @@ export function terminalEnvironment(root: string, currentFile?: string): Environ
         root: () => path.resolve(root),
         currentFile: () => currentFile
     };
+}
+
+/**
+ * Resolves a relative path against the root first and the directory of the
+ * current .http file second, the order the README promises. Returns the first
+ * candidate that exists, so a miss in the root no longer hides a hit next to the file.
+ */
+export function resolveRelativePath(relativePath: string, environment: Pick<EnvironmentData, 'root' | 'currentFile'>): string | undefined {
+    const root = environment.root();
+    const currentFile = environment.currentFile();
+    const candidates = [
+        root ? path.join(root, relativePath) : undefined,
+        currentFile ? path.join(path.dirname(currentFile), relativePath) : undefined
+    ];
+    return candidates.find((candidate): candidate is string => candidate !== undefined && fs.existsSync(candidate));
 }

@@ -16,7 +16,7 @@ import { proxyAgents } from './proxyAgents';
 import { base64, getHeader, removeHeader } from './misc';
 import { convertBufferToStream, convertStreamToBuffer } from './streamUtility';
 import { UserDataManager } from './userDataManager';
-import { EnvironmentData } from '../core/environment';
+import { EnvironmentData, resolveRelativePath } from '../core/environment';
 
 function editorSettings(): IRestClientSettings {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -50,7 +50,7 @@ const EDITOR_ENVIRONMENT: EnvironmentData = {
     },
     currentFile: () => {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        return require('./workspaceUtility').getCurrentHttpFileName();
+        return require('./workspaceUtility').getCurrentHttpFilePath();
     }
 };
 
@@ -363,31 +363,13 @@ export class HttpClient {
             }
         }
 
-        // the path should be relative path
-        const rootPath = this.environment.root();
-        let absolutePath = '';
-        if (rootPath) {
-            absolutePath = path.join(rootPath, absoluteOrRelativePath);
-            if (fs.existsSync(absolutePath)) {
-                return fs.readFileSync(absolutePath);
-            } else {
-                this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
-                return undefined;
-            }
+        const resolved = resolveRelativePath(absoluteOrRelativePath, this.environment);
+        if (resolved) {
+            return fs.readFileSync(resolved);
         }
 
-        const currentFilePath = this.environment.currentFile();
-        if (!currentFilePath) {
-            return undefined;
-        }
-
-        absolutePath = path.join(path.dirname(currentFilePath), absoluteOrRelativePath);
-        if (fs.existsSync(absolutePath)) {
-            return fs.readFileSync(absolutePath);
-        } else {
-            this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
-            return undefined;
-        }
+        this.environment.warn(`Certificate path ${absoluteOrRelativePath} doesn't exist, please make sure it exists.`);
+        return undefined;
     }
 
     private static normalizeHeaderNames<T extends RequestHeaders | ResponseHeaders>(headers: T, rawHeaders: string[]): T {
