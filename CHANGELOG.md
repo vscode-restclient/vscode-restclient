@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2](https://github.com/vscode-restclient/vscode-restclient/compare/v1.3.1...v1.3.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **deps:** follow-redirects 1.16.1 and sanitize-html 2.18.1 close two… ([#49](https://github.com/vscode-restclient/vscode-restclient/issues/49)) ([5519972](https://github.com/vscode-restclient/vscode-restclient/commit/5519972445a4a629cfb0760b3158c98aed2ee6bf))
+
 ## [1.3.1](https://github.com/vscode-restclient/vscode-restclient/compare/v1.3.0...v1.3.1) (2026-10-18)
 
 
