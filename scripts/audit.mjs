@@ -431,13 +431,13 @@ const countIts = (dir) => fs.readdirSync(dir, { recursive: true })
   .filter((f) => String(f).endsWith('.test.ts'))
   .reduce((n, f) => n + (read(path.join(dir, String(f))).match(/\bit\(/g)?.length ?? 0), 0);
 const nTests = countIts('src/test/unit') + countIts('src/test/integration');
-for (const f of ['docs/HTTPKEEPER.md', 'docs/HTTPKEEPER.es.md']) {
+for (const f of ['README.md']) {
   const promised = /\*\*(\d+)\*\*\s*\(/.exec(read(f))?.[1];
   ok(`${f} promises the number of tests there are`, Number(promised) === nTests, `says ${promised}, there are ${nTests}`);
 }
 ok('the unit tests that run are the ones written', Number(nUnit) === countIts('src/test/unit'), `${nUnit} running`);
-ok('promises 400 packages', read('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
-ok('promises zero telemetry', read('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
+ok('promises 400 packages', read('README.md').includes('400') && readme.includes('400'));
+ok('promises zero telemetry', read('README.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
 
 console.log(`\n===== ${failures} failures`);
 process.exit(failures ? 1 : 0);
