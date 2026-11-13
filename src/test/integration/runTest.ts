@@ -35,7 +35,9 @@ async function main(): Promise<void> {
       extensionDevelopmentPath: root,
       extensionTestsPath: path.resolve(__dirname, './suite/index'),
       launchArgs: [tmp, `--user-data-dir=${path.join(root, '.vscode-test', 'user-data')}`, '--disable-extensions'],
-      extensionTestsEnv: { RC_TEST_PORT: port, RC_TEST_ONLY: process.env.RC_TEST_ONLY ?? '' },
+      // The extension's own state (selected environment, history, cookies)
+      // goes to a folder of the run, never to the real ~/.rest-client.
+      extensionTestsEnv: { RC_TEST_PORT: port, RC_TEST_ONLY: process.env.RC_TEST_ONLY ?? '', VSC_REST_CLIENT_HOME: path.join(tmp, 'rest-client-home') },
     });
   } finally {
     serverProcess.kill();
