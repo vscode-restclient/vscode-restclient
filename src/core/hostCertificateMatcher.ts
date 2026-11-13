@@ -1,5 +1,3 @@
-import * as url from 'url';
-
 export interface HostCertificateSettings {
     cert?: string;
     key?: string;
@@ -36,16 +34,30 @@ export function findHostCertificate<T extends HostCertificateSettings>(
     hostCertificates: { [key: string]: T },
     onInvalidKey?: (key: string) => void
 ): HostCertificateMatch<T> | undefined {
-    const { host, hostname, port } = url.parse(requestUrl);
+    let url: URL;
+
+    try {
+        url = new URL(requestUrl);
+    } catch {
+        return undefined;
+    }
+
+    const { host, hostname, port } = url;
+    
     if (!host || !hostname) {
         return undefined;
     }
 
-    const requestHost = host.toLowerCase();
     const requestHostname = hostname.toLowerCase();
-    const requestPort = port || undefined;
-    // url.parse retains explicit default ports and brackets around IPv6 hosts.
-    const hostWithoutPort = requestPort ? requestHost.slice(0, -requestPort.length - 1) : requestHost;
+    const requestPort = port || getExplicitPort(requestUrl);
+
+    // Reconstruct the host because WHATWG URL removes explicit default ports.
+    const requestHost = requestPort
+        ? `${requestHostname}:${requestPort}`
+        : host.toLowerCase();
+
+    const hostWithoutPort = requestHostname;
+
     let best: { keys: string[]; score: Score } | undefined;
 
     for (const key of Object.keys(hostCertificates)) {
@@ -77,6 +89,25 @@ export function findHostCertificate<T extends HostCertificateSettings>(
         throw new HostCertificateConflictError(keys);
     }
     return { key: keys[0], value };
+}
+
+function getExplicitPort(requestUrl: string): string | undefined {
+    const authority = requestUrl.match(
+        /^[a-zA-Z][a-zA-Z\d+.-]*:\/\/([^/?#]*)/
+    )?.[1];
+
+    if (!authority) {
+        return undefined;
+    }
+
+    const hostname = authority.substring(authority.lastIndexOf('@') + 1);
+
+    // IPv6 addresses must be handled separately because they contain colons.
+    const match = hostname.startsWith('[')
+        ? hostname.match(/^\[[^\]]+\]:(\d+)$/)
+        : hostname.match(/^.+:(\d+)$/);
+
+    return match?.[1];
 }
 
 function sameCertificate(a: HostCertificateSettings, b: HostCertificateSettings): boolean {

@@ -91,7 +91,7 @@ describe('host certificate matching', () => {
         it('supports bracketed IPv6 and opaque exact hosts', () => {
             assert.strictEqual(match('https://[::1]:8443/', ['[::1]:*']), '[::1]:*');
             assert.strictEqual(match('https://[::1]/', ['[::1]:*']), '[::1]:*');
-            assert.strictEqual(match('https://MY_host:443/', ['my_host:*']), 'my_host:*');
+            assert.strictEqual(match('https://MY-host:443/', ['my-host:*']), 'my-host:*');
             assert.strictEqual(match('https://bar.example.com/', ['foo.example.com:*']), undefined);
         });
     });
