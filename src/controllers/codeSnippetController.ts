@@ -6,7 +6,6 @@ import { IRestClientSettings, RequestSettings, RestClientSettings } from '../mod
 import { HARCookie, HARHeader, HARHttpRequest, HARPostData } from '../models/harHttpRequest';
 import { HttpRequest } from '../models/httpRequest';
 import { RequestParserFactory } from '../models/requestParserFactory';
-import { trace } from "../utils/decorator";
 import { base64 } from '../utils/misc';
 import { Selector } from '../utils/selector';
 import { getCurrentTextDocument } from '../utils/workspaceUtility';
@@ -108,7 +107,6 @@ export class CodeSnippetController {
         quickPick.show();
     }
 
-    @trace('Copy Request As cURL')
     public async copyAsCurl() {
         const editor = window.activeTextEditor;
         const document = getCurrentTextDocument();
