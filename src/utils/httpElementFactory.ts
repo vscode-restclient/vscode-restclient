@@ -124,10 +124,6 @@ export class HttpElementFactory {
                 ));
             } catch (error) {
                 // Doesn't really matter if a bad Url from history doesn't comme back in completion
-                console.warn(
-                    `[HttpElementFactory] Impossible to parse Url from history: "${requestUrl}"`,
-                    error
-                );
             }
         });
 
