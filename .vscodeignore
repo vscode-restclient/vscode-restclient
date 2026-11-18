@@ -21,3 +21,4 @@ dist/tsconfig.tsbuildinfo
 npm/**
 action.yml
 flake.*
+samples/**

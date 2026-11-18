@@ -1,3 +1,10 @@
+##
+# VARIABLES
+# ---------
+# First, it needs an .env with AZURE_SECRET
+# and an environment (into .vscode/settings.json) with the aadV2* variables declared
+##
+
 @tenantId = {{aadV2TenantId}}
 @clientId = {{aadV2ClientId}}
 @clientSecret = {{$dotenv AZURE_SECRET}}

@@ -21,7 +21,7 @@ GET {{host}}/cookies
 
 # ==== Issue 3 - change to @xmldom/xmldom ====
 ### POST with XML body.
-# @name testXml
+# @name testMixXmlJson
 POST {{host}}/post
 Content-Type: application/xml
 Authorization: Basic user pass
@@ -33,27 +33,32 @@ Authorization: Basic user pass
   <body>This is a test for {{var1}}.</body>
 </note>
 
-### GET Xml Document
-# @name testGetXml
-GET {{host}}/xml
-Accept: application/xml
+### Get a person XML data: <person><firstname>Jane</firstname><lastname>Do</lastname></person>
+# @name testXml
+GET {{host}}/mix/s=200/h=content-type:application%2Fxml/b64=PHBlcnNvbj48Zmlyc3RuYW1lPkphbmU8L2ZpcnN0bmFtZT48bGFzdG5hbWU+RG88L2xhc3RuYW1lPjwvcGVyc29uPg==
+Content-Type: application/xml
+
+### Send firstname from testXML response
+@firtname = {{testXml.response.body./person/firstname}}
+
+POST {{host}}/post HTTP/1.1
+
+{{firtname}}
 
 ### GET bytes
+
 # @name testBytes
 GET {{host}}/bytes/10
 Accept: application/octet-stream
 
-### Extracting data from the XML response of the previous request and using it in a new request.
-GET {{host}}/get
-X-User-Id: {{testXml.response.body.asXml.//slideshow/slide[1]/title}}
-
 ### Issue #8: Special characters in Basic Auth credentials.
 
 # The first space in the password is changed in colon
-# --> admin:it's:a total eclipse
+# user=admin
+# password: it's a total eclipse
 GET {{host}}/basic-auth/admin/it's a total eclipse
 Content-type: application/json
-Authorization: Basic admin:it's a total eclipse
+Authorization: Basic admin it's a total eclipse
 
 ### Faker
 POST {{host}}/post
