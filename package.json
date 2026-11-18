@@ -789,7 +789,6 @@
     },
     "devDependencies": {
         "@types/aws4": "^1.5.1",
-        "@types/dotenv": "^6.1.1",
         "@types/fs-extra": "^5.0.4",
         "@types/jws": "^3.2.10",
         "@types/mocha": "^5.2.7",
@@ -852,11 +851,9 @@
         "restclient": "./dist/cli.js"
     },
     "overrides": {
-        "axios": "^1.20.0",
         "form-data": "^4.0.6",
         "uuid": "^11.1.0",
         "http-cache-semantics": "^4.3.0",
-        "source-map-js": "^1.2.2",
-        "follow-redirects": "^1.16.2"
+        "source-map-js": "^1.2.2"
     }
 }
