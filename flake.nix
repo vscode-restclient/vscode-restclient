@@ -12,7 +12,7 @@
     {
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
-          nodejs_24
+          nodejs_22
           git
         ];
 

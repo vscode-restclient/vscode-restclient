@@ -38,12 +38,12 @@ Authorization: Basic user pass
 GET {{host}}/mix/s=200/h=content-type:application%2Fxml/b64=PHBlcnNvbj48Zmlyc3RuYW1lPkphbmU8L2ZpcnN0bmFtZT48bGFzdG5hbWU+RG88L2xhc3RuYW1lPjwvcGVyc29uPg==
 Content-Type: application/xml
 
-### Send firstname from testXML response
-@firtname = {{testXml.response.body./person/firstname}}
+### Send firstnames from testXML response
+@firtnames = {{testXml.response.body./person/firstname}}
 
 POST {{host}}/post HTTP/1.1
 
-{{firtname}}
+{{firtnames}}
 
 ### GET bytes
 
