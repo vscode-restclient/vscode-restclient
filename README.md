@@ -38,7 +38,7 @@ Your `rest-client.*` settings, history, cookies and environments keep working un
   - Basic Auth
   - Digest Auth
   - SSL Client Certificates
-  - Azure Active Directory v2  (v1 deprecated since 2023 was removed, use v2 instead)
+  - Azure Active Directory v2 (v1 deprecated since 2023 was removed, use v2 instead)
   - OIDC
   - Microsoft Identity Platform
   - AWS Signature v4
@@ -801,8 +801,6 @@ Date: {{$datetime rfc1123}}
     "local_custom_date": "{{$localDatetime 'YYYY-MM-DD'}}"
 }
 ```
-
-> More details about `aadToken` (Azure Active Directory Token) can be found on [Wiki](https://github.com/Huachao/vscode-restclient/wiki/Azure-Active-Directory-Authentication-Samples)
 
 ## Customize Response Preview
 
