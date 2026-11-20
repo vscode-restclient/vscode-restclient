@@ -39,11 +39,11 @@ GET {{host}}/mix/s=200/h=content-type:application%2Fxml/b64=PHBlcnNvbj48Zmlyc3Ru
 Content-Type: application/xml
 
 ### Send firstnames from testXML response
-@firtnames = {{testXml.response.body./person/firstname}}
+@firstnames = {{testXml.response.body./person/firstname}}
 
 POST {{host}}/post HTTP/1.1
 
-{{firtnames}}
+{{firstnames}}
 
 ### GET bytes
 
