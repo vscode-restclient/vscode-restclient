@@ -3,6 +3,22 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/vscode-restclient/vscode-restclient/compare/v1.3.2...v2.0.0) (2026-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* `{{$aadToken ...}}` no longer resolves and the command `rest-client.clear-aad-token-cache` is gone. Switch to `{{$aadV2Token [new] [AzureCloud|AzureChinaCloud|AzureUSGovernment|ppe] [appOnly] [scopes:<scope[,]>] [tenantid:<domain|tenantId>] [clientid:<clientId>]}}` as documented. Azure AD v1 (ADAL) has been unsupported since June 2023.
+
+### Features
+
+* remove Azure AD v1 ($aadToken) in favour of $aadV2Token ([#58](https://github.com/vscode-restclient/vscode-restclient/issues/58)) ([f424c5f](https://github.com/vscode-restclient/vscode-restclient/commit/f424c5f1c18d0cf249d5faf1a513f580a0a4eff5))
+
+
+### Performance Improvements
+
+* build the completion lists once instead of on every keystroke ([#59](https://github.com/vscode-restclient/vscode-restclient/issues/59)) ([0f8067d](https://github.com/vscode-restclient/vscode-restclient/commit/0f8067d9635691d0a85a6129f799413d118bdb6a))
+
 ## [1.3.2](https://github.com/vscode-restclient/vscode-restclient/compare/v1.3.1...v1.3.2) (2026-11-04)
 
 
