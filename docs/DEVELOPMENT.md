@@ -129,7 +129,7 @@ groups are:
   server with `mcp --root`; the runner tests read `CLI_PATH` so the audit can
   point them at the published bundle; the test servers and their readers use
   the same JSON key for the port.
-- **Public API.** The 21 commands keep the `rest-client.` prefix (the exact
+- **Public API.** The 20 commands keep the `rest-client.` prefix (the exact
   list is frozen by `commandIds.test.ts`), the agent tools ask for
   confirmation and refuse files outside the workspace, the MCP server does not
   write to disk.

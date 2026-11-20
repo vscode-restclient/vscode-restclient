@@ -54,7 +54,7 @@ ok('it still contributes the http language', pkg.contributes.languages?.some((l)
 // The public commands are REST Client's original API, restored at the
 // organisation's request (issue #1): the exact list is frozen by
 // src/test/integration/suite/commandIds.test.ts; here the shape is watched.
-ok('the public commands carry the original prefix', pkg.contributes.commands.length === 21 && pkg.contributes.commands.every((c) => c.command.startsWith('rest-client.')), pkg.contributes.commands.map((c) => c.command).filter((c) => !c.startsWith('rest-client.')).join(', '));
+ok('the public commands carry the original prefix', pkg.contributes.commands.length === 20 && pkg.contributes.commands.every((c) => c.command.startsWith('rest-client.')), pkg.contributes.commands.map((c) => c.command).filter((c) => !c.startsWith('rest-client.')).join(', '));
 ok('the runner is published as a binary', pkg.bin?.restclient !== undefined, pkg.bin?.restclient);
 
 section('credit to the original author (it is MIT, but it is said)');

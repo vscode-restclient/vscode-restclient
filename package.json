@@ -162,11 +162,6 @@
                 "category": "Rest Client"
             },
             {
-                "command": "rest-client.clear-aad-token-cache",
-                "title": "%cmd.clear-aad-token-cache%",
-                "category": "Rest Client"
-            },
-            {
                 "command": "rest-client.clear-cookies",
                 "title": "%cmd.clear-cookies%",
                 "category": "Rest Client"
@@ -812,7 +807,6 @@
     "dependencies": {
         "@faker-js/faker": "^10.6.0",
         "@xmldom/xmldom": "^0.9.12",
-        "adal-node": "^0.2.4",
         "aws4": "^1.9.1",
         "code-highlight-linenums": "^0.2.1",
         "combined-stream": "^1.0.5",
@@ -830,6 +824,7 @@
         "iconv-lite": "^0.4.15",
         "jsonc-parser": "^2.0.2",
         "jsonpath-plus": "^10.4.0",
+        "jws": "^4.0.1",
         "mime-types": "^2.1.14",
         "node-fetch": "^2.6.7",
         "node-jws": "^0.1.4",
@@ -856,11 +851,9 @@
         "restclient": "./dist/cli.js"
     },
     "overrides": {
-        "axios": "^1.20.0",
         "form-data": "^4.0.6",
         "uuid": "^11.1.0",
         "http-cache-semantics": "^4.3.0",
-        "source-map-js": "^1.2.2",
-        "follow-redirects": "^1.16.2"
+        "source-map-js": "^1.2.2"
     }
 }
