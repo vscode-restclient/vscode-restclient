@@ -399,7 +399,7 @@ for (const r of resources) {
 }
 ok('no source code inside', !packaged.some((f) => f.startsWith('src/')));
 ok('no source maps inside', !packaged.some((f) => f.endsWith('.map')));
-ok('no internal documents inside', !packaged.some((f) => f.startsWith('docs/') || f.startsWith('scripts/')));
+ok('no internal documents inside', !packaged.some((f) => f.startsWith('docs/') || f.startsWith('scripts/') || f.startsWith('samples/')));
 ok('neither the npm package nor the action inside', !packaged.some((f) => f.startsWith('npm/') || f === 'action.yml'));
 if (fs.existsSync('dist/cli.js')) {
   const cli = read('dist/cli.js');
