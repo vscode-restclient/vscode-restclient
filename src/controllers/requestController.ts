@@ -2,6 +2,7 @@ import { ExtensionContext, l10n, Range, TextDocument, Uri, ViewColumn, window, w
 import { HostCertificateConflictError } from '../core/hostCertificateMatcher';
 import { namedBlock, closeImports } from '../core/imports';
 import { isRequest, splitBlocks } from '../core/sequence';
+import { unresolvedVariables } from '../core/variables';
 import Logger from '../logger';
 import { IRestClientSettings, RequestSettings, RestClientSettings } from '../models/configurationSettings';
 import { HistoricalHttpRequest, HttpRequest } from '../models/httpRequest';
@@ -18,6 +19,7 @@ import { RequestState, RequestStatusEntry } from '../utils/requestStatusBarEntry
 import { RequestVariableCache } from "../utils/requestVariableCache";
 import { Selector } from '../utils/selector';
 import { UserDataManager } from '../utils/userDataManager';
+import { VariableProcessor } from '../utils/variableProcessor';
 import { getCurrentTextDocument } from '../utils/workspaceUtility';
 import { HttpResponseTextDocumentView } from '../views/httpResponseTextDocumentView';
 import { HttpResponseWebview } from '../views/httpResponseWebview';
@@ -52,6 +54,12 @@ export class RequestController {
 
         const { text, metadatas, assertions } = selectedRequest;
         const name = metadatas.get(RequestMetadata.Name);
+
+        const refusal = await this.unresolvedRefusal(text, metadatas, document);
+        if (refusal) {
+            window.showErrorMessage(refusal);
+            return;
+        }
 
         if (metadatas.has(RequestMetadata.Note)) {
             const note = name
@@ -109,6 +117,10 @@ export class RequestController {
         }
         const { text, metadatas, assertions } = selectedRequest;
         const name = metadatas.get(RequestMetadata.Name);
+        const refusal = await this.unresolvedRefusal(text, metadatas, document);
+        if (refusal) {
+            throw new Error(refusal);
+        }
         const settings: IRestClientSettings = new RestClientSettings(new RequestSettings(metadatas));
         const httpRequest = await RequestParserFactory.createRequestParser(text, settings).parseHttpRequest(name);
         const response = httpRequest.method === 'WEBSOCKET'
@@ -118,6 +130,24 @@ export class RequestController {
             throw new Error('the request failed or was cancelled');
         }
         return response;
+    }
+
+    /**
+     * A `{{variable}}` still in the text when it is about to go is a mistake
+     * (a typo, a missing environment), not a value: the request is not sent
+     * and the message names it. `# @allow-unresolved` opts out, for a body
+     * that is meant to carry `{{…}}`.
+     */
+    private async unresolvedRefusal(text: string, metadatas: Map<RequestMetadata, string | undefined>, document: TextDocument | undefined): Promise<string | undefined> {
+        if (metadatas.has(RequestMetadata.AllowUnresolved)) {
+            return undefined;
+        }
+        const names = unresolvedVariables(text);
+        if (names.length === 0) {
+            return undefined;
+        }
+        const reasons = await Promise.all(names.map(async name => `${name} (${await VariableProcessor.explain(name, document) ?? l10n.t('not defined')})`));
+        return l10n.t('Not sent, unresolved: {0}. Fix it, or add "# @allow-unresolved" to the request to send the text as it is.', reasons.join('; '));
     }
 
     public async rerun() {

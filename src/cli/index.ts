@@ -26,6 +26,7 @@ import { checkAssertions, readAssertions, AssertionResult } from '../core/assert
 import { isEventStream } from '../core/sse';
 import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { toJunit } from '../core/junit';
+import { blockingUnresolved, unresolvedSummary } from '../core/variables';
 
 export interface Options {
     file: string;
@@ -214,7 +215,7 @@ export function secret(name: string, secrets: Record<string, string>): string {
 export function substitute(text: string, variables: Record<string, string>, secrets: Record<string, string> = {}): string {
     return text.replace(/\{\{([^{}]+)\}\}/g, (whole, name: string) => {
         const key = name.trim();
-        if (key in variables) {
+        if (Object.prototype.hasOwnProperty.call(variables, key)) {
             return variables[key];
         }
         const [system, ...rest] = key.split(/\s+/);
@@ -282,7 +283,16 @@ export async function execute(options: Options, output: (line: string) => void):
         continueOnFailure: options.continueOnFailure,
         resolve: async (b: Block) => {
             const real = resolveRun(b, text, imported);
-            return { ...real, text: substitute(resolvePrevious(real.text, previous), variables, options.secrets) };
+            // A file variable may hold another reference (`@token = {{login.response.body.$.token}}`):
+            // the ones this block uses are expanded first, each once, as the editor does.
+            const expanded = expandVariables(real.text, variables, previous, options.secrets);
+            const resolved = substitute(resolvePrevious(real.text, previous), expanded, options.secrets);
+            // What is still {{…}} now is a mistake, not a value: say which, do not send.
+            const left = blockingUnresolved(resolved);
+            if (left.length > 0) {
+                throw new Error(unresolvedHint(left));
+            }
+            return { ...real, text: resolved };
         },
         send: async (b: Block) => {
             const request = parseRequests(b.text, root, t => substitute(t, variables, options.secrets));
@@ -416,6 +426,61 @@ function sendRequest(p: { method: string; url: string; headers: Record<string, s
         }
         request.end();
     });
+}
+
+/** The names inside `{{…}}` in `text` that are keys of `variables`. */
+function referencedKeys(text: string, variables: Record<string, string>): string[] {
+    return [...text.matchAll(/\{\{([^{}]+)\}\}/g)].map(m => m[1].trim()).filter(name => Object.prototype.hasOwnProperty.call(variables, name));
+}
+
+/**
+ * The variables `text` refers to, with the references inside their values
+ * resolved (through other variables, earlier responses and system
+ * variables), dependencies first and each value expanded once: `@id =
+ * {{$guid}}` is the same id wherever it ends up, directly or through
+ * another variable, as in the editor. Variables the block does not use are
+ * left as they are, so an unused `{{$secret X}}` does not ask for X. A
+ * cycle leaves its reference in place, which the caller then reports.
+ */
+export function expandVariables(
+    text: string,
+    variables: Record<string, string>,
+    previous: Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>,
+    secrets: Record<string, string>
+): Record<string, string> {
+    const expanded = { ...variables };
+    const done = new Set<string>();
+    const expanding = new Set<string>();
+    const expand = (name: string): void => {
+        if (done.has(name) || expanding.has(name)) {
+            return;
+        }
+        expanding.add(name);
+        for (const dependency of referencedKeys(variables[name], variables)) {
+            expand(dependency);
+        }
+        expanded[name] = substitute(resolvePrevious(variables[name], previous), expanded, secrets);
+        expanding.delete(name);
+        done.add(name);
+    };
+    for (const name of referencedKeys(text, variables)) {
+        expand(name);
+    }
+    return expanded;
+}
+
+/** Names the unresolved variables and what to do about each kind. */
+export function unresolvedHint(left: readonly string[]): string {
+    const system = left.filter(n => n.startsWith('$'));
+    const plain = left.filter(n => !n.startsWith('$'));
+    const hints: string[] = [];
+    if (plain.length > 0) {
+        hints.push(`define ${plain.length === 1 ? 'it' : 'them'} in the file or pass --var/--env; a name.response.* reference needs that request to have answered`);
+    }
+    if (system.length > 0) {
+        hints.push(`the runner does not support ${system.length === 1 ? 'that system variable' : 'those system variables'}, or the format is wrong`);
+    }
+    return `${unresolvedSummary(left)}: ${hints.join('; ')}; "# @allow-unresolved" sends the text as it is`;
 }
 
 /** Resolves `{{name.response.body.$.x}}` with what that request already answered. */

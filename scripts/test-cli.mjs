@@ -210,6 +210,59 @@ const r15 = await run([bad, '--junit', junit]);
 const badXml = fs.readFileSync(junit, 'utf8');
 ok('the report records the failed assertion', r15.exitCode === 1 && badXml.includes('failures="1"') && badXml.includes('<failure message="status == 200 -&gt; 404"/>'), badXml.split(BR).find(l => l.includes('failure')) ?? '');
 
+console.log(BR + '== P-96 · an unresolved variable is an error, not text');
+const unresolved = write('unresolved.http', [
+  `GET http://127.0.0.1:${serverPort}/echo/{{nope}}`,
+  'X-Test: {{alsoMissing}}',
+  '# @assert status == 200',
+]);
+const rUnresolved = await run([unresolved, '--junit', junit]);
+ok('exits with code 1 and marks the request ERROR', rUnresolved.exitCode === 1 && /^ERROR/m.test(rUnresolved.output), rUnresolved.output.trim().split(BR)[0]);
+ok('names the variables and how to fix it', rUnresolved.output.includes('unresolved variables: nope, alsoMissing') && rUnresolved.output.includes('--var'), rUnresolved.output.split(BR).find(l => l.includes('unresolved')) ?? '');
+const unresolvedXml = fs.readFileSync(junit, 'utf8');
+ok('the report records it as an error', unresolvedXml.includes('errors="1"') && unresolvedXml.includes('unresolved variables'), unresolvedXml.split(BR).find(l => l.includes('error')) ?? '');
+const nested = write('nested.http', [
+  `@host = http://127.0.0.1:${serverPort}`,
+  '',
+  '# @name login',
+  'POST {{host}}/auth',
+  'Content-Type: application/json',
+  '',
+  '{"user":"ana"}',
+  '',
+  '###',
+  '',
+  '@token = {{login.response.body.$.token}}',
+  '@auth = Bearer {{token}}',
+  'GET {{host}}/facturas',
+  'Authorization: {{auth}}',
+  '',
+  '# @assert status == 200',
+]);
+const rNested = await run([nested]);
+ok('a file variable that holds another reference resolves, through the response of an earlier request', rNested.exitCode === 0 && !/^ERROR/m.test(rNested.output), rNested.output.trim().split(BR).slice(0, 3).join(' | '));
+const sameId = write('same-id.http', [
+  '@id = {{$guid}}',
+  '@pair = {{id}}-{{id}}',
+  `GET http://127.0.0.1:${serverPort}/echo/{{id}}`,
+  'X-Test: {{pair}}',
+]);
+const rSame = await run([sameId, '--json']);
+const dSame = rSame.exitCode === 0 ? JSON.parse(JSON.parse(rSame.output).steps[0].body) : undefined;
+const guid = dSame ? dSame.path.slice('/echo/'.length) : '';
+ok('a file variable holding {{$guid}} is the same value in all its uses, direct or through another variable, as in the editor', rSame.exitCode === 0 && /^[0-9a-f-]{36}$/.test(guid) && dSame.header === `${guid}-${guid}`, rSame.output.slice(0, 160));
+const systemOnly = write('system.http', [`GET http://127.0.0.1:${serverPort}/echo/{{$localDatetime iso8601}}`]);
+const rSystem = await run([systemOnly]);
+ok('a system variable the runner lacks is named as such', rSystem.exitCode === 1 && rSystem.output.includes('$localDatetime iso8601') && rSystem.output.includes('runner does not support'), rSystem.output.split(BR).find(l => l.includes('unresolved')) ?? '');
+const allowed = write('allowed.http', [
+  '# @allow-unresolved',
+  `GET http://127.0.0.1:${serverPort}/echo/{{nope}}`,
+  '# @assert status == 200',
+]);
+const rAllowed = await run([allowed, '--json']);
+const dAllowed = rAllowed.exitCode === 0 ? JSON.parse(rAllowed.output) : undefined;
+ok('with "# @allow-unresolved" the text goes as it is (braces percent-encoded on the wire)', rAllowed.exitCode === 0 && dAllowed?.steps?.[0]?.status === 200 && /\{\{nope\}\}|%7B%7Bnope%7D%7D/.test(String(dAllowed?.steps?.[0]?.body ?? '')), rAllowed.output.slice(0, 160));
+
 console.log(BR + '== usage errors');
 const r5 = await run([]);
 ok('without a file it explains the usage', r5.exitCode === 2 && r5.error.includes('usage:'));
