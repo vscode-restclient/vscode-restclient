@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.0.0...v2.1.0) (2026-11-21)
+
+
+### Features
+
+* a variable that is still {{name}} when the request goes out is an error, not text ([#66](https://github.com/vscode-restclient/vscode-restclient/issues/66)) ([559a9d9](https://github.com/vscode-restclient/vscode-restclient/commit/559a9d9645a626f1d1fd6851065b91a0bfbbf508))
+
+
+### Bug Fixes
+
+* url.parse() replaced by the URL class, with the behaviours users depend on kept ([#64](https://github.com/vscode-restclient/vscode-restclient/issues/64)) ([4bf6aa9](https://github.com/vscode-restclient/vscode-restclient/commit/4bf6aa9cb4ec148542c27bde0f8bae2d41b69442))
+
 ## [2.0.0](https://github.com/vscode-restclient/vscode-restclient/compare/v1.3.2...v2.0.0) (2026-11-20)
 
 
