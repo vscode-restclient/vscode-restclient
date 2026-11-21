@@ -9,7 +9,7 @@ REST Client was created by [Huachao Mao](https://github.com/Huachao) and reached
 Full details in the [CHANGELOG](CHANGELOG.md); the longer story, with screenshots, in [docs/HTTPKEEPER.md](docs/HTTPKEEPER.md).
 
 - **Fake data**: `{{$faker internet.email}}` — any [Faker](https://fakerjs.dev) module, lazily loaded, same syntax as rest-client-next.
-- **A test suite** (144 tests: 93 unit and 51 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
+- **A test suite** (153 tests: 100 unit and 53 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
 - **Bugs fixed**: the response not showing up in Cursor, a re-sent request with mangled headers, a JSONPath with several matches returning only the first, XPath request variables.
 - **A terminal runner** for CI (`npx @vscode-restclient/cli api.http`, `--junit`, GitHub Action) that **runs a whole file in order**, with later requests using earlier responses, and checks **assertions written in the file** (`# @assert status == 200`). In the editor, Send Request shows the verdict of the assertions under the response.
 - **The JetBrains format, complete**: `http-client.env.json` / `http-client.private.env.json`, `import ./other.http`, `run #name`, request variables across files, `{{$secret NAME}}`, `{{$uuid}}`, `{{$isoTimestamp}}`, `{{$random.integer(min,max)}}`.
@@ -547,6 +547,8 @@ We support two types of variables, one is **Custom Variables** which is defined 
 
 The reference syntax of system and custom variables types has a subtle difference, for the former the syntax is `{{$SystemVariableName}}`, while for the latter the syntax is `{{CustomVariableName}}`, without preceding `$` before variable name. The definition syntax and location for different types of custom variables are different. Notice that when the same name used for custom variables, request variables takes higher resolving precedence over file variables, file variables takes higher precedence over environment variables.
 
+A reference that cannot be resolved is an error, not text: the editor does not send the request and names the variable; the terminal runner marks the request `ERROR`, names it and exits with 1; the MCP server returns it as an error. To send a request whose text is meant to carry `{{…}}` (a body that is itself a template, for instance), add `# @allow-unresolved` to it.
+
 ### Custom Variables
 
 Custom variables can cover different user scenarios with the benefit of environment variables, file variables, and request variables. Environment variables are mainly used for storing values that may vary in different environments. Since environment variables are directly defined in Visual Studio Code setting file, they can be referenced across different `http` files. File variables are mainly used for representing values that are constant throughout the `http` file. Request variables are used for the chaining requests scenarios which means a request needs to reference some part(header or body) of another request/response in the _same_ `http` file, imagine we need to retrieve the auth token dynamically from the login response, request variable fits the case well. Both file and request variables are defined in the `http` file and only have **File Scope**.
@@ -858,6 +860,7 @@ REST Client Extension also supports request-level settings for each independent 
 | note          | `# @note`          | Use for request confirmation, especially for critical request |
 | no-redirect   | `# @no-redirect`   | Don't follow the 3XX response as redirects                    |
 | no-cookie-jar | `# @no-cookie-jar` | Don't save cookies in the cookie jar                          |
+| allow-unresolved | `# @allow-unresolved` | Send the request even if a `{{variable}}` cannot be resolved: the text goes as it is |
 
 > All the above leading `#` can be replaced with `//`
 

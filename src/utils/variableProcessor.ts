@@ -53,6 +53,26 @@ export class VariableProcessor {
         return result;
     }
 
+    /**
+     * Why `{{name}}` did not resolve: the provider's own message when one
+     * knows the name (a request not sent yet, a JSONPath with no match, a
+     * malformed system variable), `undefined` when none does.
+     */
+    public static async explain(name: string, document: TextDocument | undefined): Promise<string | undefined> {
+        // Asking the provider again would prompt for the secret a second time.
+        if (/^\$secret\b/.test(name)) {
+            return 'secret not provided';
+        }
+        const context = { rawRequest: '', parsedRequest: '' };
+        for (const [provider] of this.providers) {
+            if (await provider.has(name, document, context)) {
+                const { error, warning } = await provider.get(name, document, context);
+                return (error ?? warning) as string | undefined;
+            }
+        }
+        return undefined;
+    }
+
     public static async getAllVariablesDefinitions(document: TextDocument): Promise<Map<string, VariableType[]>> {
         const [, [requestProvider], [fileProvider], [environmentProvider]] = this.providers;
         const requestVariables = await (requestProvider as RequestVariableProvider).getAll(document);

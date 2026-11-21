@@ -1,4 +1,6 @@
 {
+    "Not sent, unresolved: {0}. Fix it, or add \"# @allow-unresolved\" to the request to send the text as it is.": "No se ha enviado, sin resolver: {0}. Arréglalo o añade \"# @allow-unresolved\" a la petición para enviar el texto tal cual.",
+    "not defined": "no definida",
     "Conflicting entries in rest-client.certificates: {0}. Case-equivalent keys must have identical cert, key, pfx and passphrase settings.": "Entradas en conflicto en rest-client.certificates: {0}. Las claves equivalentes salvo mayúsculas deben tener los mismos valores de cert, key, pfx y passphrase.",
     "Send Request": "Enviar la petición",
     "1 reference": "1 uso",

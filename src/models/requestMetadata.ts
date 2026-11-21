@@ -27,6 +27,12 @@ export enum RequestMetadata {
      * long to listen before closing.
      */
     Timeout = 'timeout',
+
+    /**
+     * Send the request even if a `{{variable}}` could not be resolved: the
+     * text goes as it is (a body that is itself a template, for instance).
+     */
+    AllowUnresolved = 'allow-unresolved',
 }
 
 export function fromString(value: string): RequestMetadata | undefined {
