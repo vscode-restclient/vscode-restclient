@@ -1,4 +1,4 @@
-import * as url from 'url';
+import { pathWithQuery, tryParseUrl } from '../../core/urls';
 import { md5 } from '../misc';
 
 import type { AfterResponseHook } from 'got';
@@ -12,8 +12,10 @@ export function digest(user: string, pass: string): AfterResponseHook {
             && response.headers['www-authenticate'].split(' ')[0].toLowerCase() === 'digest') {
             const authHeader = response.headers['www-authenticate'];
             const method = (response as any).request.options.method;
-            const path = url.parse(response.url).path;
-            const challenge = {
+            // The signed URI is the path WITH the query string (RFC 7616 3.4).
+            const parsedUrl = tryParseUrl(response.url);
+            const path = parsedUrl ? pathWithQuery(parsedUrl) : response.url;
+            const challenge: Record<string, string> = {
                 qop: '',
                 algorithm: '',
                 realm: '',
@@ -31,7 +33,7 @@ export function digest(user: string, pass: string): AfterResponseHook {
                 challenge[match[1]] = match[2] || match[3];
             }
 
-            const ha1Compute = function (algorithm, user, realm, pass, nonce, cnonce) {
+            const ha1Compute = function (algorithm: string, user: string, realm: string, pass: string, nonce: string, cnonce: string | false) {
                 const ha1 = md5(user + ':' + realm + ':' + pass);
                 if (algorithm?.toLowerCase() === 'md5-sess') {
                     return md5(ha1 + ':' + nonce + ':' + cnonce);
@@ -48,7 +50,7 @@ export function digest(user: string, pass: string): AfterResponseHook {
             const digestResponse = qop
                 ? md5(ha1 + ':' + challenge.nonce + ':' + nc + ':' + cnonce + ':' + qop + ':' + ha2)
                 : md5(ha1 + ':' + challenge.nonce + ':' + ha2);
-            const authValues = {
+            const authValues: Record<string, string | false> = {
                 username: user,
                 realm: challenge.realm,
                 nonce: challenge.nonce,

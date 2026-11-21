@@ -1,6 +1,6 @@
-import * as url from 'url';
 import { CancellationToken, DocumentSymbolProvider, Location, Range, SymbolInformation, SymbolKind, TextDocument } from 'vscode';
 import * as Constants from '../common/constants';
+import { requestOutline } from '../core/urls';
 import { RequestParserFactory } from '../models/requestParserFactory';
 import { Selector } from '../utils/selector';
 import { VariableProcessor } from '../utils/variableProcessor';
@@ -75,7 +75,7 @@ export class HttpDocumentSymbolProvider implements DocumentSymbolProvider {
         const text = await VariableProcessor.processRawRequest(rawText);
         const parser = RequestParserFactory.createRequestParser(text);
         const request = await parser.parseHttpRequest();
-        const parsedUrl = url.parse(request.url);
-        return [`${request.method} ${parsedUrl.path}`, parsedUrl.host || ''];
+        const { name: label, host } = requestOutline(request.method, request.url);
+        return [label, host];
     }
 }

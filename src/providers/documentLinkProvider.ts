@@ -1,8 +1,8 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import * as url from 'url';
 import { CancellationToken, DocumentLink, DocumentLinkProvider, Position, Range, TextDocument, Uri } from 'vscode';
 import * as Constants from '../common/constants';
+import { resolveAgainst } from '../core/urls';
 import { getWorkspaceRootPath } from '../utils/workspaceUtility';
 
 export class RequestBodyDocumentLinkProvider implements DocumentLinkProvider {
@@ -41,16 +41,16 @@ export class RequestBodyDocumentLinkProvider implements DocumentLinkProvider {
             let rootPath = getWorkspaceRootPath();
             if (rootPath) {
                 rootPath = rootPath.replace(/\/?$/, '/');
-                let resourcePathString = url.resolve(rootPath, link);
+                let resourcePathString = resolveAgainst(rootPath, link);
                 if (!fs.existsSync(resourcePathString)) {
                     base = base.replace(/\/?$/, '/');
-                    resourcePathString = url.resolve(base, link);
+                    resourcePathString = resolveAgainst(base, link);
                 }
 
                 resourcePath = Uri.parse(resourcePathString);
             } else {
                 base = base.replace(/\/?$/, '/');
-                resourcePath = Uri.parse(url.resolve(base, link));
+                resourcePath = Uri.parse(resolveAgainst(base, link));
             }
         }
 

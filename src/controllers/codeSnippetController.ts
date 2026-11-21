@@ -1,6 +1,6 @@
 import { EOL } from 'os';
-import * as url from 'url';
 import { Clipboard, env, ExtensionContext, l10n, QuickInputButtons, window } from 'vscode';
+import { hasProtocol } from '../core/urls';
 import Logger from '../logger';
 import { IRestClientSettings, RequestSettings, RestClientSettings } from '../models/configurationSettings';
 import { HARCookie, HARHeader, HARHttpRequest, HARPostData } from '../models/harHttpRequest';
@@ -127,7 +127,7 @@ export class CodeSnippetController {
         const httpRequest = await RequestParserFactory.createRequestParser(text, settings).parseHttpRequest();
 
         const harHttpRequest = this.convertToHARHttpRequest(httpRequest);
-        const addPrefix = !(url.parse(harHttpRequest.url).protocol);
+        const addPrefix = !hasProtocol(harHttpRequest.url);
         const originalUrl = harHttpRequest.url;
         if (addPrefix) {
             // Add protocol for url that doesn't specify protocol to pass the HTTPSnippet validation #328

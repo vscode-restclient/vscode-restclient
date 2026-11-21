@@ -2,8 +2,8 @@ import * as fs from 'fs-extra';
 import * as iconv from 'iconv-lite';
 import * as path from 'path';
 import { CookieJar, Store } from 'tough-cookie';
-import * as url from 'url';
 import { findHostCertificate } from '../core/hostCertificateMatcher';
+import { bareHostname, explicitPort, tryParseUrl } from '../core/urls';
 import { RequestHeaders, ResponseHeaders } from '../models/base';
 import type { IRestClientSettings } from '../models/configurationSettings';
 import { HttpRequest } from '../models/httpRequest';
@@ -317,9 +317,12 @@ export class HttpClient {
             return false;
         }
 
-        const resolvedUrl = url.parse(requestUrl);
-        const hostName = resolvedUrl.hostname?.toLowerCase();
-        const port = resolvedUrl.port;
+        const resolvedUrl = tryParseUrl(requestUrl);
+        if (!resolvedUrl) {
+            return false;
+        }
+        const hostName = bareHostname(requestUrl, resolvedUrl);
+        const port = explicitPort(requestUrl, resolvedUrl);
         const excludeHostsProxyList = Array.from(new Set(excludeHostsForProxy.map(eh => eh.toLowerCase())));
 
         for (const eh of excludeHostsProxyList) {
