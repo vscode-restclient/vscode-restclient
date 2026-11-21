@@ -1,4 +1,4 @@
-import * as url from 'url';
+import { bareHostname, explicitPort, hostAsWritten, tryParseUrl } from './urls';
 
 export interface HostCertificateSettings {
     cert?: string;
@@ -36,15 +36,16 @@ export function findHostCertificate<T extends HostCertificateSettings>(
     hostCertificates: { [key: string]: T },
     onInvalidKey?: (key: string) => void
 ): HostCertificateMatch<T> | undefined {
-    const { host, hostname, port } = url.parse(requestUrl);
-    if (!host || !hostname) {
+    const parsed = tryParseUrl(requestUrl);
+    if (!parsed || !parsed.hostname) {
         return undefined;
     }
 
-    const requestHost = host.toLowerCase();
-    const requestHostname = hostname.toLowerCase();
-    const requestPort = port || undefined;
-    // url.parse retains explicit default ports and brackets around IPv6 hosts.
+    // Like url.parse() did: host, hostname and port as written (lowercased),
+    // so a default port stays and an IPv6 literal is not canonicalised.
+    const requestHost = hostAsWritten(requestUrl, parsed);
+    const requestHostname = bareHostname(requestUrl, parsed);
+    const requestPort = explicitPort(requestUrl, parsed);
     const hostWithoutPort = requestPort ? requestHost.slice(0, -requestPort.length - 1) : requestHost;
     let best: { keys: string[]; score: Score } | undefined;
 
