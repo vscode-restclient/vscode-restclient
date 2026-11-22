@@ -30,6 +30,8 @@ const s = http.createServer((q, r) => {
     if (u === '/text') { r.writeHead(200, { 'content-type': 'text/plain', 'x-path': u }); return r.end('plain text here'); }
     if (u === '/xml') { r.writeHead(200, { 'content-type': 'application/xml', 'x-path': u }); return r.end('<root><child>value</child></root>'); }
     if (u === '/auth') { return json(r, 200, { token: 'tok-123' }); }
+    // A cookie, to see which folder the cookie jar writes it to.
+    if (u.startsWith('/cookie/set/')) { return json(r, 200, { set: u.split('/')[3] }, { 'set-cookie': `rcmark=${u.split('/')[3]}; Path=/` }); }
     if (u.startsWith('/echo')) { return json(r, 200, { path: u, header: q.headers['x-test'] || null, authorization: q.headers.authorization || null, received: b }); }
     if (u.startsWith('/facturas')) {
       const ok = q.headers.authorization === 'Bearer tok-123';

@@ -263,6 +263,39 @@ const rAllowed = await run([allowed, '--json']);
 const dAllowed = rAllowed.exitCode === 0 ? JSON.parse(rAllowed.output) : undefined;
 ok('with "# @allow-unresolved" the text goes as it is (braces percent-encoded on the wire)', rAllowed.exitCode === 0 && dAllowed?.steps?.[0]?.status === 200 && /\{\{nope\}\}|%7B%7Bnope%7D%7D/.test(String(dAllowed?.steps?.[0]?.body ?? '')), rAllowed.output.slice(0, 160));
 
+console.log(BR + '== P-97 · without --env, the environment selected in the editor (workspace mode)');
+// A project as the editor leaves it in `workspace` mode: its environments and,
+// in .rest-client/, the selection marked for the runner. The file is two folders down.
+const project = path.join(tmp, 'project');
+fs.mkdirSync(path.join(project, 'api', 'v1'), { recursive: true });
+fs.mkdirSync(path.join(project, '.rest-client'), { recursive: true });
+fs.writeFileSync(path.join(project, 'http-client.env.json'), JSON.stringify({ dev: { p: '/dev' }, prod: { p: '/prod' } }));
+const selectionFile = path.join(project, '.rest-client', 'environment.json');
+const select = (selection) => fs.writeFileSync(selectionFile, JSON.stringify(selection));
+const selHttp = path.join(project, 'api', 'v1', 'sel.http');
+fs.writeFileSync(selHttp, [`GET http://127.0.0.1:${serverPort}/echo{{p}}`, ''].join(BR));
+const bodyPath = (r) => { try { return JSON.parse(JSON.parse(r.output).steps[0].body).path; } catch { return undefined; } };
+
+select({ name: 'prod', label: 'prod', scope: 'workspace' });
+const rPicked = await run([selHttp, '--json']);
+ok('the selection is used, and stderr says which one and where from', rPicked.exitCode === 0 && bodyPath(rPicked) === '/echo/prod' && rPicked.error.includes('note: environment "prod"') && rPicked.error.includes(selectionFile), rPicked.error.trim() || rPicked.output.slice(0, 160));
+const rExplicit = await run([selHttp, '--env', 'dev', '--json']);
+ok('--env still wins, and then nothing is said', rExplicit.exitCode === 0 && bodyPath(rExplicit) === '/echo/dev' && !rExplicit.error.includes('note:'), rExplicit.error.trim() || bodyPath(rExplicit));
+// «No environment» in a folder below one that has `prod` selected: it is a
+// choice, not an absence, so the search stops there and `prod` is not used.
+const nestedSelection = path.join(project, 'api', '.rest-client');
+fs.mkdirSync(nestedSelection, { recursive: true });
+fs.writeFileSync(path.join(nestedSelection, 'environment.json'), JSON.stringify({ name: 'c0cfe680-4fcd-4b71-a4ba-8cfaee57680a', label: 'No Environment', scope: 'workspace' }));
+const rNone = await run([selHttp, '--json']);
+ok('«no environment» selected in the editor is no environment, even with "prod" selected further up', rNone.exitCode !== 0 && rNone.output.includes('unresolved variable: p') && !rNone.error.includes('note:'), rNone.output.slice(0, 200));
+fs.rmSync(nestedSelection, { recursive: true, force: true });
+select({ name: 'Staging (settings)', label: 'Staging (settings)', scope: 'workspace' });
+const rSettings = await run([selHttp, '--json']);
+ok('an editor environment that only exists in the VS Code settings is named, with why it is not seen', rSettings.error.includes(`the editor's environment "Staging (settings)": no such environment`) && rSettings.error.includes('VS Code settings'), rSettings.error.trim());
+select({ name: 'prod', label: 'prod' });
+const rLegacy = await run([selHttp, '--json']);
+ok('a file without the mark, like the shared one REST Client kept in ~/.rest-client, is not a selection', !rLegacy.error.includes('note:') && rLegacy.output.includes('unresolved variable: p'), rLegacy.error.trim() || rLegacy.output.slice(0, 160));
+
 console.log(BR + '== usage errors');
 const r5 = await run([]);
 ok('without a file it explains the usage', r5.exitCode === 2 && r5.error.includes('usage:'));

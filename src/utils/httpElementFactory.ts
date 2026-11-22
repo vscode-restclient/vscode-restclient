@@ -108,7 +108,7 @@ export class HttpElementFactory {
         }
 
         // Add URLs from history
-        const historyItems = await UserDataManager.getRequestHistory();
+        const historyItems = await UserDataManager.getRequestHistory(document.uri.toString());
         const distinctRequestUrls = new Set(historyItems.map(item => item.url));
 
         distinctRequestUrls.forEach(requestUrl => {

@@ -1,6 +1,9 @@
-import { EventEmitter, l10n, QuickPickItem, window } from 'vscode';
+import { EventEmitter, l10n, Memento, QuickPickItem, window } from 'vscode';
 import * as Constants from '../common/constants';
+import { hasOwnDataFolder, withdrawSelection, writeSelection } from '../core/dataLocation';
+import Logger from '../logger';
 import { SystemSettings } from '../models/configurationSettings';
+import { dataLocation, localFolders } from '../utils/dataLocator';
 import { fileEnvironments } from '../utils/editorEnvironments';
 import { EnvironmentStatusEntry } from '../utils/environmentStatusBarEntry';
 import { UserDataManager } from '../utils/userDataManager';
@@ -15,6 +18,11 @@ export class EnvironmentController {
     };
 
     public static readonly sharedEnvironmentName: string = '$shared';
+
+    /** The selection lives in the window's workspace state: each window has its own (Huachao#1444). */
+    private static readonly stateKey = 'rest-client.selectedEnvironment';
+
+    private static state: Memento | undefined;
 
     private static readonly _onDidChangeEnvironment = new EventEmitter<string>();
 
@@ -71,17 +79,74 @@ export class EnvironmentController {
         EnvironmentController._onDidChangeEnvironment.fire(item.label);
         this.environmentStatusEntry.update(item.label);
 
-        await UserDataManager.setEnvironment({ name: item.name, label: item.label });
+        await EnvironmentController.state?.update(EnvironmentController.stateKey, { name: item.name, label: item.label });
+        // Choosing one is asking for it: every folder of the window gets it.
+        EnvironmentController.shareSelection(true);
     }
 
-    public static async create(): Promise<EnvironmentController> {
+    /**
+     * In `workspace` mode the selection is also left in the workspace
+     * folders' `.rest-client/environment.json`, where the terminal runner and
+     * the MCP server look for it when no `--env` is given: in every folder
+     * when `everywhere` (an explicit switch), otherwise only in those whose
+     * `.rest-client/` this extension created, so opening a window creates
+     * nothing. In any other mode it is removed from the open folders, so the
+     * runner does not follow a selection the editor no longer keeps up to
+     * date; a project that is not open keeps it until it is opened.
+     */
+    public static shareSelection(everywhere = false): void {
+        const keep = dataLocation() === 'workspace';
+        for (const folder of localFolders()) {
+            if (keep && (everywhere || hasOwnDataFolder(folder))) {
+                EnvironmentController.shareSelectionIn(folder);
+            } else if (!keep) {
+                withdrawSelection(folder);
+            }
+        }
+    }
+
+    /** Leaves the selection in one workspace folder, in `workspace` mode. */
+    public static shareSelectionIn(folder: string): void {
+        if (dataLocation() !== 'workspace') {
+            return;
+        }
+        const selection = EnvironmentController.selected() ?? EnvironmentController.noEnvironmentPickItem;
+        try {
+            writeSelection(folder, { name: selection.name, label: selection.label });
+        } catch (error) {
+            Logger.error(`Could not write the selected environment in ${folder}:`, error);
+        }
+    }
+
+    /**
+     * `state` is the window's workspace state. A workspace with no selection
+     * of its own takes, once, the one REST Client kept in
+     * `~/.rest-client/environment.json`, which is never written again.
+     */
+    public static async create(state: Memento): Promise<EnvironmentController> {
+        this.state = state;
+        if (state.get(this.stateKey) === undefined) {
+            const legacy = await UserDataManager.getLegacyEnvironment() as Partial<EnvironmentPickItem> | undefined;
+            const inherited = legacy && typeof legacy.name === 'string' && typeof legacy.label === 'string'
+                ? { name: legacy.name, label: legacy.label }
+                : { name: this.noEnvironmentPickItem.name, label: this.noEnvironmentPickItem.label };
+            await state.update(this.stateKey, inherited);
+        }
         const environment = await this.getCurrentEnvironment();
+        this.shareSelection();
         return new EnvironmentController(environment);
     }
 
+    private static selected(): EnvironmentPickItem | undefined {
+        const current = this.state?.get<Partial<EnvironmentPickItem>>(this.stateKey);
+        return current && typeof current.name === 'string' && typeof current.label === 'string'
+            ? { name: current.name, label: current.label }
+            : undefined;
+    }
+
     public static async getCurrentEnvironment(): Promise<EnvironmentPickItem> {
-        const currentEnvironment = await UserDataManager.getEnvironment() as EnvironmentPickItem | undefined;
-        return currentEnvironment || this.noEnvironmentPickItem;
+        const current = this.selected();
+        return current && current.name !== this.noEnvironmentPickItem.name ? current : this.noEnvironmentPickItem;
     }
 
     public dispose() {

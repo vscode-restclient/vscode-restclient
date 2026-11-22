@@ -210,7 +210,7 @@ export class HttpResponseWebview extends BaseWebview {
     private async save() {
         if (this.activeResponse) {
             const fullResponse = this.getFullResponseString(this.activeResponse);
-            const defaultFilePath = UserDataManager.getResponseSaveFilePath(`Response-${Date.now()}.http`);
+            const defaultFilePath = UserDataManager.getResponseSaveFilePath(`Response-${Date.now()}.http`, this.activeResponse.request.documentUri);
             try {
                 await this.openSaveDialog(defaultFilePath, fullResponse);
             } catch {
@@ -222,7 +222,7 @@ export class HttpResponseWebview extends BaseWebview {
     private async saveBody() {
         if (this.activeResponse) {
             const fileName = HttpResponseWebview.getResponseBodyOuptutFilename(this.activeResponse, this.settings);
-            const defaultFilePath = UserDataManager.getResponseBodySaveFilePath(fileName);
+            const defaultFilePath = UserDataManager.getResponseBodySaveFilePath(fileName, this.activeResponse.request.documentUri);
 
             try {
                 await this.openSaveDialog(defaultFilePath, this.activeResponse.bodyBuffer);

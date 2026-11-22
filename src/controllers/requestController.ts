@@ -14,6 +14,7 @@ import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { HttpResponse } from '../models/httpResponse';
 import { getHeader } from '../utils/misc';
 import { checkResponse } from '../utils/assertionReport';
+import { rememberDocument } from '../utils/dataLocator';
 import { Assertion } from '../core/assertions';
 import { RequestState, RequestStatusEntry } from '../utils/requestStatusBarEntry';
 import { RequestVariableCache } from "../utils/requestVariableCache";
@@ -168,6 +169,7 @@ export class RequestController {
     }
     public async clearCookies() {
         try {
+            // Those of the project in front, or of the last request sent, as the history does.
             await this._httpClient.clearCookies();
         } catch (error) {
             window.showErrorMessage(l10n.t('Error clearing cookies: {0}', error?.message));
@@ -175,6 +177,10 @@ export class RequestController {
     }
 
     private async runCore(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, assertions: Assertion[] = []): Promise<HttpResponse | undefined> {
+        // Its cookies and its history go where the data of its document lives;
+        // a rerun keeps the document of the first run.
+        httpRequest.documentUri ??= document?.uri.toString();
+        rememberDocument(httpRequest.documentUri);
         // clear status bar
         this._requestStatusEntry.update({ state: RequestState.Pending });
 
@@ -239,7 +245,7 @@ export class RequestController {
             }
 
             // persist to history json file
-            await UserDataManager.addToRequestHistory(HistoricalHttpRequest.convertFromHttpRequest(httpRequest));
+            await UserDataManager.addToRequestHistory(HistoricalHttpRequest.convertFromHttpRequest(httpRequest), httpRequest.documentUri);
             return response;
         } catch (error) {
             // check cancel
@@ -280,6 +286,8 @@ export class RequestController {
      * assertions treat it like any other.
      */
     private async runWebSocket(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, assertions: Assertion[] = []): Promise<HttpResponse | undefined> {
+        httpRequest.documentUri ??= document?.uri.toString();
+        rememberDocument(httpRequest.documentUri);
         this._requestStatusEntry.update({ state: RequestState.Pending });
         this._lastRequestSettingTuple = [httpRequest, settings, assertions];
         const t0 = Date.now();
@@ -310,7 +318,7 @@ export class RequestController {
             } else {
                 await this._webview.render(response, previewColumn);
             }
-            await UserDataManager.addToRequestHistory(HistoricalHttpRequest.convertFromHttpRequest(httpRequest));
+            await UserDataManager.addToRequestHistory(HistoricalHttpRequest.convertFromHttpRequest(httpRequest), httpRequest.documentUri);
             return response;
         } catch (error) {
             this._requestStatusEntry.update({ state: RequestState.Error });

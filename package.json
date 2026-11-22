@@ -405,6 +405,22 @@
                     "scope": "resource",
                     "description": "%cfg.rememberCookiesForSubsequentRequests%"
                 },
+                "rest-client.dataLocation": {
+                    "type": "string",
+                    "enum": [
+                        "home",
+                        "workspace",
+                        "shared"
+                    ],
+                    "enumDescriptions": [
+                        "%cfg.dataLocation.home%",
+                        "%cfg.dataLocation.workspace%",
+                        "%cfg.dataLocation.shared%"
+                    ],
+                    "default": "home",
+                    "scope": "window",
+                    "markdownDescription": "%cfg.dataLocation%"
+                },
                 "rest-client.excludeHostsForProxy": {
                     "type": "array",
                     "default": [],
