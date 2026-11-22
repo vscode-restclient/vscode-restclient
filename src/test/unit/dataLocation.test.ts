@@ -120,16 +120,19 @@ describe('data location', () => {
         assert.strictEqual(hasOwnDataFolder(project), true);
     });
 
-    it('P-97 · the ceiling holds whatever the case of the drive or folder on Windows', function () {
-        if (process.platform !== 'win32') {
-            this.skip();
-        }
+    it('P-97 · the ceiling holds whatever the case on Windows and macOS, and Linux tells the cases apart', () => {
         const project = path.join(tmp, 'project');
         const deep = path.join(project, 'api');
         fs.mkdirSync(deep, { recursive: true });
         writeSelection(tmp, { name: 'prod', label: 'prod' });
-        assert.strictEqual(samePath(project.toUpperCase(), project.toLowerCase()), true);
-        assert.strictEqual(editorSelection(deep, project.toUpperCase()), undefined);
-        assert.strictEqual(editorSelection(deep.toLowerCase(), project.toUpperCase()), undefined);
+        assert.strictEqual(editorSelection(deep, project), undefined, 'the ceiling as given');
+        if (process.platform === 'win32' || process.platform === 'darwin') {
+            assert.strictEqual(samePath(project.toUpperCase(), project.toLowerCase()), true);
+            assert.strictEqual(editorSelection(deep, project.toUpperCase()), undefined);
+            assert.strictEqual(editorSelection(deep.toLowerCase(), project.toUpperCase()), undefined);
+        } else {
+            // There `Project` and `project` are two folders, so they must not be one ceiling.
+            assert.strictEqual(samePath(project.toUpperCase(), project.toLowerCase()), false);
+        }
     });
 });
