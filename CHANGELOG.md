@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.1.0...v2.2.0) (2026-11-22)
+
+
+### Features
+
+* the selected environment is per window, and rest-client.dataLocation chooses where history and cookies live ([#67](https://github.com/vscode-restclient/vscode-restclient/issues/67)) ([ddfc791](https://github.com/vscode-restclient/vscode-restclient/commit/ddfc791b07aa0ade7d4161aaebba585fafe15dc1))
+
 ## [2.1.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.0.0...v2.1.0) (2026-11-21)
 
 
