@@ -9,16 +9,17 @@ REST Client was created by [Huachao Mao](https://github.com/Huachao) and reached
 Full details in the [CHANGELOG](CHANGELOG.md); the longer story, with screenshots, in [docs/HTTPKEEPER.md](docs/HTTPKEEPER.md).
 
 - **Fake data**: `{{$faker internet.email}}` — any [Faker](https://fakerjs.dev) module, lazily loaded, same syntax as rest-client-next.
-- **A test suite** (153 tests: 100 unit and 53 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
+- **A test suite** (169 tests: 112 unit and 57 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
 - **Bugs fixed**: the response not showing up in Cursor, a re-sent request with mangled headers, a JSONPath with several matches returning only the first, XPath request variables.
 - **A terminal runner** for CI (`npx @vscode-restclient/cli api.http`, `--junit`, GitHub Action) that **runs a whole file in order**, with later requests using earlier responses, and checks **assertions written in the file** (`# @assert status == 200`). In the editor, Send Request shows the verdict of the assertions under the response.
 - **The JetBrains format, complete**: `http-client.env.json` / `http-client.private.env.json`, `import ./other.http`, `run #name`, request variables across files, `{{$secret NAME}}`, `{{$uuid}}`, `{{$isoTimestamp}}`, `{{$random.integer(min,max)}}`.
 - **Streaming**: `text/event-stream` painted as it arrives; `WEBSOCKET` requests.
 - **The `QUERY` method** ([draft-ietf-httpbis-safe-method-w-body](https://www.ietf.org/archive/id/draft-ietf-httpbis-safe-method-w-body-05.html)): safe and idempotent like `GET`, but with a request body — highlighting, completion, snippet and terminal runner included.
 - **Tools for agents**: language-model tools in VS Code and an MCP server (`restclient mcp`).
+- **Your data where you want it**: the selected environment is kept per window, and `rest-client.dataLocation` keeps history, cookies and saved responses in `~/.rest-client` (default), in a `.rest-client/` folder of each project, or in VS Code's own storage.
 - The interface is available in English and Spanish.
 
-Your `rest-client.*` settings, history, cookies and environments keep working unchanged.
+Your `rest-client.*` settings, history, cookies and environments keep working unchanged: the selected environment carries over to each workspace the first time it opens.
 
 ---
 
@@ -825,6 +826,7 @@ By default, REST Client Extension only previews the full response in preview pan
 - `rest-client.showResponseInDifferentTab`: Show response in different tab. (Default is **false**)
 - `rest-client.requestNameAsResponseTabTitle`: Show request name as the response tab title. Only valid when using html view, if no request name is specified defaults to "Response". (Default is **false**)
 - `rest-client.rememberCookiesForSubsequentRequests`: Save cookies from `Set-Cookie` header in response and use for subsequent requests. (Default is **true**)
+- `rest-client.dataLocation`: Where request history, cookies and saved responses are kept: `home` is `~/.rest-client` (or `VSC_REST_CLIENT_HOME`), shared by every window; `workspace` is a `.rest-client/` folder in the workspace folder of the `.http` file, created with a `.gitignore` that keeps it out of git, where the selected environment is also left for the terminal runner (and removed from the open folders when you switch to another value; the runner always says which file it used); `shared` is the folder VS Code keeps for the extension's data. Switching moves nothing: the old folder stays, so switching back brings your history back. The selected environment is kept per window in all three. (Default is **home**)
 - `rest-client.enableTelemetry`: Send out anonymous usage data. (Default is **false**)
 - `rest-client.excludeHostsForProxy`: Excluded hosts when using proxy settings. (Default is **[]**)
 - `rest-client.fontSize`: Controls the font size in pixels used in the response preview. (Default is **13**)

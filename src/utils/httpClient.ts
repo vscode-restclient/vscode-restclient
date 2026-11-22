@@ -80,11 +80,20 @@ type Certificate = {
 };
 
 export class HttpClient {
-    private cookieStore: Store;
+    /** One store per cookie file: in `workspace` mode each project has its own. */
+    private readonly cookieStores = new Map<string, Store>();
 
     public constructor(private readonly _environment?: EnvironmentData) {
-        const cookieFilePath = UserDataManager.cookieFilePath;
-        this.cookieStore = new CookieFileStore(cookieFilePath) as Store;
+    }
+
+    private cookieStore(documentUri?: string): Store {
+        const file = UserDataManager.cookieFilePath(documentUri);
+        let store = this.cookieStores.get(file);
+        if (!store) {
+            store = new CookieFileStore(file) as Store;
+            this.cookieStores.set(file, store);
+        }
+        return store;
     }
 
     public async send(httpRequest: HttpRequest, settings?: IRestClientSettings, onReceive?: OnReceive): Promise<HttpResponse> {
@@ -141,6 +150,18 @@ export class HttpClient {
 
         const requestBody = options.body;
 
+        const sent = new HttpRequest(
+            options.method!,
+            requestUrl,
+            HttpClient.normalizeHeaderNames(
+                (response as any).request.options.headers as RequestHeaders,
+                Object.keys(httpRequest.headers)),
+            Buffer.isBuffer(requestBody) ? convertBufferToStream(requestBody) : requestBody,
+            httpRequest.rawBody,
+            httpRequest.name
+        );
+        sent.documentUri = httpRequest.documentUri;
+
         return new HttpResponse(
             response.statusCode,
             response.statusMessage!,
@@ -151,21 +172,14 @@ export class HttpClient {
             headersSize,
             bodyBuffer,
             response.timings.phases,
-            new HttpRequest(
-                options.method!,
-                requestUrl,
-                HttpClient.normalizeHeaderNames(
-                    (response as any).request.options.headers as RequestHeaders,
-                    Object.keys(httpRequest.headers)),
-                Buffer.isBuffer(requestBody) ? convertBufferToStream(requestBody) : requestBody,
-                httpRequest.rawBody,
-                httpRequest.name
-            ));
+            sent);
     }
 
-    public async clearCookies() {
-        await fs.remove(UserDataManager.cookieFilePath);
-        this.cookieStore = new CookieFileStore(UserDataManager.cookieFilePath) as Store;
+    /** Clears the cookies of the location `documentUri` belongs to. */
+    public async clearCookies(documentUri?: string) {
+        const file = UserDataManager.cookieFilePath(documentUri);
+        await fs.remove(file);
+        this.cookieStores.delete(file);
     }
 
     private async prepareOptions(httpRequest: HttpRequest, settings: IRestClientSettings): Promise<OptionsOfBufferResponseBody> {
@@ -217,7 +231,7 @@ export class HttpClient {
         }
 
         if (settings.rememberCookiesForSubsequentRequests) {
-            options.cookieJar = new CookieJar(this.cookieStore);
+            options.cookieJar = new CookieJar(this.cookieStore(httpRequest.documentUri));
         }
 
         // TODO: refactor auth

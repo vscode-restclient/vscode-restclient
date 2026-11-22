@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 import * as http from 'http';
+import { editorSelection } from '../core/dataLocation';
 import { terminalEnvironment } from '../core/environment';
 import { environmentsFolder, readEnvironments } from '../core/jetBrainsEnvironments';
 import { closeImports, Imported, resolveRun, variablesWithImports } from '../core/imports';
@@ -40,6 +41,8 @@ export interface Options {
     only?: string;
     /** Path of the JUnit XML report, if one was asked for. */
     junit?: string;
+    /** The editor's selection is not looked for above this folder (the MCP server's root). */
+    ceiling?: string;
 }
 
 export const USAGE = 'usage: restclient <file.http> [--env name] [--var key=value] [--secret NAME=value] [--continue] [--json] [--junit report.xml] [--timeout ms]';
@@ -264,11 +267,22 @@ export async function execute(options: Options, output: (line: string) => void):
         environment.warn(`import: ${f} does not exist`);
     }
 
+    // Without --env, the environment selected in the editor, when the editor
+    // runs in `workspace` mode and left it in .rest-client/environment.json.
+    let environmentName = options.environment;
+    if (environmentName === undefined) {
+        const selection = editorSelection(root, options.ceiling);
+        if (selection?.name) {
+            environmentName = selection.name;
+            process.stderr.write(`note: environment "${selection.name}", the one selected in the editor (${selection.file}); --env picks another\n`);
+        }
+    }
+
     // Precedence, lowest to highest: file environment -> @variables (imported,
     // then the file's own) -> --var. The command line wins: that is what lets
     // the same file be pointed somewhere else from a CI server.
     const variables = {
-        ...environmentVars(root, options.environment, environment.warn),
+        ...environmentVars(root, environmentName, environment.warn, options.environment === undefined),
         ...variablesWithImports(text, imported),
         ...options.variables
     };
@@ -353,19 +367,26 @@ export async function execute(options: Options, output: (line: string) => void):
     return failures === 0 ? 0 : 1;
 }
 
-/** Variables of the requested environment, read from the http-client.env.json files upwards from the file's folder. */
-function environmentVars(root: string, name: string | undefined, warn: (m: string) => void): Record<string, string> {
+/**
+ * Variables of the requested environment, read from the http-client.env.json
+ * files upwards from the file's folder. `fromEditor`: the name is the editor's
+ * selection, which may be an environment of the VS Code settings, which the
+ * runner does not read; the warning says so.
+ */
+function environmentVars(root: string, name: string | undefined, warn: (m: string) => void, fromEditor = false): Record<string, string> {
     if (!name) {
         return {};
     }
+    const what = fromEditor ? `the editor's environment "${name}"` : `--env ${name}`;
+    const settingsHint = fromEditor ? ' (environments defined in the VS Code settings are not seen outside the editor)' : '';
     const folder = environmentsFolder(root);
     if (!folder) {
-        warn(`--env ${name}: no http-client.env.json found from ${root} upwards`);
+        warn(`${what}: no http-client.env.json found from ${root} upwards${settingsHint}`);
         return {};
     }
     const environments = readEnvironments(folder, warn);
-    if (!(name in environments)) {
-        warn(`--env ${name}: no such environment in ${folder}. Available: ${Object.keys(environments).join(', ') || 'none'}`);
+    if (!Object.prototype.hasOwnProperty.call(environments, name)) {
+        warn(`${what}: no such environment in ${folder}. Available: ${Object.keys(environments).join(', ') || 'none'}${settingsHint}`);
         return {};
     }
     return environments[name];

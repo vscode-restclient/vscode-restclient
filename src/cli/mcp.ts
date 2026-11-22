@@ -42,7 +42,7 @@ const TOOLS = [
             properties: {
                 file: { type: 'string' },
                 name: { type: 'string', description: 'The # @name of the request' },
-                env: { type: 'string', description: 'Environment name from http-client.env.json' },
+                env: { type: 'string', description: 'Environment name from http-client.env.json. Without it, the one selected in the editor when the editor keeps its data in the workspace (rest-client.dataLocation = workspace)' },
                 vars: { type: 'object', additionalProperties: { type: 'string' } },
                 secrets: { type: 'object', additionalProperties: { type: 'string' } },
                 timeoutMs: { type: 'number' },
@@ -152,6 +152,7 @@ async function callTool(params: Record<string, unknown>, root: string): Promise<
                     json: true,
                     timeoutMs: typeof args.timeoutMs === 'number' && args.timeoutMs > 0 ? args.timeoutMs : 30_000,
                     only: name === 'send_request' ? String(args.name) : undefined,
+                    ceiling: root,
                 };
                 let json = '';
                 const exitCode = await execute(options, l => { json += l; });

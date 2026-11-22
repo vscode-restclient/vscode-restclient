@@ -1,7 +1,7 @@
-
+import { NO_ENVIRONMENT } from '../core/dataLocation';
 export const ExtensionId: string = 'vscode-restclient.restclient';
 
-export const NoEnvironmentSelectedName: string = 'c0cfe680-4fcd-4b71-a4ba-8cfaee57680a';
+export const NoEnvironmentSelectedName: string = NO_ENVIRONMENT;
 
 export const TimeStampVariableName = "$timestamp";
 export const TimeStampVariableDescription = "Add a number of milliseconds between 1970/1/1 UTC Time and now. \

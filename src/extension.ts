@@ -23,19 +23,26 @@ import { MarkdownCodeLensProvider } from './providers/markdownCodeLensProvider';
 import { RequestVariableCompletionItemProvider } from "./providers/requestVariableCompletionItemProvider";
 import { RequestVariableDefinitionProvider } from './providers/requestVariableDefinitionProvider';
 import { RequestVariableHoverProvider } from './providers/requestVariableHoverProvider';
+import { installDataLocator } from './utils/dataLocator';
 import { ConfigurationDependentRegistration } from './utils/dependentRegistration';
-import { UserDataManager } from './utils/userDataManager';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export async function activate(context: ExtensionContext) {
-    await UserDataManager.initialize();
+    installDataLocator(context, folder => EnvironmentController.shareSelectionIn(folder));
     SecretStore.initialize(context.secrets, context.globalState);
 
     const requestController = new RequestController(context);
     const historyController = new HistoryController();
     const codeSnippetController = new CodeSnippetController(context);
-    const environmentController = await EnvironmentController.create();
+    const environmentController = await EnvironmentController.create(context.workspaceState);
+    // Switching to `workspace` leaves the current selection where the runner
+    // looks; switching away removes it.
+    context.subscriptions.push(workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('rest-client.dataLocation')) {
+            EnvironmentController.shareSelection();
+        }
+    }));
     const swaggerController = new SwaggerController(context);
     context.subscriptions.push(requestController);
     context.subscriptions.push(historyController);

@@ -30,6 +30,12 @@ async function main(): Promise<void> {
     JSON.stringify({ 'rest-client.defaultHeaders': { 'User-Agent': 'viene-de-restclient' } }, null, 2),
   );
 
+  // Someone coming from REST Client had an environment selected, in the file
+  // every window shared: the first window of a workspace inherits it, once.
+  const home = path.join(tmp, 'rest-client-home');
+  fs.mkdirSync(home, { recursive: true });
+  fs.writeFileSync(path.join(home, 'environment.json'), JSON.stringify({ name: 'Inherited env', label: 'Inherited env' }));
+
   try {
     await runTests({
       extensionDevelopmentPath: root,
@@ -37,7 +43,7 @@ async function main(): Promise<void> {
       launchArgs: [tmp, `--user-data-dir=${path.join(root, '.vscode-test', 'user-data')}`, '--disable-extensions'],
       // The extension's own state (selected environment, history, cookies)
       // goes to a folder of the run, never to the real ~/.rest-client.
-      extensionTestsEnv: { RC_TEST_PORT: port, RC_TEST_ONLY: process.env.RC_TEST_ONLY ?? '', VSC_REST_CLIENT_HOME: path.join(tmp, 'rest-client-home') },
+      extensionTestsEnv: { RC_TEST_PORT: port, RC_TEST_ONLY: process.env.RC_TEST_ONLY ?? '', VSC_REST_CLIENT_HOME: home },
     });
   } finally {
     serverProcess.kill();

@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **153** (100 unitarias, 53 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **169** (112 unitarias, 57 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -102,7 +102,9 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit inf
 2 requests, all green
 ```
 
-Devuelve 0 si todas las comprobaciones pasan y 1 si falla alguna; `--json` para las máquinas y `--junit` para los paneles de pruebas de GitHub y GitLab. El cURL pegado y los cuerpos multiparte con `< fichero` también funcionan en la terminal. En GitHub Actions:
+Devuelve 0 si todas las comprobaciones pasan y 1 si falla alguna; `--json` para las máquinas y `--junit` para los paneles de pruebas de GitHub y GitLab. El cURL pegado y los cuerpos multiparte con `< fichero` también funcionan en la terminal.
+
+Sin `--env`, el ejecutor (y el servidor MCP) usa el entorno seleccionado en el editor cuando el editor guarda sus datos en el proyecto (`"rest-client.dataLocation": "workspace"`), y lo dice por stderr. En los demás casos, y en la integración continua, el entorno es el que diga `--env`. En GitHub Actions:
 
 ```yaml
 - uses: vscode-restclient/vscode-restclient@v1.2.0
@@ -122,7 +124,7 @@ Todo lo heredado de REST Client —sintaxis de las peticiones, GraphQL, cURL, au
 
 ## Venir desde REST Client
 
-No hay que hacer nada. El formato `.http` es idéntico —lo usa hasta JetBrains— y **tus ajustes `rest-client.*` se siguen leyendo**, así que ocho años de configuración siguen funcionando. El historial, las cookies y los entornos se leen de la misma carpeta `~/.rest-client`, así que también te los llevas.
+No hay que hacer nada. El formato `.http` es idéntico —lo usa hasta JetBrains— y **tus ajustes `rest-client.*` se siguen leyendo**, así que ocho años de configuración siguen funcionando. El historial, las cookies y los entornos se leen de la misma carpeta `~/.rest-client`, así que también te los llevas. El entorno seleccionado va ahora por ventana: cambiar a `prod` en una ventana ya no cambia las demás, y cada workspace empieza con el que tenías.
 
 La interfaz está en castellano y en inglés.
 

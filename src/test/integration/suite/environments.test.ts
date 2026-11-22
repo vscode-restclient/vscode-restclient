@@ -1,6 +1,4 @@
 import * as assert from 'assert';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 
 const PORT = process.env.RC_TEST_PORT!;
@@ -28,15 +26,12 @@ async function send(content: string, mark: string, seconds = 20): Promise<string
 
 // #52: `rest-client.environmentVariables` from the user settings, with a
 // `$shared` block, an environment whose name has spaces and brackets, and a
-// `{{$shared x}}` reference, exactly as the report shows them. The selected
-// environment lives in environment.json under VSC_REST_CLIENT_HOME, which the
-// runner points at a folder of its own so the tests never touch ~/.rest-client.
+// `{{$shared x}}` reference, exactly as the report shows them. The selection
+// is made with the command, as a person does from the status bar.
 describe('Rest Client · environments from the settings', () => {
   const ENV = 'Dev environment (Administrator)';
-  const home = process.env.VSC_REST_CLIENT_HOME!;
 
   before(async () => {
-    assert.ok(home, 'the runner sets VSC_REST_CLIENT_HOME');
     const ext = vscode.extensions.getExtension('vscode-restclient.restclient');
     assert.ok(ext, 'the extension is not loaded');
     await ext!.activate();
@@ -49,22 +44,21 @@ describe('Rest Client · environments from the settings', () => {
   });
 
   after(async () => {
+    await vscode.commands.executeCommand('rest-client.switch-environment', '');
     await setting('environmentVariables', undefined);
-    fs.rmSync(path.join(home, 'environment.json'), { force: true });
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
   it('P-93 · with the environment selected, a variable that references $shared resolves and the request goes out', async function () {
     this.timeout(40000);
-    fs.mkdirSync(home, { recursive: true });
-    fs.writeFileSync(path.join(home, 'environment.json'), JSON.stringify({ name: ENV, label: ENV }));
+    await vscode.commands.executeCommand('rest-client.switch-environment', ENV);
     const text = await send(`GET {{baseUrl}}/login?user={{adminUsername}}\n`, '/echo/dev/login');
     assert.ok(text.includes('user=myUsername'), 'the environment variable reached the server: ' + text.slice(0, 200));
   });
 
   it('P-94 · with no environment selected, the $shared variables still resolve', async function () {
     this.timeout(40000);
-    fs.rmSync(path.join(home, 'environment.json'), { force: true });
+    await vscode.commands.executeCommand('rest-client.switch-environment', '');
     const text = await send(`GET {{devBaseUrl}}/shared-only\n`, '/echo/dev/shared-only');
     assert.ok(text.includes('/echo/dev/shared-only'), text.slice(0, 200));
   });

@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **153** (100 unit, 53 integration against a real server) |
+| Tests                              | 0                    | **169** (112 unit, 57 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -102,7 +102,9 @@ $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit rep
 2 requests, all green
 ```
 
-Exit code 0 when every assertion passes, 1 when one fails, `--json` for machines, `--junit` for the test dashboards of GitHub and GitLab. Pasted `curl` commands and multipart bodies with `< file` work in the runner too. In GitHub Actions:
+Exit code 0 when every assertion passes, 1 when one fails, `--json` for machines, `--junit` for the test dashboards of GitHub and GitLab. Pasted `curl` commands and multipart bodies with `< file` work in the runner too.
+
+Without `--env`, the runner (and the MCP server) uses the environment selected in the editor when the editor keeps its data in the project (`"rest-client.dataLocation": "workspace"`), and says so on stderr. Otherwise, and in CI, the environment is whatever `--env` says. In GitHub Actions:
 
 ```yaml
 - uses: vscode-restclient/vscode-restclient@v1.2.0
@@ -122,7 +124,7 @@ Everything inherited from REST Client — request syntax, GraphQL, cURL, authent
 
 ## Migrating from REST Client
 
-Nothing to do. The `.http` format is identical — JetBrains uses it too — and **your `rest-client.*` settings are still read**, so eight years of configuration keep working. Your history, cookies and environments are read from the same `~/.rest-client` folder, so you keep them too.
+Nothing to do. The `.http` format is identical — JetBrains uses it too — and **your `rest-client.*` settings are still read**, so eight years of configuration keep working. Your history, cookies and environments are read from the same `~/.rest-client` folder, so you keep them too. The selected environment is now kept per window, so switching to `prod` in one window no longer switches the others; each workspace starts with the one you had selected.
 
 The interface is available in English and Spanish.
 

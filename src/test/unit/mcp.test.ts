@@ -94,4 +94,17 @@ describe('mcp server', () => {
         assert.strictEqual(down.data.steps[0].body, undefined);
         assert.ok(down.data.steps[0].error, JSON.stringify(down.data.steps[0]));
     });
+
+    it('P-97 · without env, the environment selected in the editor in workspace mode', async function () {
+        this.timeout(10000);
+        const project = path.join(root, 'project');
+        fs.mkdirSync(path.join(project, '.rest-client'), { recursive: true });
+        fs.writeFileSync(path.join(project, 'http-client.env.json'), JSON.stringify({ picked: { p: '/picked' }, other: { p: '/other' } }));
+        fs.writeFileSync(path.join(project, '.rest-client', 'environment.json'), JSON.stringify({ name: 'picked', label: 'picked', scope: 'workspace' }));
+        fs.writeFileSync(path.join(project, 'sel.http'), ['# @name sel', `GET http://127.0.0.1:${server.port}{{p}}`, ''].join('\n'));
+        const implicit = await call('send_request', { file: 'project/sel.http', name: 'sel' });
+        assert.ok(implicit.data.steps[0].body.includes('"path":"/picked"'), JSON.stringify(implicit.data).slice(0, 300));
+        const explicit = await call('send_request', { file: 'project/sel.http', name: 'sel', env: 'other' });
+        assert.ok(explicit.data.steps[0].body.includes('"path":"/other"'), 'env still wins: ' + JSON.stringify(explicit.data).slice(0, 300));
+    });
 });

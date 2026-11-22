@@ -5,6 +5,8 @@ import { RequestHeaders } from './base';
 
 export class HttpRequest {
     public isCancelled: boolean;
+    /** The `.http` document it came from: where its cookies and history go. */
+    public documentUri?: string;
     private _underlyingRequest: CancelableRequest<Response<Buffer>>;
     public constructor(
         public method: string,
