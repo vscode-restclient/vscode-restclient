@@ -21,13 +21,14 @@ export class VariableProcessor {
         let result = '';
         let match: RegExpExecArray | null;
         let lastIndex = 0;
+        const thisRequest = {};
         variable:
         while (match = variableReferenceRegex.exec(request)) {
             result += request.substring(lastIndex, match.index);
             lastIndex = variableReferenceRegex.lastIndex;
             const name = match[1].trim();
             const document = getCurrentTextDocument();
-            const context = { rawRequest: request, parsedRequest: result };
+            const context = { rawRequest: request, parsedRequest: result, request: thisRequest };
             for (const [provider, cacheable] of this.providers) {
                 if (resolvedVariables.has(name)) {
                     result += resolvedVariables.get(name);

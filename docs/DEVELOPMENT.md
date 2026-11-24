@@ -71,7 +71,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | `audit` | 105 checks, listed below |
 | `test:vsix` | packages the `.vsix`, installs it in a clean VS Code (in Spanish) and exercises it: the only test that sees what reaches the user |
 
-`npm run test:integration` runs the 62 integration tests inside a real VS Code
+`npm run test:integration` runs the 66 integration tests inside a real VS Code
 against `scripts/test-server.cjs`. It is separate because it takes a few
 minutes and needs a display (CI uses `xvfb-run` on Linux). The runner points
 the extension's state (`VSC_REST_CLIENT_HOME`) at a folder of the run, so the
