@@ -7,6 +7,11 @@ export interface HttpVariable {
     value?: HttpVariableValue;
     error?: any;
     warning?: any;
+    /**
+     * The value came from a server (a value `# @set` took): it is used as it
+     * is, never searched again for `{{…}}`.
+     */
+    literal?: boolean;
 }
 
 export interface HttpVariableContext {

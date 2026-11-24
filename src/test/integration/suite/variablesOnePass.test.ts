@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
 const PORT = process.env.RC_TEST_PORT!;
@@ -65,6 +67,57 @@ describe('Rest Client · file variables, one pass', () => {
     const id = /p99-guid\/([0-9a-f-]{36})/.exec(t ?? '')?.[1];
     assert.ok(id, (t ?? 'no response').slice(0, 300));
     assert.strictEqual(echoedHeader(t), `${id}-${id}`);
+  });
+
+  it('P-99 · the refusal says the variable is defined but came inside another value, and asks for nothing again', async function () {
+    this.timeout(60000);
+    const lm = (vscode as unknown as { lm?: { invokeTool?: Function } }).lm;
+    if (!lm?.invokeTool) {
+      this.skip();
+      return;
+    }
+    // A file of the workspace, so the language model tool can send it by name.
+    const root = vscode.workspace.workspaceFolders![0].uri.fsPath;
+    // `< file` sends the file as it is: the server answers with the text `{{p99pw}}`.
+    fs.writeFileSync(path.join(root, 'p99-payload.txt'), '{{p99pw}}');
+    fs.writeFileSync(path.join(root, 'p99.http'), [
+      '@p99pw = s3cret',
+      '@p99auth = Bearer {{p99tok}}',
+      '',
+      '# @name p99login',
+      '# @set p99tok = response.body.$.received',
+      `POST ${BASE}/echo/p99-tool-login`,
+      'Content-Type: text/plain',
+      '',
+      '< ./p99-payload.txt',
+      '',
+      '###',
+      '',
+      '# @name p99use',
+      `GET ${BASE}/echo/p99-tool-use`,
+      'X-Test: {{p99auth}}',
+      '',
+    ].join('\n'));
+    const token = new vscode.CancellationTokenSource().token;
+    await lm.invokeTool('rest_client_send_request', { input: { file: 'p99.http', name: 'p99login' }, toolInvocationToken: undefined }, token);
+    await assert.rejects(
+      () => lm!.invokeTool!('rest_client_send_request', { input: { file: 'p99.http', name: 'p99use' }, toolInvocationToken: undefined }, token),
+      /p99pw \(it is defined, but it came inside another value, which is not expanded again\)/,
+    );
+  });
+
+  it('P-99 · an environment value that names a file variable still resolves through another file variable, as before', async function () {
+    this.timeout(60000);
+    const config = vscode.workspace.getConfiguration('rest-client');
+    await config.update('environmentVariables', { 'p99-env': { p99api: '{{p99host}}/echo/p99-env' } }, vscode.ConfigurationTarget.Global);
+    await vscode.commands.executeCommand('rest-client.switch-environment', 'p99-env');
+    try {
+      const t = await trySend(`@p99host = ${BASE}\n@p99base = {{p99api}}\nGET {{p99base}}/ok\n`, 'p99-env/ok');
+      assert.ok(t, 'not sent');
+    } finally {
+      await vscode.commands.executeCommand('rest-client.switch-environment', '');
+      await config.update('environmentVariables', undefined, vscode.ConfigurationTarget.Global);
+    }
   });
 
   it('P-99 · chains of file variables still resolve, in any order of definition', async function () {

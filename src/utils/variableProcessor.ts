@@ -1,4 +1,4 @@
-import { TextDocument } from 'vscode';
+import { l10n, TextDocument } from 'vscode';
 import { VariableType } from "../models/variableType";
 import { EnvironmentVariableProvider } from './httpVariableProviders/environmentVariableProvider';
 import { FileVariableProvider } from './httpVariableProviders/fileVariableProvider';
@@ -65,10 +65,17 @@ export class VariableProcessor {
             return 'secret not provided';
         }
         const context = { rawRequest: '', parsedRequest: '' };
+        // Defined, and still `{{name}}` in the request: it came inside a value
+        // that is not searched again (a response, a value `# @set` took).
+        const insideValue = l10n.t('it is defined, but it came inside another value, which is not expanded again');
         for (const [provider] of this.providers) {
             if (await provider.has(name, document, context)) {
+                // Resolving the file variables again could ask for secrets or sign in a second time.
+                if (provider === FileVariableProvider.Instance) {
+                    return insideValue;
+                }
                 const { error, warning } = await provider.get(name, document, context);
-                return (error ?? warning) as string | undefined;
+                return (error ?? warning ?? insideValue) as string;
             }
         }
         return undefined;

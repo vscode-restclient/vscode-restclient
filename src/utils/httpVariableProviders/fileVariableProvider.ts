@@ -62,7 +62,11 @@ export class FileVariableProvider implements HttpVariableProvider {
                 ? (once.fileVariables ??= this.resolveFileVariables(document, variables))
                 : this.resolveFileVariables(document, variables));
             let value = variableMap.get(name);
-            if (value !== undefined && isEncoded) {
+            if (value === undefined) {
+                // The request's cache belongs to another document (the editor in front changed mid-request).
+                return { name, error: ResolveErrorMessage.FileVariableNotExist };
+            }
+            if (isEncoded) {
                 value = encodeURIComponent(value);
             }
             return { name, value };
@@ -138,7 +142,15 @@ export class FileVariableProvider implements HttpVariableProvider {
                 if (written.has(reference)) {
                     return resolving.has(reference) ? undefined : resolve(reference);
                 }
-                return this.fromOtherProviders(document, reference, context);
+                const found = await this.fromOtherProviders(document, reference, context);
+                if (found === undefined || !found.configuration) {
+                    return found?.value;
+                }
+                // An environment value is configuration, like the file: the
+                // file variables it names are resolved, once, as they always
+                // were. Nothing else inside it is.
+                return this.substituteOnce(document, found.value, async inner =>
+                    written.has(inner) && !resolving.has(inner) ? resolve(inner) : undefined);
             });
             resolving.delete(name);
             resolved.set(name, value);
@@ -175,12 +187,19 @@ export class FileVariableProvider implements HttpVariableProvider {
         return result + value.substring(lastIndex);
     }
 
-    /** A system, request or environment variable, or undefined when none gives a clean value. */
-    private async fromOtherProviders(document: TextDocument, name: string, context: { rawRequest: string; parsedRequest: string }): Promise<string | undefined> {
+    /**
+     * A system, request or environment variable, or undefined when none gives
+     * a clean value. `configuration` when it is an environment value written
+     * by a person, not one a `# @set` took from a server.
+     */
+    private async fromOtherProviders(document: TextDocument, name: string, context: { rawRequest: string; parsedRequest: string }): Promise<{ value: string; configuration: boolean } | undefined> {
         for (const provider of this.innerVariableProviders) {
             if (await provider.has(name, document, context)) {
-                const { value, error, warning } = await provider.get(name, document, context);
-                return !error && !warning ? value as string : undefined;
+                const { value, error, warning, literal } = await provider.get(name, document, context);
+                if (error || warning) {
+                    return undefined;
+                }
+                return { value: value as string, configuration: provider === EnvironmentVariableProvider.Instance && !literal };
             }
         }
         return undefined;
