@@ -122,11 +122,36 @@ describe('Rest Client · file variables, one pass', () => {
     this.timeout(60000);
     const config = vscode.workspace.getConfiguration('rest-client');
     // A setting may hold a number even though the schema asks for text.
+    // The extension reads the settings when VS Code says they changed, which
+    // can come after `update` resolves (it did on macOS): wait for that event.
+    const changed = new Promise<void>((resolve) => {
+      const listener = vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('rest-client.environmentVariables')) {
+          listener.dispose();
+          resolve();
+        }
+      });
+      setTimeout(() => { listener.dispose(); resolve(); }, 5000);
+    });
     await config.update('environmentVariables', { 'p99-env': { p99api: '{{p99host}}/echo/p99-env', p99num: 42 } }, vscode.ConfigurationTarget.Global);
+    await changed;
     await vscode.commands.executeCommand('rest-client.switch-environment', 'p99-env');
     try {
-      const t = await trySend(`@p99host = ${BASE}\n@p99base = {{p99api}}\n@p99n = n{{p99num}}\nGET {{p99base}}/ok/{{p99n}}\n`, 'p99-env/ok');
-      assert.ok((t ?? '').includes('/echo/p99-env/ok/n42'), (t ?? 'not sent').slice(0, 300));
+      const lm = (vscode as unknown as { lm?: { invokeTool?: Function } }).lm;
+      if (!lm?.invokeTool) {
+        this.skip();
+        return;
+      }
+      // Sent through the language model tool, which opens the file itself
+      // (Send Request acts on whichever editor is active, and on macOS the
+      // previous test can leave another one in front) and, when the request
+      // is refused, says why.
+      const root = vscode.workspace.workspaceFolders![0].uri.fsPath;
+      fs.writeFileSync(path.join(root, 'p99-env.http'), `@p99host = ${BASE}\n@p99base = {{p99api}}\n@p99n = n{{p99num}}\n\n# @name p99env\nGET {{p99base}}/ok/{{p99n}}\n`);
+      const token = new vscode.CancellationTokenSource().token;
+      const answer = await lm.invokeTool('rest_client_send_request', { input: { file: 'p99-env.http', name: 'p99env' }, toolInvocationToken: undefined }, token);
+      const r = JSON.parse((answer as { content: { value?: string }[] }).content.map((p) => p.value ?? '').join(''));
+      assert.ok(String(r.body).includes('/echo/p99-env/ok/n42'), JSON.stringify(r).slice(0, 300));
     } finally {
       await vscode.commands.executeCommand('rest-client.switch-environment', '');
       await config.update('environmentVariables', undefined, vscode.ConfigurationTarget.Global);
