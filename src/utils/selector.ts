@@ -6,6 +6,9 @@ import { SelectedRequest } from '../models/SelectedRequest';
 import { VariableProcessor } from './variableProcessor';
 import { closeImports, IMPORT_LINE, resolveRun, RUN } from '../core/imports';
 import { readAssertions } from '../core/assertions';
+import { capturesOf } from '../core/captures';
+import { EnvironmentController } from '../controllers/environmentController';
+import { CapturedValues } from './capturedValues';
 
 export interface RequestRangeOptions {
     ignoreCommentLine?: boolean;
@@ -63,6 +66,7 @@ export class Selector {
         // The assertions belong to the block as written: a `run #name` block
         // keeps its own, as it does in the runner, not the imported request's.
         const assertions = readAssertions(selectedText);
+        const written = selectedText;
 
         // `run #name`: replaced by the request with that name, from this file
         // or an imported one, before anything else is read.
@@ -74,6 +78,10 @@ export class Selector {
                 return null;
             }
         }
+
+        // `# @set`: those of the request a `run #name` runs, then the block's
+        // own, read before any variable is substituted, as the runner reads them.
+        const captures = capturesOf(written, selectedText);
 
         // convert request text into lines
         const lines = selectedText.split(Constants.LineSplitterRegex);
@@ -97,13 +105,19 @@ export class Selector {
 
         selectedText = rawLines.slice(requestRange[0], requestRange[1] + 1).join(EOL);
 
+        // The environment the variables are resolved with is the one `# @set` files its values under.
+        const { name: environment } = await EnvironmentController.getCurrentEnvironment();
+        const captureScope = CapturedValues.scopeOf(document, environment);
+
         // variables replacement
         selectedText = await VariableProcessor.processRawRequest(selectedText, promptVariables);
 
         return {
             text: selectedText,
             metadatas: metadatas,
-            assertions
+            assertions,
+            captures,
+            captureScope
         };
     }
 

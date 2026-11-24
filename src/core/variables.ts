@@ -11,7 +11,7 @@ const COMMENT_LINE = /^\s*(?:#|\/\/)/;
 /** A file variable definition or an `import`: the parsers do not send these lines. */
 const DECLARATION_LINE = /^\s*(?:@[\w.-]+\s*=|import\s+\S)/;
 /** The metadata comments the parsers drop wherever they sit, the end of the block included. */
-const METADATA_LINE = /^\s*(?:#|\/\/)\s*@(?:assert|name|timeout|note|prompt|no-redirect|no-cookie-jar|allow-unresolved)\b/i;
+const METADATA_LINE = /^\s*(?:#|\/\/)\s*@(?:assert|set(?=\s|$)|name|timeout|note|prompt|no-redirect|no-cookie-jar|allow-unresolved)\b/i;
 
 /**
  * The `{{…}}` references still present in what will be sent, in order and

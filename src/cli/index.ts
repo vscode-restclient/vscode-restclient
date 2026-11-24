@@ -23,11 +23,12 @@ import { environmentsFolder, readEnvironments } from '../core/jetBrainsEnvironme
 import { closeImports, Imported, resolveRun, variablesWithImports } from '../core/imports';
 import { parseRequests } from './minimalParser';
 import { Block, runSequence, isRequest, splitBlocks } from '../core/sequence';
-import { checkAssertions, readAssertions, AssertionResult } from '../core/assertions';
+import { checkAssertions, readAssertions, AssertionResult, valueFor } from '../core/assertions';
 import { isEventStream } from '../core/sse';
 import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { toJunit } from '../core/junit';
 import { blockingUnresolved, unresolvedSummary } from '../core/variables';
+import { applyCaptures, captureFailures, capturesOf, CaptureStore } from '../core/captures';
 
 export interface Options {
     file: string;
@@ -43,6 +44,12 @@ export interface Options {
     junit?: string;
     /** The editor's selection is not looked for above this folder (the MCP server's root). */
     ceiling?: string;
+    /**
+     * Where `# @set` keeps what it takes, per environment. The MCP server
+     * passes the same store to every call, so a login sets the token for the
+     * requests it sends later; without one, the values last one run.
+     */
+    captures?: CaptureStore;
 }
 
 export const USAGE = 'usage: restclient <file.http> [--env name] [--var key=value] [--secret NAME=value] [--continue] [--json] [--junit report.xml] [--timeout ms]';
@@ -215,11 +222,17 @@ export function secret(name: string, secrets: Record<string, string>): string {
  * The same ones as in the editor, JetBrains aliases included, so that a file
  * behaves identically in both places.
  */
-export function substitute(text: string, variables: Record<string, string>, secrets: Record<string, string> = {}): string {
+export function substitute(text: string, variables: Record<string, string>, secrets: Record<string, string> = {}, previous?: Previous): string {
+    // One pass: what is put in place is never read again, so a response that
+    // carries `{{$processEnv X}}` cannot make the runner send X.
     return text.replace(/\{\{([^{}]+)\}\}/g, (whole, name: string) => {
         const key = name.trim();
         if (Object.prototype.hasOwnProperty.call(variables, key)) {
             return variables[key];
+        }
+        const answered = previous ? previousValue(key, previous) : undefined;
+        if (answered !== undefined) {
+            return answered;
         }
         const [system, ...rest] = key.split(/\s+/);
         const argument = rest.join(' ');
@@ -278,14 +291,17 @@ export async function execute(options: Options, output: (line: string) => void):
         }
     }
 
-    // Precedence, lowest to highest: file environment -> @variables (imported,
-    // then the file's own) -> --var. The command line wins: that is what lets
-    // the same file be pointed somewhere else from a CI server.
-    const variables = {
-        ...environmentVars(root, environmentName, environment.warn, options.environment === undefined),
-        ...variablesWithImports(text, imported),
-        ...options.variables
-    };
+    // Precedence, lowest to highest: file environment -> values taken by
+    // `# @set` -> @variables (imported, then the file's own) -> --var. The
+    // command line wins: that is what lets the same file be pointed somewhere
+    // else from a CI server. A captured value takes the environment's place,
+    // as in the editor, and changes as the run goes, hence a function.
+    const fromEnvironment = environmentVars(root, environmentName, environment.warn, options.environment === undefined);
+    const fromText = { ...variablesWithImports(text, imported), ...options.variables };
+    // Per environment: its name and the http-client.env.json that defines it,
+    // so two folders with their own `dev` do not share a token.
+    const captured = (options.captures ?? new CaptureStore()).scope(`${environmentsFolder(root) ?? ''}\n${environmentName ?? ''}`);
+    const variables = () => ({ ...fromEnvironment, ...Object.fromEntries(captured), ...fromText });
 
     const all = splitBlocks(text).filter(isRequest);
     const blocks = options.only ? onlyBlock(all, options.only) : all;
@@ -299,17 +315,19 @@ export async function execute(options: Options, output: (line: string) => void):
             const real = resolveRun(b, text, imported);
             // A file variable may hold another reference (`@token = {{login.response.body.$.token}}`):
             // the ones this block uses are expanded first, each once, as the editor does.
-            const expanded = expandVariables(real.text, variables, previous, options.secrets);
-            const resolved = substitute(resolvePrevious(real.text, previous), expanded, options.secrets);
+            // A value `# @set` took came from a server: it goes as it is, never expanded.
+            const literal = new Set([...captured.keys()].filter(k => !Object.prototype.hasOwnProperty.call(fromText, k)));
+            const expanded = expandVariables(real.text, variables(), previous, options.secrets, literal);
+            const resolved = substitute(real.text, expanded, options.secrets, previous);
             // What is still {{…}} now is a mistake, not a value: say which, do not send.
             const left = blockingUnresolved(resolved);
             if (left.length > 0) {
                 throw new Error(unresolvedHint(left));
             }
-            return { ...real, text: resolved };
+            return { ...real, text: resolved, captures: capturesOf(b.text, real.text) };
         },
         send: async (b: Block) => {
-            const request = parseRequests(b.text, root, t => substitute(t, variables, options.secrets));
+            const request = parseRequests(b.text, root, t => substitute(t, variables(), options.secrets));
             const timeout = blockTimeout(b.text);
             const result = request.method === 'WEBSOCKET'
                 ? await sendWebSocket(request, timeout ?? DEFAULT_LISTEN_MS)
@@ -317,7 +335,8 @@ export async function execute(options: Options, output: (line: string) => void):
             if (b.name) {
                 previous.set(b.name, result);
             }
-            return result;
+            const captures = b.captures?.length ? applyCaptures(b.captures, { ...result, ms: 0 }, captured) : undefined;
+            return { ...result, captures };
         },
     });
 
@@ -328,13 +347,19 @@ export async function execute(options: Options, output: (line: string) => void):
             : checkAssertions(readAssertions(blocks[i].text), { status: step.status, body: step.body, headers: step.headers, ms: step.ms });
         byBlock.set(i, results);
         const failed = results.filter(r => !r.passed);
-        failures += failed.length + (step.error ? 1 : 0);
+        // A `# @set` that took nothing fails the step like an assertion: the
+        // requests after it would otherwise go with a stale value or none.
+        const notTaken = captureFailures(step.captures ?? []);
+        failures += failed.length + notTaken.length + (step.error ? 1 : 0);
 
         if (!options.json) {
-            const mark = step.error ? 'ERROR' : failed.length ? 'FAIL ' : '  ok ';
+            const mark = step.error ? 'ERROR' : failed.length || notTaken.length ? 'FAIL ' : '  ok ';
             output(`${mark}  ${step.name.padEnd(20)} ${String(step.status ?? '').padStart(3)}  ${step.ms} ms`);
             for (const m of failed) {
                 output(`         ${m.assertion.raw}   ->  ${truncate(m.actual)}`);
+            }
+            for (const line of notTaken) {
+                output(`         ${line}`);
             }
             if (step.error) {
                 output(`         ${step.error}`);
@@ -347,7 +372,10 @@ export async function execute(options: Options, output: (line: string) => void):
             name: p.name,
             ms: p.ms,
             error: p.error,
-            failures: (byBlock.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`)
+            failures: [
+                ...(byBlock.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`),
+                ...captureFailures(p.captures ?? []).map(l => l.replace(/ {3}->  /, ' -> '))
+            ]
         }))));
     }
 
@@ -356,7 +384,9 @@ export async function execute(options: Options, output: (line: string) => void):
             file: options.file,
             steps: steps.map((p, i) => ({
                 name: p.name, status: p.status, ms: p.ms, error: p.error, body: p.body,
-                assertions: (byBlock.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual }))
+                assertions: (byBlock.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual })),
+                // The names set, never the values: they are usually tokens.
+                ...(p.captures?.length ? { captures: p.captures.map(c => ({ set: c.capture.raw, name: c.capture.name, taken: c.error === undefined, ...(c.error ? { error: c.error } : {}) })) } : {})
             }))
         }, null, 2));
     } else {
@@ -466,8 +496,9 @@ function referencedKeys(text: string, variables: Record<string, string>): string
 export function expandVariables(
     text: string,
     variables: Record<string, string>,
-    previous: Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>,
-    secrets: Record<string, string>
+    previous: Previous,
+    secrets: Record<string, string>,
+    literal: ReadonlySet<string> = new Set()
 ): Record<string, string> {
     const expanded = { ...variables };
     const done = new Set<string>();
@@ -476,11 +507,15 @@ export function expandVariables(
         if (done.has(name) || expanding.has(name)) {
             return;
         }
+        if (literal.has(name)) {
+            done.add(name);
+            return;
+        }
         expanding.add(name);
         for (const dependency of referencedKeys(variables[name], variables)) {
             expand(dependency);
         }
-        expanded[name] = substitute(resolvePrevious(variables[name], previous), expanded, secrets);
+        expanded[name] = substitute(variables[name], expanded, secrets, previous);
         expanding.delete(name);
         done.add(name);
     };
@@ -496,7 +531,7 @@ export function unresolvedHint(left: readonly string[]): string {
     const plain = left.filter(n => !n.startsWith('$'));
     const hints: string[] = [];
     if (plain.length > 0) {
-        hints.push(`define ${plain.length === 1 ? 'it' : 'them'} in the file or pass --var/--env; a name.response.* reference needs that request to have answered`);
+        hints.push(`define ${plain.length === 1 ? 'it' : 'them'} in the file or pass --var/--env; a name.response.* reference, or a name a # @set takes, needs that request to have answered first`);
     }
     if (system.length > 0) {
         hints.push(`the runner does not support ${system.length === 1 ? 'that system variable' : 'those system variables'}, or the format is wrong`);
@@ -504,20 +539,25 @@ export function unresolvedHint(left: readonly string[]): string {
     return `${unresolvedSummary(left)}: ${hints.join('; ')}; "# @allow-unresolved" sends the text as it is`;
 }
 
-/** Resolves `{{name.response.body.$.x}}` with what that request already answered. */
-function resolvePrevious(text: string, previous: Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>): string {
-    return text.replace(/\{\{(\w+)\.response\.(body|headers)\.([^{}]+)\}\}/g, (whole, name: string, piece: string, rest: string) => {
-        const r = previous.get(name);
-        if (!r) {
-            return whole;
-        }
-        const subject = piece === 'headers' ? `headers.${rest.trim()}` : `body.${rest.trim()}`;
-        // The same resolver as the assertions is reused: one language, not two.
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { valueFor } = require('../core/assertions');
-        const value = valueFor(subject, { status: r.status, body: r.body, headers: r.headers, ms: 0 });
-        return value === '' ? whole : value;
-    });
+type Previous = Map<string, { body: string; headers: Record<string, string | undefined>; status: number }>;
+
+const PREVIOUS_RE = /^(\w+)\.response\.(body|headers)\.(.+)$/;
+
+/**
+ * The value of `name.response.body.$.x` from what that request already
+ * answered, or undefined. It is text that came from a server: whoever puts it
+ * in place must not look for `{{…}}` inside it again.
+ */
+function previousValue(key: string, previous: Previous): string | undefined {
+    const m = PREVIOUS_RE.exec(key);
+    const r = m ? previous.get(m[1]) : undefined;
+    if (!m || !r) {
+        return undefined;
+    }
+    const subject = m[2] === 'headers' ? `headers.${m[3].trim()}` : `body.${m[3].trim()}`;
+    // The same resolver as the assertions is reused: one language, not two.
+    const value = valueFor(subject, { status: r.status, body: r.body, headers: r.headers, ms: 0 });
+    return value === '' ? undefined : value;
 }
 
 const truncate = (s: string) => (s.length > 90 ? s.slice(0, 87) + '...' : s);

@@ -1,6 +1,6 @@
 # restclient cli
 
-Run `.http` files from the terminal (the command is `restclient`; the package is `@vscode-restclient/cli` because npm reserves names too close to an unrelated `http-keeper`). Same format as VS Code's REST Client and JetBrains' HTTP Client: requests, `# @name`, `{{variables}}`, `http-client.env.json` environments, `import` / `run #name`, `# @assert` checks, `text/event-stream` and `WEBSOCKET`.
+Run `.http` files from the terminal (the command is `restclient`; the package is `@vscode-restclient/cli` because npm reserves names too close to an unrelated `http-keeper`). Same format as VS Code's REST Client and JetBrains' HTTP Client: requests, `# @name`, `{{variables}}`, `http-client.env.json` environments, `import` / `run #name`, `# @assert` checks, `# @set` captures, `text/event-stream` and `WEBSOCKET`.
 
 ```console
 $ npx @vscode-restclient/cli api.http --env dev --secret API_KEY=… --junit report.xml

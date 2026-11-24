@@ -7,7 +7,7 @@
  * same way the runner prints them. Nothing here touches the response itself:
  * the verdict is part of the view, not of what is saved or reused.
  */
-import { Assertion, AssertionResult, checkAssertions } from '../core/assertions';
+import { Assertion, AssertionResult, CheckableResponse, checkAssertions } from '../core/assertions';
 
 /** What the editor's response offers; the subset the assertions need. */
 export interface ResponseLike {
@@ -18,18 +18,23 @@ export interface ResponseLike {
 }
 
 export function checkResponse(assertions: Assertion[], response: ResponseLike): AssertionResult[] {
+    return checkAssertions(assertions, checkable(response));
+}
+
+/** The response as the assertions and `# @set` read it, in the editor as in the runner. */
+export function checkable(response: ResponseLike): CheckableResponse {
     // A multi-valued header (set-cookie) reads the way it does in the runner,
     // which hands the raw headers over and gets `String(array)`: comma, no space.
     const headers: Record<string, string | undefined> = {};
     for (const [name, value] of Object.entries(response.headers ?? {})) {
         headers[name] = Array.isArray(value) ? value.join(',') : value;
     }
-    return checkAssertions(assertions, {
+    return {
         status: response.statusCode,
         body: response.body,
         headers,
         ms: response.timingPhases?.total ?? 0,
-    });
+    };
 }
 
 export function summarize(results: AssertionResult[]): { passed: number; failed: number; total: number } {

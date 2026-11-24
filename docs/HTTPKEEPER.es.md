@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **169** (112 unitarias, 57 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **186** (124 unitarias, 62 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -66,6 +66,8 @@ Content-Type: application/json
 Las comprobaciones son comentarios `@`, de modo que cualquier otra herramienta que lea el formato las ignora.
 
 En el editor, Send Request muestra el veredicto de cada comprobación debajo de la respuesta, y la barra de estado las cuenta. Recorrer el fichero entero en orden es cosa del ejecutor (más abajo): `restclient api.http` lo recorre e informa de cada comprobación.
+
+Un valor de una respuesta se puede guardar para las peticiones siguientes, de este fichero o de cualquier otro, con `# @set token = response.body.$.token` (la sintaxis de rest-client-next). Ocupa el lugar del valor del entorno seleccionado, pertenece a ese entorno y vive solo en memoria; funciona igual en el editor, el ejecutor y el servidor MCP.
 
 ### Streaming (+72)
 

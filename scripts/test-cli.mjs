@@ -361,6 +361,115 @@ ok('an option is not the value of another', r25.exitCode === 2 && r25.output ===
 const r28 = await run(['--json', '--', good]);
 ok('after -- what follows is the file', r28.exitCode === 0 && stepCount(r28) === 2, `${stepCount(r28)} steps`);
 
+console.log(BR + '== P-98 · # @set keeps a value of a response for the requests that follow');
+const setFolder = path.join(tmp, 'set');
+fs.mkdirSync(setFolder, { recursive: true });
+const writeSet = (name, lines) => {
+  const f = path.join(setFolder, name);
+  fs.writeFileSync(f, lines.join(BR) + BR);
+  return f;
+};
+fs.writeFileSync(path.join(setFolder, 'http-client.env.json'), JSON.stringify({ dev: { token: 'stale' } }));
+const setHost = `http://127.0.0.1:${serverPort}`;
+const setLogin = [
+  '# @name login',
+  '# @set token = response.body.$.token',
+  `POST ${setHost}/auth`,
+  'Content-Type: application/json',
+  '',
+  '{"user":"ana"}',
+  '',
+  '###',
+  '',
+];
+const setUse = [
+  '# @name facturas',
+  `GET ${setHost}/facturas`,
+  'Authorization: Bearer {{token}}',
+  '',
+  '# @assert status == 200',
+];
+const setFile = writeSet('set.http', [...setLogin, ...setUse]);
+const rSet = await run([setFile, '--json']);
+const dSet = rSet.exitCode === 0 ? JSON.parse(rSet.output) : undefined;
+const statuses = (r) => { try { return JSON.parse(r.output).steps.map(x => x.status ?? x.error).join(' '); } catch { return (r.output + r.error).slice(0, 200); } };
+ok('the token taken by the login reaches the next request', rSet.exitCode === 0 && dSet?.steps?.[1]?.status === 200, statuses(rSet));
+ok('--json names what was taken, never the value', JSON.stringify(dSet?.steps?.[0]?.captures) === JSON.stringify([{ set: 'token = response.body.$.token', name: 'token', taken: true }]) && !JSON.stringify(dSet?.steps?.[0]?.captures).includes('tok-123'), JSON.stringify(dSet?.steps?.[0]?.captures));
+const rSetEnv = await run([setFile, '--env', 'dev', '--json']);
+ok('a captured value takes the place of the environment\'s', rSetEnv.exitCode === 0 && JSON.parse(rSetEnv.output).steps[1].status === 200, statuses(rSetEnv));
+const rSetVar = await run([setFile, '--var', 'token=forced', '--json']);
+ok('--var still wins over a captured value', rSetVar.exitCode === 1 && JSON.parse(rSetVar.output).steps[1].status === 401, statuses(rSetVar));
+const setFixed = writeSet('fixed.http', ['@token = fixed', '', ...setLogin, ...setUse]);
+const rSetFixed = await run([setFixed, '--json']);
+ok('a file\'s @variable still wins over a captured value', rSetFixed.exitCode === 1 && JSON.parse(rSetFixed.output).steps[1].status === 401, statuses(rSetFixed));
+// The login lives in another file and only ever runs through `run #login`.
+writeSet('auth.http', setLogin.slice(0, 6));
+const setRun = writeSet('run.http', [
+  'import ./auth.http', '',
+  'run #login', '', '###', '',
+  ...setUse,
+]);
+const rSetRun = await run([setRun, '--json']);
+const dSetRun = rSetRun.exitCode === 0 ? JSON.parse(rSetRun.output) : undefined;
+ok('a run #login of an imported file takes what the login\'s # @set lines take', dSetRun?.steps?.length === 2 && dSetRun.steps[1].status === 200, statuses(rSetRun));
+// A server that answers with `{{$processEnv …}}` must not make the runner send
+// that variable: the payload goes raw with `< file`, the echo returns it.
+process.env.RC_P98_SECRET = 'p98-leaked';
+fs.writeFileSync(path.join(setFolder, 'payload.txt'), '{{$processEnv RC_P98_SECRET}}');
+const setInject = writeSet('inject.http', [
+  '# @name echo',
+  '# @set v = response.body.$.received',
+  `POST ${setHost}/echo/p98-inject`,
+  'Content-Type: text/plain',
+  '',
+  '< ./payload.txt',
+  '',
+  '###',
+  '',
+  `GET ${setHost}/echo/p98-captured`,
+  'X-Test: {{v}}',
+  '',
+  '###',
+  '',
+  `GET ${setHost}/echo/p98-previous`,
+  'X-Test: {{echo.response.body.$.received}}',
+]);
+const rSetInject = await run([setInject, '--continue', '--json']);
+const dSetInject = JSON.parse(rSetInject.output || '{"steps":[]}');
+ok('a captured value that carries {{$processEnv X}} is not expanded: the request is refused, X never sent', dSetInject.steps[0]?.status === 200 && /unresolved variable: \$processEnv RC_P98_SECRET/.test(dSetInject.steps[1]?.error ?? '') && !rSetInject.output.includes('p98-leaked'), dSetInject.steps.map(x => x.status ?? x.error).join(' | ').slice(0, 300));
+ok('nor is a {{name.response…}} value that carries one', /unresolved variable: \$processEnv RC_P98_SECRET/.test(dSetInject.steps[2]?.error ?? ''), String(dSetInject.steps[2]?.error ?? dSetInject.steps[2]?.status).slice(0, 200));
+delete process.env.RC_P98_SECRET;
+const setMissing = writeSet('missing.http', [
+  '# @name login',
+  '# @set token = response.body.$.nope',
+  `POST ${setHost}/auth`,
+  '',
+  '###',
+  '',
+  ...setUse,
+]);
+const rSetMissing = await run([setMissing, '--junit', junit]);
+ok('a # @set that finds nothing fails its request and names the path', rSetMissing.exitCode === 1 && /^FAIL +login/m.test(rSetMissing.output) && rSetMissing.output.includes('@set token = response.body.$.nope   ->  nothing found at body.$.nope'), rSetMissing.output.trim().split(BR).slice(0, 3).join(' | '));
+ok('and the next request is not sent with a {{token}} nobody set', /^ERROR +facturas/m.test(rSetMissing.output) && rSetMissing.output.includes('a name a # @set takes'), rSetMissing.output.trim().split(BR).slice(2, 5).join(' | '));
+const setXml = fs.readFileSync(junit, 'utf8');
+ok('the report records the # @set that took nothing', setXml.includes('<failure message="@set token = response.body.$.nope -&gt; nothing found at body.$.nope"/>'), setXml.split(BR).find(l => l.includes('failure')) ?? '');
+const setBody = writeSet('in-body.http', [
+  '# @name echo',
+  `POST ${setHost}/echo`,
+  'Content-Type: text/plain',
+  '',
+  'hello',
+  '# @set path = response.body.$.path',
+  '',
+  '###',
+  '',
+  `GET ${setHost}/echo{{path}}`,
+]);
+const rSetBody = await run([setBody, '--json']);
+const dSetBody = rSetBody.exitCode === 0 ? JSON.parse(rSetBody.output) : undefined;
+const echoed = (i) => { try { return JSON.parse(dSetBody.steps[i].body); } catch { return {}; } };
+ok('a # @set line at the end of the block is not sent as body', echoed(0).received === 'hello' && echoed(1).path === '/echo/echo', `${echoed(0).received} · ${echoed(1).path}`);
+
 serverProcess.kill();
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${BR}===== ${failures} failures`);

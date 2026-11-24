@@ -72,8 +72,8 @@ export function parseRequests(text: string, base: string, substitute: (t: string
     }
 
     // Everything after the blank line is the body, except the metadata
-    // comments (@assert, @name, @timeout) that sit at the end of the block.
-    const remaining = lines.slice(i + 1).filter(l => !/^\s*(?:#|\/\/)\s*@(assert|name|timeout)\b/.test(l));
+    // comments (@assert, @set, @name, @timeout) that sit at the end of the block.
+    const remaining = lines.slice(i + 1).filter(l => !/^\s*(?:#|\/\/)\s*@(assert|set(?=\s|$)|name|timeout)\b/.test(l));
     const body = readBody(remaining, headers, base, substitute);
     return { method, url, headers, body };
 }

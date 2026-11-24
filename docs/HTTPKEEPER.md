@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **169** (112 unit, 57 integration against a real server) |
+| Tests                              | 0                    | **186** (124 unit, 62 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -66,6 +66,8 @@ Content-Type: application/json
 Assertions are `@` comments, so any other tool that reads the format just ignores them.
 
 In the editor, Send Request shows the verdict of each assertion under the response, and the status bar counts them. Running the whole file in order is the runner's job (see below): `restclient api.http` runs it and reports every assertion.
+
+A value of a response can be kept for the requests that follow, in this file or any other, with `# @set token = response.body.$.token` (the syntax of rest-client-next). It takes the place of the selected environment's value, belongs to that environment and lives in memory only; it works the same in the editor, the runner and the MCP server.
 
 ### Streaming (+72)
 

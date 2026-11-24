@@ -63,7 +63,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | Step | What it proves |
 | --- | --- |
 | `tsc --noEmit` | the extension compiles |
-| `test:unit` | 112 unit tests in plain Node |
+| `test:unit` | 124 unit tests in plain Node |
 | `build:cli` + `test:cli` | the runner compiles on its own and passes its end-to-end test (a real server, a chained `.http`, assertions, exit code) |
 | `test:mcp` | the MCP server, driven over stdio the way an agent does |
 | `test:l10n` | both languages complete, nothing extra |
@@ -71,7 +71,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | `audit` | 105 checks, listed below |
 | `test:vsix` | packages the `.vsix`, installs it in a clean VS Code (in Spanish) and exercises it: the only test that sees what reaches the user |
 
-`npm run test:integration` runs the 57 integration tests inside a real VS Code
+`npm run test:integration` runs the 62 integration tests inside a real VS Code
 against `scripts/test-server.cjs`. It is separate because it takes a few
 minutes and needs a display (CI uses `xvfb-run` on Linux). The runner points
 the extension's state (`VSC_REST_CLIENT_HOME`) at a folder of the run, so the
@@ -196,6 +196,13 @@ fix; the PR says which one.
     `headers.name`), `sse.count`, `ws.last`, and operators `==`, `!=`, `<`,
     `>`, `contains`, `matches`, `exists`. Implemented in
     `src/core/assertions.ts` and `src/core/imports.ts`.
+  - `# @set name = response.body.$.path` (or `response.headers.Name`; the
+    `response.` prefix is optional): keeps a value of the response for the
+    requests that follow, with the subjects of `# @assert`. A captured value
+    sits between the environment and the file's `@variables`, per environment
+    and in memory only: per window in the editor (`src/utils/capturedValues.ts`),
+    per run in the runner, per process in the MCP server. Implemented in
+    `src/core/captures.ts`.
 
 ## Demo recording
 
