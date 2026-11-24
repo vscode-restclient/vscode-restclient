@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.2.0...v2.3.0) (2026-11-24)
+
+
+### Features
+
+* `# @set` keeps a value of a response for the requests that follow ([#69](https://github.com/vscode-restclient/vscode-restclient/issues/69)) ([9e38e2b](https://github.com/vscode-restclient/vscode-restclient/commit/9e38e2bbc04c159b6425b31c0c1ea4582bc8acca))
+
 ## [2.2.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.1.0...v2.2.0) (2026-11-22)
 
 
