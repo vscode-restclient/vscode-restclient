@@ -1,4 +1,4 @@
-import { TextDocument } from 'vscode';
+import { l10n, TextDocument } from 'vscode';
 import { VariableType } from "../models/variableType";
 import { EnvironmentVariableProvider } from './httpVariableProviders/environmentVariableProvider';
 import { FileVariableProvider } from './httpVariableProviders/fileVariableProvider';
@@ -21,13 +21,14 @@ export class VariableProcessor {
         let result = '';
         let match: RegExpExecArray | null;
         let lastIndex = 0;
+        const thisRequest = {};
         variable:
         while (match = variableReferenceRegex.exec(request)) {
             result += request.substring(lastIndex, match.index);
             lastIndex = variableReferenceRegex.lastIndex;
             const name = match[1].trim();
             const document = getCurrentTextDocument();
-            const context = { rawRequest: request, parsedRequest: result };
+            const context = { rawRequest: request, parsedRequest: result, request: thisRequest };
             for (const [provider, cacheable] of this.providers) {
                 if (resolvedVariables.has(name)) {
                     result += resolvedVariables.get(name);
@@ -59,15 +60,27 @@ export class VariableProcessor {
      * malformed system variable), `undefined` when none does.
      */
     public static async explain(name: string, document: TextDocument | undefined): Promise<string | undefined> {
-        // Asking the provider again would prompt for the secret a second time.
+        // Asking the provider again would prompt for the secret, or sign in, a second time.
         if (/^\$secret\b/.test(name)) {
             return 'secret not provided';
         }
+        if (/^\$(?:oidcAccessToken|aadV2Token|aadToken)\b/.test(name)) {
+            return l10n.t('no token was obtained');
+        }
         const context = { rawRequest: '', parsedRequest: '' };
+        // Defined, and still `{{name}}` in the request: it came inside a value
+        // that is not searched again (a response, a value `# @set` took).
+        const insideValue = l10n.t('it is defined, but it came inside another value, which is not expanded again');
         for (const [provider] of this.providers) {
             if (await provider.has(name, document, context)) {
+                // Resolving the file variables again could ask for secrets or sign in a second time.
+                if (provider === FileVariableProvider.Instance) {
+                    return document && await FileVariableProvider.Instance.isInCycle(name, document)
+                        ? l10n.t('it refers to itself, directly or through other file variables')
+                        : insideValue;
+                }
                 const { error, warning } = await provider.get(name, document, context);
-                return (error ?? warning) as string | undefined;
+                return (error ?? warning ?? insideValue) as string;
             }
         }
         return undefined;

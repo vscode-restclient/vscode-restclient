@@ -52,7 +52,10 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
             return { name, error: ResolveErrorMessage.EnvironmentVariableNotExist };
         }
 
-        return { name, value: variables[name] };
+        // What `# @set` took sits on top of the environment, and came from a server.
+        const { name: environment } = await EnvironmentController.getCurrentEnvironment();
+        const literal = CapturedValues.values(CapturedValues.scopeOf(document, environment)).has(name);
+        return { name, value: variables[name], ...(literal ? { literal } : {}) };
     }
 
     public async getAll(document?: TextDocument): Promise<HttpVariable[]> {
