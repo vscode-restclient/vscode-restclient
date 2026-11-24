@@ -868,7 +868,7 @@ REST Client Extension also supports request-level settings for each independent 
 
 > All the above leading `#` can be replaced with `//`
 
-`# @set` takes a value from the response once it arrives and keeps it in `name` for the requests that follow, in this file or in any other: `response.body.$.path` for a field of a JSON body, `response.body` for the whole body, `response.headers.Name` for a header (case does not matter). The `response.` prefix is optional, and a request can have several `# @set` lines. The paths are those of `# @assert`: dotted names and `[n]` indexes. XPath, JSONPath filters, wildcards and `..` are not supported there yet, and a `# @set` line that uses one is reported instead of applied. A value taken from a response is used as it is: a `{{…}}` inside it is not resolved again.
+`# @set` takes a value from the response once it arrives and keeps it in `name` for the requests that follow, in this file or in any other: `response.body.$.path` for a field of a JSON body, `response.body` for the whole body, `response.headers.Name` for a header (case does not matter). The `response.` prefix is optional, and a request can have several `# @set` lines. The paths are those of `# @assert`: dotted names and `[n]` indexes. XPath, JSONPath filters, wildcards and `..` are not supported there yet, and a `# @set` line that uses one is reported instead of applied. A value taken from a response is used as it is: a `{{…}}` inside it is not resolved again, except, in the editor, when the value reaches the request through a file variable (`@auth = Bearer {{token}}`), which still expands the file's own `@variables` inside it.
 
 ```http
 # @name login

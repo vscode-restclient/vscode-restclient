@@ -29,7 +29,8 @@ async function send(content: string, mark: string, seconds = 20): Promise<string
 /** What the echo server saw in X-Test, from its answer. */
 const echoedHeader = (text: string) => /"header":\s*("[^"]*"|null)/.exec(text)?.[1];
 
-// P-98: `# @set` in the editor. The value is taken in one document and used
+// P-98: `# @set` in the editor. It switches environments, so it runs after
+// the data location suite, which expects the selection it starts with. The value is taken in one document and used
 // in another, takes the place of the environment's value, and belongs to the
 // environment selected when it was taken. The names are this test's own, so
 // nothing else in the run can see them.
@@ -73,9 +74,17 @@ describe('Rest Client · # @set', () => {
   it('P-98 · a rerun after switching environments files the value under the environment it was resolved with', async function () {
     this.timeout(60000);
     await send(`# @set p98token = response.body.$.header\nGET ${BASE}/echo/p98-login-r\nX-Test: rerun-a\n`, 'p98-login-r');
+    // The response view reuses its document: the rerun shows in its text
+    // changing (the Date header moves on after a second).
+    const answer = () => vscode.workspace.textDocuments.find((d) => d.getText().startsWith('HTTP/') && d.getText().includes('p98-login-r'))?.getText();
+    const before = answer();
+    await wait(1100);
     await vscode.commands.executeCommand('rest-client.switch-environment', 'p98-b');
     await vscode.commands.executeCommand('rest-client.rerun-last-request');
-    await wait(1500);
+    for (let i = 0; i < 80 && answer() === before; i++) {
+      await wait(250);
+    }
+    assert.notStrictEqual(answer(), before, 'the rerun produced no response');
     const inB = await send(`GET ${BASE}/echo/p98-use-r1\nX-Test: {{p98token}}\n`, 'p98-use-r1');
     assert.strictEqual(echoedHeader(inB), '"stale-b"', 'the rerun resolved under p98-a must not set p98-b: ' + inB.slice(0, 300));
     await vscode.commands.executeCommand('rest-client.switch-environment', 'p98-a');

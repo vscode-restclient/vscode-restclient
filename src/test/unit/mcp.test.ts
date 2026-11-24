@@ -175,6 +175,7 @@ describe('mcp server', () => {
         fs.copyFileSync(path.join(project, 'use.http'), path.join(project, 'other', 'use.http'));
         const otherFolder = await send({ file: 'captures/other/use.http', name: 'use', env: 'dev' });
         assert.strictEqual(otherFolder.isError, true, 'a dev of another env file does not see it: ' + JSON.stringify(otherFolder.data).slice(0, 300));
+        assert.match(otherFolder.data.steps[0].error, /unresolved variables: who, where/);
 
         const otherEnvironment = await send({ file: 'captures/use.http', name: 'use', env: 'prod' });
         assert.strictEqual(otherEnvironment.isError, true, 'a value taken against dev is not sent with prod');
