@@ -59,5 +59,7 @@
     "{0} is set by a \"# @set\" line once its request is sent": "{0} lo fija una línea \"# @set\" cuando se envíe su petición",
     "Nothing taken, the variable keeps its previous value: {0}": "No se ha tomado nada, la variable conserva su valor anterior: {0}",
     "taken by a \"# @set\" line: send that request first, with this environment selected": "lo toma una línea \"# @set\": envía antes esa petición, con este entorno seleccionado",
-    "it is defined, but it came inside another value, which is not expanded again": "está definida, pero llegó dentro de otro valor, que no se vuelve a expandir"
+    "it is defined, but it came inside another value, which is not expanded again": "está definida, pero llegó dentro de otro valor, que no se vuelve a expandir",
+    "no token was obtained": "no se obtuvo ningún token",
+    "it refers to itself, directly or through other file variables": "se refiere a sí misma, directamente o a través de otras variables del fichero"
 }

@@ -83,6 +83,13 @@ describe('Rest Client · file variables, one pass', () => {
     fs.writeFileSync(path.join(root, 'p99.http'), [
       '@p99pw = s3cret',
       '@p99auth = Bearer {{p99tok}}',
+      '@p99c1 = {{p99c2}}',
+      '@p99c2 = {{p99c1}}',
+      '',
+      '# @name p99cycle',
+      `GET ${BASE}/echo/p99-cycle/{{p99c1}}`,
+      '',
+      '###',
       '',
       '# @name p99login',
       '# @set p99tok = response.body.$.received',
@@ -104,16 +111,22 @@ describe('Rest Client · file variables, one pass', () => {
       () => lm!.invokeTool!('rest_client_send_request', { input: { file: 'p99.http', name: 'p99use' }, toolInvocationToken: undefined }, token),
       /p99pw \(it is defined, but it came inside another value, which is not expanded again\)/,
     );
+    // A cycle is named as one, not as a value that came from elsewhere.
+    await assert.rejects(
+      () => lm!.invokeTool!('rest_client_send_request', { input: { file: 'p99.http', name: 'p99cycle' }, toolInvocationToken: undefined }, token),
+      /p99c\d \(it refers to itself, directly or through other file variables\)/,
+    );
   });
 
   it('P-99 · an environment value that names a file variable still resolves through another file variable, as before', async function () {
     this.timeout(60000);
     const config = vscode.workspace.getConfiguration('rest-client');
-    await config.update('environmentVariables', { 'p99-env': { p99api: '{{p99host}}/echo/p99-env' } }, vscode.ConfigurationTarget.Global);
+    // A setting may hold a number even though the schema asks for text.
+    await config.update('environmentVariables', { 'p99-env': { p99api: '{{p99host}}/echo/p99-env', p99num: 42 } }, vscode.ConfigurationTarget.Global);
     await vscode.commands.executeCommand('rest-client.switch-environment', 'p99-env');
     try {
-      const t = await trySend(`@p99host = ${BASE}\n@p99base = {{p99api}}\nGET {{p99base}}/ok\n`, 'p99-env/ok');
-      assert.ok(t, 'not sent');
+      const t = await trySend(`@p99host = ${BASE}\n@p99base = {{p99api}}\n@p99n = n{{p99num}}\nGET {{p99base}}/ok/{{p99n}}\n`, 'p99-env/ok');
+      assert.ok((t ?? '').includes('/echo/p99-env/ok/n42'), (t ?? 'not sent').slice(0, 300));
     } finally {
       await vscode.commands.executeCommand('rest-client.switch-environment', '');
       await config.update('environmentVariables', undefined, vscode.ConfigurationTarget.Global);

@@ -79,6 +79,28 @@ export class FileVariableProvider implements HttpVariableProvider {
         return [...variableMap.entries()].map(([name, value]) => ({ name, value }));
     }
 
+    /**
+     * True when `name` refers to itself, directly or through other file
+     * variables, as written: nothing is resolved, so nothing is asked for.
+     */
+    public async isInCycle(name: string, document: TextDocument): Promise<boolean> {
+        const written = new Map((await this.getFileVariables(document)).map(({ name, value }): [string, string] => [name, value]));
+        const references = (value: string) => [...value.matchAll(/\{{2}(.+?)\}{2}/g)].map(m => m[1].trim()).filter(r => written.has(r));
+        const seen = new Set<string>();
+        const pending = references(written.get(name) ?? '');
+        while (pending.length > 0) {
+            const next = pending.pop()!;
+            if (next === name) {
+                return true;
+            }
+            if (!seen.has(next)) {
+                seen.add(next);
+                pending.push(...references(written.get(next)!));
+            }
+        }
+        return false;
+    }
+
     private async getFileVariables(document: TextDocument): Promise<FileVariableValue[]> {
         if (this.fileVariableCache.has(document)) {
             return this.fileVariableCache.get(document)!;
@@ -199,7 +221,8 @@ export class FileVariableProvider implements HttpVariableProvider {
                 if (error || warning) {
                     return undefined;
                 }
-                return { value: value as string, configuration: provider === EnvironmentVariableProvider.Instance && !literal };
+                // A setting may hold a number or a boolean: it goes in as text, as it always did.
+                return { value: String(value), configuration: provider === EnvironmentVariableProvider.Instance && !literal };
             }
         }
         return undefined;
