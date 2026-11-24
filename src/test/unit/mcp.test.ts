@@ -107,4 +107,71 @@ describe('mcp server', () => {
         const explicit = await call('send_request', { file: 'project/sel.http', name: 'sel', env: 'other' });
         assert.ok(explicit.data.steps[0].body.includes('"path":"/other"'), 'env still wins: ' + JSON.stringify(explicit.data).slice(0, 300));
     });
+
+    it('P-98 · what a # @set takes in one call is there for the next calls of the same server, per environment, never in the reply', async function () {
+        this.timeout(15000);
+        const project = path.join(root, 'captures');
+        fs.mkdirSync(project, { recursive: true });
+        fs.writeFileSync(path.join(project, 'http-client.env.json'), JSON.stringify({ dev: { stage: 'dev' }, prod: { stage: 'prod' } }));
+        fs.writeFileSync(path.join(project, 'auth.http'), [
+            '# @name login',
+            '# @set who = response.headers.x-answered-by',
+            '# @set where = response.body.$.path',
+            `GET http://127.0.0.1:${server.port}/login-{{stage}}`,
+            '',
+        ].join('\n'));
+        fs.writeFileSync(path.join(project, 'use.http'), [
+            '# @name use',
+            `GET http://127.0.0.1:${server.port}/{{who}}{{where}}`,
+            '',
+        ].join('\n'));
+
+        // One server for every call, as an agent's MCP client keeps it.
+        const input = new PassThrough();
+        const output = new PassThrough();
+        const replies: any[] = [];
+        let buffer = '';
+        const waiting: ((r: any) => void)[] = [];
+        output.on('data', chunk => {
+            buffer += String(chunk);
+            let at: number;
+            while ((at = buffer.indexOf('\n')) >= 0) {
+                const line = buffer.slice(0, at);
+                buffer = buffer.slice(at + 1);
+                if (line.trim()) {
+                    const reply = JSON.parse(line);
+                    const parsed = { isError: reply.result?.isError, data: reply.result ? JSON.parse(reply.result.content[0].text) : reply.error };
+                    const next = waiting.shift();
+                    next ? next(parsed) : replies.push(parsed);
+                }
+            }
+        });
+        serveMcp(root, input, output);
+        let id = 0;
+        const send = (args: Record<string, unknown>) => new Promise<any>(resolve => {
+            waiting.push(resolve);
+            input.write(JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name: 'send_request', arguments: args } }) + '\n');
+        });
+
+        const before = await send({ file: 'captures/use.http', name: 'use', env: 'dev' });
+        assert.strictEqual(before.isError, true, 'nothing taken yet: ' + JSON.stringify(before.data).slice(0, 300));
+        assert.match(before.data.steps[0].error, /unresolved variables: who, where: .*a name a # @set takes/);
+
+        const login = await send({ file: 'captures/auth.http', name: 'login', env: 'dev' });
+        assert.strictEqual(login.isError, undefined, JSON.stringify(login.data).slice(0, 300));
+        assert.deepStrictEqual(login.data.steps[0].captures, [
+            { set: 'who = response.headers.x-answered-by', name: 'who', taken: true },
+            { set: 'where = response.body.$.path', name: 'where', taken: true },
+        ]);
+        assert.ok(!JSON.stringify(login.data.steps[0].captures).includes('/login-dev'), 'the values are not in the reply');
+
+        const after = await send({ file: 'captures/use.http', name: 'use', env: 'dev' });
+        assert.strictEqual(after.isError, undefined, JSON.stringify(after.data).slice(0, 300));
+        assert.ok(after.data.steps[0].body.includes('"path":"/http/login-dev"'), after.data.steps[0].body);
+
+        const otherEnvironment = await send({ file: 'captures/use.http', name: 'use', env: 'prod' });
+        assert.strictEqual(otherEnvironment.isError, true, 'a value taken against dev is not sent with prod');
+        assert.match(otherEnvironment.data.steps[0].error, /unresolved variables: who, where/);
+        input.end();
+    });
 });

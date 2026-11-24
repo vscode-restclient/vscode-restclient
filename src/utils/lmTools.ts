@@ -58,6 +58,8 @@ export function registerTools(context: vscode.ExtensionContext, controller: Requ
                     body: body,
                     // The verdict of the request's `# @assert` lines, as the MCP server returns it.
                     assertions: r.assertions,
+                    // What its `# @set` lines took, by name: never the values, they are usually tokens.
+                    ...(r.captures?.length ? { captures: r.captures.map(c => ({ set: c.capture.raw, name: c.capture.name, taken: c.error === undefined, ...(c.error ? { error: c.error } : {}) })) } : {}),
                 };
                 return new api.LanguageModelToolResult!([new api.LanguageModelTextPart!(JSON.stringify(output, null, 2))]);
             },

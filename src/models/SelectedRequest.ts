@@ -1,4 +1,5 @@
 import { Assertion } from '../core/assertions';
+import { Capture } from '../core/captures';
 import { RequestMetadata } from './requestMetadata';
 
 export interface SelectedRequest {
@@ -8,4 +9,7 @@ export interface SelectedRequest {
 
     /** The `# @assert` lines of the block, to be checked against the response. */
     assertions: Assertion[];
+
+    /** The `# @set` lines: what to take from the response for later requests. */
+    captures: Capture[];
 }

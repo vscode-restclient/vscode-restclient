@@ -7,12 +7,16 @@
  * is no reason to prefer a file over a desktop tool.
  */
 
+import { Capture, CaptureResult } from './captures';
+
 /** A block of a file: its text and where it starts, so errors can be located. */
 export interface Block {
     text: string;
     /** Line (0-based) where the block starts within the file. */
     line: number;
     name?: string;
+    /** Its `# @set` lines, read before variables were substituted. */
+    captures?: Capture[];
 }
 
 const LINE_BREAK = new RegExp(String.fromCharCode(13) + '?' + String.fromCharCode(10));
@@ -67,11 +71,13 @@ export interface ExecutedStep {
     /** Response body, for the assertions and the report. */
     body?: string;
     headers?: Record<string, string | undefined>;
+    /** What its `# @set` lines took, or why they took nothing. */
+    captures?: CaptureResult[];
 }
 
 export interface SequenceOptions {
     /** Sends an already resolved block and returns the response. */
-    send(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined> }>;
+    send(block: Block): Promise<{ status: number; body: string; headers: Record<string, string | undefined>; captures?: CaptureResult[] }>;
     /** Substitutes variables using what earlier requests have already returned. */
     resolve?(block: Block): Promise<Block>;
     /** By default, a failure stops the sequence. */
@@ -100,7 +106,7 @@ export async function runSequence(blocks: Block[], options: SequenceOptions): Pr
             const ready = options.resolve ? await options.resolve(block) : block;
             name = ready.name ?? name;
             const r = await options.send(ready);
-            step = { name, line: block.line, status: r.status, body: r.body, headers: r.headers, ms: Date.now() - t0 };
+            step = { name, line: block.line, status: r.status, body: r.body, headers: r.headers, ms: Date.now() - t0, captures: r.captures };
         } catch (e) {
             step = { name, line: block.line, error: e instanceof Error ? e.message : String(e), ms: Date.now() - t0 };
         }

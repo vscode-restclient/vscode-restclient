@@ -16,6 +16,17 @@ import { getHeader } from '../utils/misc';
 import { checkResponse } from '../utils/assertionReport';
 import { rememberDocument } from '../utils/dataLocator';
 import { Assertion } from '../core/assertions';
+import { Capture, captureFailures } from '../core/captures';
+import { CapturedValues, setTargetsOf } from '../utils/capturedValues';
+import { checkable } from '../utils/assertionReport';
+
+/** What is done with a response once it is in: the `# @assert` and `# @set` lines. */
+interface AfterResponse {
+    assertions: Assertion[];
+    captures: Capture[];
+}
+
+const NOTHING_AFTER: AfterResponse = { assertions: [], captures: [] };
 import { RequestState, RequestStatusEntry } from '../utils/requestStatusBarEntry';
 import { RequestVariableCache } from "../utils/requestVariableCache";
 import { Selector } from '../utils/selector';
@@ -30,7 +41,7 @@ export class RequestController {
     private _httpClient: HttpClient;
     private _webview: HttpResponseWebview;
     private _textDocumentView: HttpResponseTextDocumentView;
-    private _lastRequestSettingTuple: [HttpRequest, IRestClientSettings, Assertion[]];
+    private _lastRequestSettingTuple: [HttpRequest, IRestClientSettings, AfterResponse];
     private _lastPendingRequest?: HttpRequest;
 
     public constructor(context: ExtensionContext) {
@@ -53,7 +64,7 @@ export class RequestController {
             return;
         }
 
-        const { text, metadatas, assertions } = selectedRequest;
+        const { text, metadatas, assertions, captures } = selectedRequest;
         const name = metadatas.get(RequestMetadata.Name);
 
         const refusal = await this.unresolvedRefusal(text, metadatas, document);
@@ -80,11 +91,11 @@ export class RequestController {
         const httpRequest = await RequestParserFactory.createRequestParser(text, settings).parseHttpRequest(name);
 
         if (httpRequest.method === 'WEBSOCKET') {
-            await this.runWebSocket(httpRequest, settings, document, assertions);
+            await this.runWebSocket(httpRequest, settings, document, { assertions, captures });
             return;
         }
 
-        await this.runCore(httpRequest, settings, document, assertions);
+        await this.runCore(httpRequest, settings, document, { assertions, captures });
     }
 
     /**
@@ -116,7 +127,7 @@ export class RequestController {
         if (!selectedRequest) {
             throw new Error('the request could not be read');
         }
-        const { text, metadatas, assertions } = selectedRequest;
+        const { text, metadatas, assertions, captures } = selectedRequest;
         const name = metadatas.get(RequestMetadata.Name);
         const refusal = await this.unresolvedRefusal(text, metadatas, document);
         if (refusal) {
@@ -125,8 +136,8 @@ export class RequestController {
         const settings: IRestClientSettings = new RestClientSettings(new RequestSettings(metadatas));
         const httpRequest = await RequestParserFactory.createRequestParser(text, settings).parseHttpRequest(name);
         const response = httpRequest.method === 'WEBSOCKET'
-            ? await this.runWebSocket(httpRequest, settings, document, assertions)
-            : await this.runCore(httpRequest, settings, document, assertions);
+            ? await this.runWebSocket(httpRequest, settings, document, { assertions, captures })
+            : await this.runCore(httpRequest, settings, document, { assertions, captures });
         if (!response) {
             throw new Error('the request failed or was cancelled');
         }
@@ -147,7 +158,9 @@ export class RequestController {
         if (names.length === 0) {
             return undefined;
         }
-        const reasons = await Promise.all(names.map(async name => `${name} (${await VariableProcessor.explain(name, document) ?? l10n.t('not defined')})`));
+        const setTargets = setTargetsOf(document);
+        const reasons = await Promise.all(names.map(async name => `${name} (${await VariableProcessor.explain(name, document)
+            ?? (setTargets.has(name) ? l10n.t('taken by a "# @set" line: send that request first, with this environment selected') : l10n.t('not defined'))})`));
         return l10n.t('Not sent, unresolved: {0}. Fix it, or add "# @allow-unresolved" to the request to send the text as it is.', reasons.join('; '));
     }
 
@@ -156,10 +169,10 @@ export class RequestController {
             return;
         }
 
-        const [request, settings, assertions] = this._lastRequestSettingTuple;
+        const [request, settings, after] = this._lastRequestSettingTuple;
 
         // TODO: recover from last request settings
-        await this.runCore(request, settings, undefined, assertions);
+        await this.runCore(request, settings, undefined, after);
     }
 
     public async cancel() {
@@ -176,7 +189,7 @@ export class RequestController {
         }
     }
 
-    private async runCore(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, assertions: Assertion[] = []): Promise<HttpResponse | undefined> {
+    private async runCore(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, after: AfterResponse = NOTHING_AFTER): Promise<HttpResponse | undefined> {
         // Its cookies and its history go where the data of its document lives;
         // a rerun keeps the document of the first run.
         httpRequest.documentUri ??= document?.uri.toString();
@@ -186,7 +199,7 @@ export class RequestController {
 
         // set last request and last pending request
         this._lastPendingRequest = httpRequest;
-        this._lastRequestSettingTuple = [httpRequest, settings, assertions];
+        this._lastRequestSettingTuple = [httpRequest, settings, after];
 
         // A text/event-stream is painted as it arrives: the panel opens with
         // the first chunk and grows. When it ends it is rendered whole like any
@@ -221,9 +234,7 @@ export class RequestController {
 
             // The `# @assert` lines of the block, checked here as the runner
             // does, and shown with the response. Nothing blocks on a failure.
-            if (assertions.length > 0) {
-                response.assertions = checkResponse(assertions, response);
-            }
+            await this.afterResponse(response, httpRequest, after);
 
             this._requestStatusEntry.update({ state: RequestState.Received, response });
 
@@ -285,11 +296,11 @@ export class RequestController {
      * the transcript, with status 101, so the panel, the history and the
      * assertions treat it like any other.
      */
-    private async runWebSocket(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, assertions: Assertion[] = []): Promise<HttpResponse | undefined> {
+    private async runWebSocket(httpRequest: HttpRequest, settings: IRestClientSettings, document?: TextDocument, after: AfterResponse = NOTHING_AFTER): Promise<HttpResponse | undefined> {
         httpRequest.documentUri ??= document?.uri.toString();
         rememberDocument(httpRequest.documentUri);
         this._requestStatusEntry.update({ state: RequestState.Pending });
-        this._lastRequestSettingTuple = [httpRequest, settings, assertions];
+        this._lastRequestSettingTuple = [httpRequest, settings, after];
         const t0 = Date.now();
         try {
             const ms = settings.timeoutInMilliseconds > 0 ? settings.timeoutInMilliseconds : DEFAULT_LISTEN_MS;
@@ -305,9 +316,7 @@ export class RequestController {
                 r.transcript, body.length, 0, body,
                 { total } as HttpResponse['timingPhases'],
                 httpRequest);
-            if (assertions.length > 0) {
-                response.assertions = checkResponse(assertions, response);
-            }
+            await this.afterResponse(response, httpRequest, after);
             this._requestStatusEntry.update({ state: RequestState.Received, response });
             if (httpRequest.name && document) {
                 RequestVariableCache.add(document, httpRequest.name, response);
@@ -325,6 +334,25 @@ export class RequestController {
             Logger.error('WebSocket failed:', error);
             window.showErrorMessage(error instanceof Error ? error.message : String(error));
             return undefined;
+        }
+    }
+
+    /**
+     * The `# @assert` lines, checked here as the runner does and shown with
+     * the response, and the `# @set` lines, which keep what they take for the
+     * requests that follow. Nothing blocks on a failure; a `# @set` that took
+     * nothing says so, since the next request would go with an old value.
+     */
+    private async afterResponse(response: HttpResponse, httpRequest: HttpRequest, after: AfterResponse): Promise<void> {
+        if (after.assertions.length > 0) {
+            response.assertions = checkResponse(after.assertions, response);
+        }
+        if (after.captures.length > 0) {
+            response.captures = await CapturedValues.take(after.captures, checkable(response), httpRequest.documentUri);
+            const notTaken = captureFailures(response.captures);
+            if (notTaken.length > 0) {
+                window.showWarningMessage(l10n.t('Nothing taken, the variable keeps its previous value: {0}', notTaken.join('; ')));
+            }
         }
     }
 

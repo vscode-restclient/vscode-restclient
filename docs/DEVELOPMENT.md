@@ -196,6 +196,13 @@ fix; the PR says which one.
     `headers.name`), `sse.count`, `ws.last`, and operators `==`, `!=`, `<`,
     `>`, `contains`, `matches`, `exists`. Implemented in
     `src/core/assertions.ts` and `src/core/imports.ts`.
+  - `# @set name = response.body.$.path` (or `response.headers.Name`; the
+    `response.` prefix is optional): keeps a value of the response for the
+    requests that follow, with the subjects of `# @assert`. A captured value
+    sits between the environment and the file's `@variables`, per environment
+    and in memory only: per window in the editor (`src/utils/capturedValues.ts`),
+    per run in the runner, per process in the MCP server. Implemented in
+    `src/core/captures.ts`.
 
 ## Demo recording
 

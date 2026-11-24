@@ -28,6 +28,7 @@ import { isEventStream } from '../core/sse';
 import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { toJunit } from '../core/junit';
 import { blockingUnresolved, unresolvedSummary } from '../core/variables';
+import { applyCaptures, captureFailures, capturesOf, CaptureStore } from '../core/captures';
 
 export interface Options {
     file: string;
@@ -43,6 +44,12 @@ export interface Options {
     junit?: string;
     /** The editor's selection is not looked for above this folder (the MCP server's root). */
     ceiling?: string;
+    /**
+     * Where `# @set` keeps what it takes, per environment. The MCP server
+     * passes the same store to every call, so a login sets the token for the
+     * requests it sends later; without one, the values last one run.
+     */
+    captures?: CaptureStore;
 }
 
 export const USAGE = 'usage: restclient <file.http> [--env name] [--var key=value] [--secret NAME=value] [--continue] [--json] [--junit report.xml] [--timeout ms]';
@@ -278,14 +285,15 @@ export async function execute(options: Options, output: (line: string) => void):
         }
     }
 
-    // Precedence, lowest to highest: file environment -> @variables (imported,
-    // then the file's own) -> --var. The command line wins: that is what lets
-    // the same file be pointed somewhere else from a CI server.
-    const variables = {
-        ...environmentVars(root, environmentName, environment.warn, options.environment === undefined),
-        ...variablesWithImports(text, imported),
-        ...options.variables
-    };
+    // Precedence, lowest to highest: file environment -> values taken by
+    // `# @set` -> @variables (imported, then the file's own) -> --var. The
+    // command line wins: that is what lets the same file be pointed somewhere
+    // else from a CI server. A captured value takes the environment's place,
+    // as in the editor, and changes as the run goes, hence a function.
+    const fromEnvironment = environmentVars(root, environmentName, environment.warn, options.environment === undefined);
+    const fromText = { ...variablesWithImports(text, imported), ...options.variables };
+    const captured = (options.captures ?? new CaptureStore()).scope(environmentName ?? '');
+    const variables = () => ({ ...fromEnvironment, ...Object.fromEntries(captured), ...fromText });
 
     const all = splitBlocks(text).filter(isRequest);
     const blocks = options.only ? onlyBlock(all, options.only) : all;
@@ -299,17 +307,17 @@ export async function execute(options: Options, output: (line: string) => void):
             const real = resolveRun(b, text, imported);
             // A file variable may hold another reference (`@token = {{login.response.body.$.token}}`):
             // the ones this block uses are expanded first, each once, as the editor does.
-            const expanded = expandVariables(real.text, variables, previous, options.secrets);
+            const expanded = expandVariables(real.text, variables(), previous, options.secrets);
             const resolved = substitute(resolvePrevious(real.text, previous), expanded, options.secrets);
             // What is still {{…}} now is a mistake, not a value: say which, do not send.
             const left = blockingUnresolved(resolved);
             if (left.length > 0) {
                 throw new Error(unresolvedHint(left));
             }
-            return { ...real, text: resolved };
+            return { ...real, text: resolved, captures: capturesOf(b.text, real.text) };
         },
         send: async (b: Block) => {
-            const request = parseRequests(b.text, root, t => substitute(t, variables, options.secrets));
+            const request = parseRequests(b.text, root, t => substitute(t, variables(), options.secrets));
             const timeout = blockTimeout(b.text);
             const result = request.method === 'WEBSOCKET'
                 ? await sendWebSocket(request, timeout ?? DEFAULT_LISTEN_MS)
@@ -317,7 +325,8 @@ export async function execute(options: Options, output: (line: string) => void):
             if (b.name) {
                 previous.set(b.name, result);
             }
-            return result;
+            const captures = b.captures?.length ? applyCaptures(b.captures, { ...result, ms: 0 }, captured) : undefined;
+            return { ...result, captures };
         },
     });
 
@@ -328,13 +337,19 @@ export async function execute(options: Options, output: (line: string) => void):
             : checkAssertions(readAssertions(blocks[i].text), { status: step.status, body: step.body, headers: step.headers, ms: step.ms });
         byBlock.set(i, results);
         const failed = results.filter(r => !r.passed);
-        failures += failed.length + (step.error ? 1 : 0);
+        // A `# @set` that took nothing fails the step like an assertion: the
+        // requests after it would otherwise go with a stale value or none.
+        const notTaken = captureFailures(step.captures ?? []);
+        failures += failed.length + notTaken.length + (step.error ? 1 : 0);
 
         if (!options.json) {
-            const mark = step.error ? 'ERROR' : failed.length ? 'FAIL ' : '  ok ';
+            const mark = step.error ? 'ERROR' : failed.length || notTaken.length ? 'FAIL ' : '  ok ';
             output(`${mark}  ${step.name.padEnd(20)} ${String(step.status ?? '').padStart(3)}  ${step.ms} ms`);
             for (const m of failed) {
                 output(`         ${m.assertion.raw}   ->  ${truncate(m.actual)}`);
+            }
+            for (const line of notTaken) {
+                output(`         ${line}`);
             }
             if (step.error) {
                 output(`         ${step.error}`);
@@ -347,7 +362,10 @@ export async function execute(options: Options, output: (line: string) => void):
             name: p.name,
             ms: p.ms,
             error: p.error,
-            failures: (byBlock.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`)
+            failures: [
+                ...(byBlock.get(i) ?? []).filter(r => !r.passed).map(r => `${r.assertion.raw} -> ${r.actual}`),
+                ...captureFailures(p.captures ?? []).map(l => l.replace(/ {3}->  /, ' -> '))
+            ]
         }))));
     }
 
@@ -356,7 +374,9 @@ export async function execute(options: Options, output: (line: string) => void):
             file: options.file,
             steps: steps.map((p, i) => ({
                 name: p.name, status: p.status, ms: p.ms, error: p.error, body: p.body,
-                assertions: (byBlock.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual }))
+                assertions: (byBlock.get(i) ?? []).map(r => ({ assertion: r.assertion.raw, passed: r.passed, actual: r.actual })),
+                // The names set, never the values: they are usually tokens.
+                ...(p.captures?.length ? { captures: p.captures.map(c => ({ set: c.capture.raw, name: c.capture.name, taken: c.error === undefined, ...(c.error ? { error: c.error } : {}) })) } : {})
             }))
         }, null, 2));
     } else {
@@ -496,7 +516,7 @@ export function unresolvedHint(left: readonly string[]): string {
     const plain = left.filter(n => !n.startsWith('$'));
     const hints: string[] = [];
     if (plain.length > 0) {
-        hints.push(`define ${plain.length === 1 ? 'it' : 'them'} in the file or pass --var/--env; a name.response.* reference needs that request to have answered`);
+        hints.push(`define ${plain.length === 1 ? 'it' : 'them'} in the file or pass --var/--env; a name.response.* reference, or a name a # @set takes, needs that request to have answered first`);
     }
     if (system.length > 0) {
         hints.push(`the runner does not support ${system.length === 1 ? 'that system variable' : 'those system variables'}, or the format is wrong`);

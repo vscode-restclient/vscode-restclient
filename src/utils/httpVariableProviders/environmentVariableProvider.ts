@@ -7,6 +7,7 @@ import { VariableType } from '../../models/variableType';
 import { fileEnvironments } from '../editorEnvironments';
 import { HttpVariable } from '../../models/httpVariable';
 import { HttpVariableProvider } from './httpVariableProvider';
+import { CapturedValues } from '../capturedValues';
 
 /**
  * Variables of the selected environment. They come from two places, combined:
@@ -17,6 +18,10 @@ import { HttpVariableProvider } from './httpVariableProvider';
  *
  * For the same environment and the same variable the file wins: what is in
  * the repository is what the whole team sees. `$shared` is preserved.
+ *
+ * On top of both, what a `# @set` took in this window while this
+ * environment was selected: it takes the environment's place for the rest
+ * of the session, and a file's `@name = …` still beats it.
  */
 export class EnvironmentVariableProvider implements HttpVariableProvider {
     private static _instance: EnvironmentVariableProvider;
@@ -57,6 +62,7 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
 
     private async getAvailableVariables(document?: TextDocument): Promise<{ [key: string]: string }> {
         let { name: environmentName } = await EnvironmentController.getCurrentEnvironment();
+        const captured = Object.fromEntries(CapturedValues.values(document?.uri, environmentName));
         const withoutEnvironment = environmentName === Constants.NoEnvironmentSelectedName;
         if (withoutEnvironment) {
             environmentName = EnvironmentController.sharedEnvironmentName;
@@ -75,7 +81,7 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
         this.mapEnvironmentVariables(environmentName, currentEnvironmentVariables, currentEnvironmentVariables);
 
         const fromFile = withoutEnvironment ? {} : (fileEnvironments(document)[environmentName] ?? {});
-        return { ...sharedEnvironmentVariables, ...currentEnvironmentVariables, ...fromFile };
+        return { ...sharedEnvironmentVariables, ...currentEnvironmentVariables, ...fromFile, ...captured };
     }
 
     private mapEnvironmentVariables(environment: string, current: { [key: string]: string }, shared: { [key: string]: string }) {

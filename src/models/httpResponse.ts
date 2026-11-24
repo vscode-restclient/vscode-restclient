@@ -1,5 +1,6 @@
 import { Timings } from '@szmarczak/http-timer';
 import { AssertionResult } from '../core/assertions';
+import { CaptureResult } from '../core/captures';
 import { getContentType } from '../utils/misc';
 import { ResponseHeaders } from './base';
 import { HttpRequest } from "./httpRequest";
@@ -11,6 +12,9 @@ export class HttpResponse {
      * request variables see the response as it came.
      */
     public assertions?: AssertionResult[];
+
+    /** What the request's `# @set` lines took, or why they took nothing. */
+    public captures?: CaptureResult[];
 
     public constructor(
         public statusCode: number,

@@ -67,6 +67,8 @@ Assertions are `@` comments, so any other tool that reads the format just ignore
 
 In the editor, Send Request shows the verdict of each assertion under the response, and the status bar counts them. Running the whole file in order is the runner's job (see below): `restclient api.http` runs it and reports every assertion.
 
+A value of a response can be kept for the requests that follow, in this file or any other, with `# @set token = response.body.$.token` (the syntax of rest-client-next). It takes the place of the selected environment's value, belongs to that environment and lives in memory only; it works the same in the editor, the runner and the MCP server.
+
 ### Streaming (+72)
 
 `text/event-stream` — how every AI API answers in 2026 — is painted in the response panel **as it arrives**. Cancel keeps what came in. `sse.count`, `sse.first` and `sse.last` can be asserted.

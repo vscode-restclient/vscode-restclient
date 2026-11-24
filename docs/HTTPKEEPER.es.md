@@ -67,6 +67,8 @@ Las comprobaciones son comentarios `@`, de modo que cualquier otra herramienta q
 
 En el editor, Send Request muestra el veredicto de cada comprobación debajo de la respuesta, y la barra de estado las cuenta. Recorrer el fichero entero en orden es cosa del ejecutor (más abajo): `restclient api.http` lo recorre e informa de cada comprobación.
 
+Un valor de una respuesta se puede guardar para las peticiones siguientes, de este fichero o de cualquier otro, con `# @set token = response.body.$.token` (la sintaxis de rest-client-next). Ocupa el lugar del valor del entorno seleccionado, pertenece a ese entorno y vive solo en memoria; funciona igual en el editor, el ejecutor y el servidor MCP.
+
 ### Streaming (+72)
 
 `text/event-stream` —como responde toda API de modelos en 2026— se pinta en el panel **según llega**. Cancelar conserva lo recibido. Se puede comprobar `sse.count`, `sse.first` y `sse.last`.

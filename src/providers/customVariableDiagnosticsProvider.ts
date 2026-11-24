@@ -9,6 +9,7 @@ import { RequestVariableCache } from "../utils/requestVariableCache";
 import { RequestVariableCacheValueProcessor } from "../utils/requestVariableCacheValueProcessor";
 import { Selector } from '../utils/selector';
 import { VariableProcessor } from "../utils/variableProcessor";
+import { CapturedValues, setTargetsOf } from '../utils/capturedValues';
 
 interface VariableWithPosition {
     name: string;
@@ -40,6 +41,7 @@ export class CustomVariableDiagnosticsProvider {
             workspace.onDidCloseTextDocument(document => this.clear(document)),
             workspace.onDidChangeConfiguration(event => this.queueAll(event)),
             EnvironmentController.onDidChangeEnvironment(_ => this.queueAll()),
+            CapturedValues.onDidCapture(() => this.queueAll()),
             RequestVariableCache.onDidCreateNewRequestVariable(event => this.queue(event.document))
         );
         this.queueAll();
@@ -90,16 +92,19 @@ export class CustomVariableDiagnosticsProvider {
             const allAvailableVariables = await VariableProcessor.getAllVariablesDefinitions(document);
             const promptVariableDefinitions = this.findPromptVariableDefinitions(document);
             const variableReferences = this.findVariableReferences(document);
+            const setTargets = setTargetsOf(document);
 
-            // Variable not found
+            // Variable not found. One a `# @set` of this file or its imports
+            // takes is not misspelt: it is waiting for that request.
             [...variableReferences.entries()]
                 .filter(([name]) => !allAvailableVariables.has(name))
                 .forEach(([, variables]) => {
                     variables
                         .filter(variable => !this.hasPromptVariableDefintion(promptVariableDefinitions, variable))
                         .forEach(({ name, begin, end }) => {
-                            diagnostics.push(
-                                new Diagnostic(new Range(begin, end), l10n.t('{0} is not found', name), DiagnosticSeverity.Error));
+                            diagnostics.push(setTargets.has(name)
+                                ? new Diagnostic(new Range(begin, end), l10n.t('{0} is set by a "# @set" line once its request is sent', name), DiagnosticSeverity.Information)
+                                : new Diagnostic(new Range(begin, end), l10n.t('{0} is not found', name), DiagnosticSeverity.Error));
 
                         });
                 });

@@ -12,6 +12,7 @@ Full details in the [CHANGELOG](CHANGELOG.md); the longer story, with screenshot
 - **A test suite** (169 tests: 112 unit and 57 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
 - **Bugs fixed**: the response not showing up in Cursor, a re-sent request with mangled headers, a JSONPath with several matches returning only the first, XPath request variables.
 - **A terminal runner** for CI (`npx @vscode-restclient/cli api.http`, `--junit`, GitHub Action) that **runs a whole file in order**, with later requests using earlier responses, and checks **assertions written in the file** (`# @assert status == 200`). In the editor, Send Request shows the verdict of the assertions under the response.
+- **`# @set token = response.body.$.token`**: a value taken from a response and kept for the requests that follow, in this file or any other, in the editor, the terminal runner and the MCP server alike. Same syntax as rest-client-next; it belongs to the selected environment and is never written to disk.
 - **The JetBrains format, complete**: `http-client.env.json` / `http-client.private.env.json`, `import ./other.http`, `run #name`, request variables across files, `{{$secret NAME}}`, `{{$uuid}}`, `{{$isoTimestamp}}`, `{{$random.integer(min,max)}}`.
 - **Streaming**: `text/event-stream` painted as it arrives; `WEBSOCKET` requests.
 - **The `QUERY` method** ([draft-ietf-httpbis-safe-method-w-body](https://www.ietf.org/archive/id/draft-ietf-httpbis-safe-method-w-body-05.html)): safe and idempotent like `GET`, but with a request body — highlighting, completion, snippet and terminal runner included.
@@ -863,8 +864,27 @@ REST Client Extension also supports request-level settings for each independent 
 | no-redirect   | `# @no-redirect`   | Don't follow the 3XX response as redirects                    |
 | no-cookie-jar | `# @no-cookie-jar` | Don't save cookies in the cookie jar                          |
 | allow-unresolved | `# @allow-unresolved` | Send the request even if a `{{variable}}` cannot be resolved: the text goes as it is |
+| set | `# @set name = response.body.$.path` | Keep a value of the response in `name` for the requests that follow (see below) |
 
 > All the above leading `#` can be replaced with `//`
+
+`# @set` takes a value from the response once it arrives and keeps it in `name` for the requests that follow, in this file or in any other: `response.body.$.path` for a field of a JSON body, `response.body` for the whole body, `response.headers.Name` for a header (case does not matter). The `response.` prefix is optional, and a request can have several `# @set` lines. The paths are those of `# @assert`: dotted names and `[n]` indexes; XPath and JSONPath filters are not supported there yet.
+
+```http
+# @name login
+# @set token = response.body.$.access_token
+POST {{baseUrl}}/login HTTP/1.1
+Content-Type: application/json
+
+{"user": "foo", "password": "bar"}
+```
+
+```http
+GET {{baseUrl}}/comments HTTP/1.1
+Authorization: Bearer {{token}}
+```
+
+A captured value takes the place of the selected environment's value for the rest of the session, and a file's `@name = …` still wins over it. It belongs to the environment that was selected when it was taken, so a token taken against `dev` is never sent to `prod`, and it lives in memory only: an editor window, one run of the terminal runner, an MCP server process. Nothing is written to disk. When the source finds nothing, the variable keeps its previous value: the editor says so, and the runner marks that request as failed.
 
 ## License
 

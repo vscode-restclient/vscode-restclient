@@ -18,6 +18,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { requestSummaries } from '../core/sequence';
 import { execute, Options } from './index';
+import { CaptureStore } from '../core/captures';
 
 const PROTOCOL = '2025-06-18';
 
@@ -36,7 +37,7 @@ const TOOLS = [
     },
     {
         name: 'send_request',
-        description: 'Send one request of a .http file (by its # @name) and return status, time, assertions and body. Variables come from http-client.env.json (env), --var style overrides (vars) and secrets.',
+        description: 'Send one request of a .http file (by its # @name) and return status, time, assertions and body. Variables come from http-client.env.json (env), --var style overrides (vars) and secrets. What a # @set line takes from a response is kept for the later calls of this server, per environment.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -52,7 +53,7 @@ const TOOLS = [
     },
     {
         name: 'run_http_file',
-        description: 'Run every request of a .http file in order, with its # @assert checks. Returns one entry per request with status, time, assertions and body.',
+        description: 'Run every request of a .http file in order, with its # @assert checks. Returns one entry per request with status, time, assertions and body. What a # @set line takes is kept for the later calls of this server, per environment.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -70,6 +71,10 @@ const TOOLS = [
 
 export function serveMcp(root: string, inputStream: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): void {
     const absoluteRoot = path.resolve(root);
+    // What `# @set` took, kept for as long as the server runs: an agent sends
+    // the login, and the requests it sends afterwards carry the token. Per
+    // environment, as in the editor; never written anywhere.
+    const captures = new CaptureStore();
     const rl = readline.createInterface({ input: inputStream, crlfDelay: Infinity });
     const reply = (id: Request['id'], body: { result?: unknown; error?: { code: number; message: string } }) => {
         output.write(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, ...body }) + '\n');
@@ -88,7 +93,7 @@ export function serveMcp(root: string, inputStream: NodeJS.ReadableStream = proc
         }
         const isNotification = msg.id === undefined;
         try {
-            const result = await handle(msg, absoluteRoot);
+            const result = await handle(msg, absoluteRoot, captures);
             if (!isNotification) {
                 reply(msg.id, { result: result });
             }
@@ -107,7 +112,7 @@ class RpcError extends Error {
     }
 }
 
-async function handle(msg: Request, root: string): Promise<unknown> {
+async function handle(msg: Request, root: string, captures: CaptureStore): Promise<unknown> {
     switch (msg.method) {
         case 'initialize':
             return { protocolVersion: PROTOCOL, capabilities: { tools: {} }, serverInfo: { name: 'restclient', version: version() } };
@@ -116,7 +121,7 @@ async function handle(msg: Request, root: string): Promise<unknown> {
         case 'tools/list':
             return { tools: TOOLS };
         case 'tools/call':
-            return callTool(msg.params ?? {}, root);
+            return callTool(msg.params ?? {}, root, captures);
         default:
             if (msg.method?.startsWith('notifications/')) {
                 return undefined;
@@ -126,7 +131,7 @@ async function handle(msg: Request, root: string): Promise<unknown> {
 }
 
 /** A tool's result goes back as text; a usage error goes with isError, not as a protocol error. */
-async function callTool(params: Record<string, unknown>, root: string): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
+async function callTool(params: Record<string, unknown>, root: string, captures: CaptureStore): Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }> {
     const name = params.name as string;
     const args = (params.arguments ?? {}) as Record<string, unknown>;
     const text = (t: unknown, isError = false) => ({ content: [{ type: 'text' as const, text: typeof t === 'string' ? t : JSON.stringify(t, null, 2) }], ...(isError ? { isError: true } : {}) });
@@ -153,6 +158,7 @@ async function callTool(params: Record<string, unknown>, root: string): Promise<
                     timeoutMs: typeof args.timeoutMs === 'number' && args.timeoutMs > 0 ? args.timeoutMs : 30_000,
                     only: name === 'send_request' ? String(args.name) : undefined,
                     ceiling: root,
+                    captures,
                 };
                 let json = '';
                 const exitCode = await execute(options, l => { json += l; });
