@@ -24,11 +24,17 @@ describe('# @set', () => {
         assert.strictEqual(parseCapture('raw = response.body.*').subject, 'body.*');
     });
 
-    it('P-98 · only the first = separates: a path may hold more', () => {
-        const c = parseCapture("id = response.body.$.items[?(@.name=='x')].id");
-        assert.strictEqual(c.name, 'id');
-        assert.strictEqual(c.subject, "body.$.items[?(@.name=='x')].id");
-        assert.strictEqual(c.problem, undefined);
+    it('P-98 · a path the resolver of # @assert cannot follow is refused when read, not on every response', () => {
+        const filter = parseCapture("id = response.body.$.items[?(@.name=='x')].id");
+        assert.strictEqual(filter.name, 'id', 'only the first = separates');
+        assert.match(filter.problem ?? '', /unsupported path "response.body.\$.items\[\?\(@.name=='x'\)\].id"/);
+        for (const path of ['$..token', "$['a-b']", '$.items[*].id', '$.*', '$.a b']) {
+            assert.match(parseCapture(`t = response.body.${path}`).problem ?? '', /unsupported path/, path);
+        }
+        for (const path of ['$', '$.a', '$.a.b[0]', '$[2].c', '$.a-b.c_d']) {
+            assert.strictEqual(parseCapture(`t = response.body.${path}`).problem, undefined, path);
+        }
+        assert.match(parseCapture('t = time').problem ?? '', /not a value to keep/);
     });
 
     it('P-98 · a line it cannot apply says why, instead of being skipped in silence', () => {
@@ -135,5 +141,7 @@ describe('# @set', () => {
 
     it('P-98 · a {{…}} on a # @set line is not counted as unresolved: the line is not sent', () => {
         assert.deepStrictEqual(unresolvedVariables(j('# @set token = response.body.$.{{x}}', 'GET http://h/a', '', '{}', '# @set id = {{y}}')), []);
+        // `@set-cookie` is not `@set`: as a body line it is sent, and counted.
+        assert.deepStrictEqual(unresolvedVariables(j('POST http://h/a', '', '# @set-cookie {{z}}')), ['z']);
     });
 });

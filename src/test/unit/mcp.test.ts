@@ -169,6 +169,13 @@ describe('mcp server', () => {
         assert.strictEqual(after.isError, undefined, JSON.stringify(after.data).slice(0, 300));
         assert.ok(after.data.steps[0].body.includes('"path":"/http/login-dev"'), after.data.steps[0].body);
 
+        // Another folder with an http-client.env.json of its own: its `dev` is another environment.
+        fs.mkdirSync(path.join(project, 'other'), { recursive: true });
+        fs.writeFileSync(path.join(project, 'other', 'http-client.env.json'), JSON.stringify({ dev: { stage: 'other-dev' } }));
+        fs.copyFileSync(path.join(project, 'use.http'), path.join(project, 'other', 'use.http'));
+        const otherFolder = await send({ file: 'captures/other/use.http', name: 'use', env: 'dev' });
+        assert.strictEqual(otherFolder.isError, true, 'a dev of another env file does not see it: ' + JSON.stringify(otherFolder.data).slice(0, 300));
+
         const otherEnvironment = await send({ file: 'captures/use.http', name: 'use', env: 'prod' });
         assert.strictEqual(otherEnvironment.isError, true, 'a value taken against dev is not sent with prod');
         assert.match(otherEnvironment.data.steps[0].error, /unresolved variables: who, where/);

@@ -9,10 +9,10 @@ REST Client was created by [Huachao Mao](https://github.com/Huachao) and reached
 Full details in the [CHANGELOG](CHANGELOG.md); the longer story, with screenshots, in [docs/HTTPKEEPER.md](docs/HTTPKEEPER.md).
 
 - **Fake data**: `{{$faker internet.email}}` — any [Faker](https://fakerjs.dev) module, lazily loaded, same syntax as rest-client-next.
-- **A test suite** (169 tests: 112 unit and 57 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
+- **A test suite** (186 tests: 124 unit and 62 integration, run inside a real VS Code), **0 vulnerabilities** in production dependencies (from 75), **400 packages** (from 1,487), **telemetry removed**.
 - **Bugs fixed**: the response not showing up in Cursor, a re-sent request with mangled headers, a JSONPath with several matches returning only the first, XPath request variables.
 - **A terminal runner** for CI (`npx @vscode-restclient/cli api.http`, `--junit`, GitHub Action) that **runs a whole file in order**, with later requests using earlier responses, and checks **assertions written in the file** (`# @assert status == 200`). In the editor, Send Request shows the verdict of the assertions under the response.
-- **`# @set token = response.body.$.token`**: a value taken from a response and kept for the requests that follow, in this file or any other, in the editor, the terminal runner and the MCP server alike. Same syntax as rest-client-next; it belongs to the selected environment and is never written to disk.
+- **`# @set token = response.body.$.token`**: a value taken from a response and kept for the requests that follow, in this file or any other, in the editor, the terminal runner and the MCP server alike. Same syntax as rest-client-next; it belongs to the environment selected when it was sent and lives in memory only.
 - **The JetBrains format, complete**: `http-client.env.json` / `http-client.private.env.json`, `import ./other.http`, `run #name`, request variables across files, `{{$secret NAME}}`, `{{$uuid}}`, `{{$isoTimestamp}}`, `{{$random.integer(min,max)}}`.
 - **Streaming**: `text/event-stream` painted as it arrives; `WEBSOCKET` requests.
 - **The `QUERY` method** ([draft-ietf-httpbis-safe-method-w-body](https://www.ietf.org/archive/id/draft-ietf-httpbis-safe-method-w-body-05.html)): safe and idempotent like `GET`, but with a request body — highlighting, completion, snippet and terminal runner included.
@@ -868,7 +868,7 @@ REST Client Extension also supports request-level settings for each independent 
 
 > All the above leading `#` can be replaced with `//`
 
-`# @set` takes a value from the response once it arrives and keeps it in `name` for the requests that follow, in this file or in any other: `response.body.$.path` for a field of a JSON body, `response.body` for the whole body, `response.headers.Name` for a header (case does not matter). The `response.` prefix is optional, and a request can have several `# @set` lines. The paths are those of `# @assert`: dotted names and `[n]` indexes; XPath and JSONPath filters are not supported there yet.
+`# @set` takes a value from the response once it arrives and keeps it in `name` for the requests that follow, in this file or in any other: `response.body.$.path` for a field of a JSON body, `response.body` for the whole body, `response.headers.Name` for a header (case does not matter). The `response.` prefix is optional, and a request can have several `# @set` lines. The paths are those of `# @assert`: dotted names and `[n]` indexes. XPath, JSONPath filters, wildcards and `..` are not supported there yet, and a `# @set` line that uses one is reported instead of applied. A value taken from a response is used as it is: a `{{…}}` inside it is not resolved again.
 
 ```http
 # @name login
@@ -884,7 +884,7 @@ GET {{baseUrl}}/comments HTTP/1.1
 Authorization: Bearer {{token}}
 ```
 
-A captured value takes the place of the selected environment's value for the rest of the session, and a file's `@name = …` still wins over it. It belongs to the environment that was selected when it was taken, so a token taken against `dev` is never sent to `prod`, and it lives in memory only: an editor window, one run of the terminal runner, an MCP server process. Nothing is written to disk. When the source finds nothing, the variable keeps its previous value: the editor says so, and the runner marks that request as failed.
+A captured value takes the place of the selected environment's value for the rest of the session, and a file's `@name = …` still wins over it. It belongs to the environment the request was sent with (its name and the `http-client.env.json` that defines it), so a token taken against `dev` is never sent to `prod`, and it lives in memory only: an editor window, one run of the terminal runner, an MCP server process. The captured values are not saved anywhere; like any other variable, they appear in the history of the requests that use them. When the source finds nothing, the variable keeps its previous value: the editor says so, and the runner marks that request as failed.
 
 ## License
 

@@ -12,4 +12,7 @@ export interface SelectedRequest {
 
     /** The `# @set` lines: what to take from the response for later requests. */
     captures: Capture[];
+
+    /** Where those values go: the document and the environment it was resolved with. */
+    captureScope: string;
 }

@@ -62,7 +62,7 @@ export class EnvironmentVariableProvider implements HttpVariableProvider {
 
     private async getAvailableVariables(document?: TextDocument): Promise<{ [key: string]: string }> {
         let { name: environmentName } = await EnvironmentController.getCurrentEnvironment();
-        const captured = Object.fromEntries(CapturedValues.values(document?.uri, environmentName));
+        const captured = Object.fromEntries(CapturedValues.values(CapturedValues.scopeOf(document, environmentName)));
         const withoutEnvironment = environmentName === Constants.NoEnvironmentSelectedName;
         if (withoutEnvironment) {
             environmentName = EnvironmentController.sharedEnvironmentName;

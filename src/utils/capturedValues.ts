@@ -1,32 +1,39 @@
 /**
- * What `# @set` takes in this window: one set of values per workspace folder
- * and per environment, in memory only. The environment provider puts them in
- * place of the selected environment's values; the diagnostics learn of each
- * new one so a `{{token}}` stops being flagged once the login has answered.
+ * What `# @set` takes in this window: one set of values per environment (its
+ * name, the workspace folder and the `http-client.env.json` that defines it),
+ * in memory only. The environment provider puts them in place of the selected
+ * environment's values; the diagnostics learn of each new one so a
+ * `{{token}}` stops being flagged once the login has answered.
  */
-import { EventEmitter, TextDocument, Uri, workspace } from 'vscode';
+import { EventEmitter, TextDocument, workspace } from 'vscode';
 import { applyCaptures, Capture, captureTargets, CaptureResult, CaptureStore } from '../core/captures';
 import { CheckableResponse } from '../core/assertions';
 import { closeImports } from '../core/imports';
-import { EnvironmentController } from '../controllers/environmentController';
+import { environmentsFolderOf } from './editorEnvironments';
 
 export class CapturedValues {
     private static readonly store = new CaptureStore();
     private static readonly _onDidCapture = new EventEmitter<void>();
     public static readonly onDidCapture = CapturedValues._onDidCapture.event;
 
-    /** The values for a document (or none: a loose request) and an environment name. */
-    public static values(document: Uri | string | undefined, environment: string): Map<string, string> {
-        return this.store.scope(this.scopeKey(document, environment));
+    /**
+     * The scope of a document under an environment. Taken when the request
+     * is resolved, not when it answers: switching environments while it is in
+     * flight, or rerunning it later, must not file a dev token under prod.
+     */
+    public static scopeOf(document: TextDocument | undefined, environment: string): string {
+        const folder = document ? workspace.getWorkspaceFolder(document.uri)?.uri.toString() : undefined;
+        return [folder ?? '', environmentsFolderOf(document) ?? '', environment].join('\n');
     }
 
-    /**
-     * Applies the captures of a request that has just answered, in the scope
-     * of its document and of the environment selected now.
-     */
-    public static async take(captures: readonly Capture[], response: CheckableResponse, document: Uri | string | undefined): Promise<CaptureResult[]> {
-        const { name } = await EnvironmentController.getCurrentEnvironment();
-        const results = applyCaptures(captures, response, this.values(document, name));
+    /** The values of a scope. */
+    public static values(scope: string): Map<string, string> {
+        return this.store.scope(scope);
+    }
+
+    /** Applies the captures of a request that has just answered, in the scope it was resolved in. */
+    public static take(captures: readonly Capture[], response: CheckableResponse, scope: string): CaptureResult[] {
+        const results = applyCaptures(captures, response, this.values(scope));
         if (results.some(r => r.value !== undefined)) {
             this._onDidCapture.fire();
         }
@@ -37,12 +44,6 @@ export class CapturedValues {
     public static clear(): void {
         this.store.clear();
         this._onDidCapture.fire();
-    }
-
-    private static scopeKey(document: Uri | string | undefined, environment: string): string {
-        const uri = typeof document === 'string' ? Uri.parse(document) : document;
-        const folder = uri ? workspace.getWorkspaceFolder(uri) : undefined;
-        return `${folder?.uri.toString() ?? ''}\n${environment}`;
     }
 }
 

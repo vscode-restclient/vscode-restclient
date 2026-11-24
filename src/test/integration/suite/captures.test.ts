@@ -70,6 +70,21 @@ describe('Rest Client · # @set', () => {
     assert.strictEqual(echoedHeader(back), '"captured-a"', back.slice(0, 300));
   });
 
+  it('P-98 · a rerun after switching environments files the value under the environment it was resolved with', async function () {
+    this.timeout(60000);
+    await send(`# @set p98token = response.body.$.header\nGET ${BASE}/echo/p98-login-r\nX-Test: rerun-a\n`, 'p98-login-r');
+    await vscode.commands.executeCommand('rest-client.switch-environment', 'p98-b');
+    await vscode.commands.executeCommand('rest-client.rerun-last-request');
+    await wait(1500);
+    const inB = await send(`GET ${BASE}/echo/p98-use-r1\nX-Test: {{p98token}}\n`, 'p98-use-r1');
+    assert.strictEqual(echoedHeader(inB), '"stale-b"', 'the rerun resolved under p98-a must not set p98-b: ' + inB.slice(0, 300));
+    await vscode.commands.executeCommand('rest-client.switch-environment', 'p98-a');
+    const inA = await send(`GET ${BASE}/echo/p98-use-r2\nX-Test: {{p98token}}\n`, 'p98-use-r2');
+    assert.strictEqual(echoedHeader(inA), '"rerun-a"', inA.slice(0, 300));
+    // Back to the value the other tests expect.
+    await send(`# @set p98token = response.body.$.header\nGET ${BASE}/echo/p98-login-1b\nX-Test: captured-a\n`, 'p98-login-1b');
+  });
+
   it('P-98 · a # @set that finds nothing leaves the value it had', async function () {
     this.timeout(60000);
     await send(`# @set p98token = response.body.$.nope\nGET ${BASE}/echo/p98-login-2\nX-Test: other\n`, 'p98-login-2');

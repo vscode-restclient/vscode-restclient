@@ -7,6 +7,8 @@ import { VariableProcessor } from './variableProcessor';
 import { closeImports, IMPORT_LINE, resolveRun, RUN } from '../core/imports';
 import { readAssertions } from '../core/assertions';
 import { capturesOf } from '../core/captures';
+import { EnvironmentController } from '../controllers/environmentController';
+import { CapturedValues } from './capturedValues';
 
 export interface RequestRangeOptions {
     ignoreCommentLine?: boolean;
@@ -103,6 +105,10 @@ export class Selector {
 
         selectedText = rawLines.slice(requestRange[0], requestRange[1] + 1).join(EOL);
 
+        // The environment the variables are resolved with is the one `# @set` files its values under.
+        const { name: environment } = await EnvironmentController.getCurrentEnvironment();
+        const captureScope = CapturedValues.scopeOf(document, environment);
+
         // variables replacement
         selectedText = await VariableProcessor.processRawRequest(selectedText, promptVariables);
 
@@ -110,7 +116,8 @@ export class Selector {
             text: selectedText,
             metadatas: metadatas,
             assertions,
-            captures
+            captures,
+            captureScope
         };
     }
 

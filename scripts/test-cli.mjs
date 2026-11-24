@@ -402,13 +402,43 @@ ok('--var still wins over a captured value', rSetVar.exitCode === 1 && JSON.pars
 const setFixed = writeSet('fixed.http', ['@token = fixed', '', ...setLogin, ...setUse]);
 const rSetFixed = await run([setFixed, '--json']);
 ok('a file\'s @variable still wins over a captured value', rSetFixed.exitCode === 1 && JSON.parse(rSetFixed.output).steps[1].status === 401, statuses(rSetFixed));
+// The login lives in another file and only ever runs through `run #login`.
+writeSet('auth.http', setLogin.slice(0, 6));
 const setRun = writeSet('run.http', [
-  ...setLogin.slice(0, 6), '', '###', '',
+  'import ./auth.http', '',
   'run #login', '', '###', '',
   ...setUse,
 ]);
 const rSetRun = await run([setRun, '--json']);
-ok('a run #login takes what the login\'s # @set lines take', rSetRun.exitCode === 0 && JSON.parse(rSetRun.output).steps[2].status === 200, statuses(rSetRun));
+const dSetRun = rSetRun.exitCode === 0 ? JSON.parse(rSetRun.output) : undefined;
+ok('a run #login of an imported file takes what the login\'s # @set lines take', dSetRun?.steps?.length === 2 && dSetRun.steps[1].status === 200, statuses(rSetRun));
+// A server that answers with `{{$processEnv …}}` must not make the runner send
+// that variable: the payload goes raw with `< file`, the echo returns it.
+process.env.RC_P98_SECRET = 'p98-leaked';
+fs.writeFileSync(path.join(setFolder, 'payload.txt'), '{{$processEnv RC_P98_SECRET}}');
+const setInject = writeSet('inject.http', [
+  '# @name echo',
+  '# @set v = response.body.$.received',
+  `POST ${setHost}/echo/p98-inject`,
+  'Content-Type: text/plain',
+  '',
+  '< ./payload.txt',
+  '',
+  '###',
+  '',
+  `GET ${setHost}/echo/p98-captured`,
+  'X-Test: {{v}}',
+  '',
+  '###',
+  '',
+  `GET ${setHost}/echo/p98-previous`,
+  'X-Test: {{echo.response.body.$.received}}',
+]);
+const rSetInject = await run([setInject, '--continue', '--json']);
+const dSetInject = JSON.parse(rSetInject.output || '{"steps":[]}');
+ok('a captured value that carries {{$processEnv X}} is not expanded: the request is refused, X never sent', dSetInject.steps[0]?.status === 200 && /unresolved variable: \$processEnv RC_P98_SECRET/.test(dSetInject.steps[1]?.error ?? '') && !rSetInject.output.includes('p98-leaked'), dSetInject.steps.map(x => x.status ?? x.error).join(' | ').slice(0, 300));
+ok('nor is a {{name.response…}} value that carries one', /unresolved variable: \$processEnv RC_P98_SECRET/.test(dSetInject.steps[2]?.error ?? ''), String(dSetInject.steps[2]?.error ?? dSetInject.steps[2]?.status).slice(0, 200));
+delete process.env.RC_P98_SECRET;
 const setMissing = writeSet('missing.http', [
   '# @name login',
   '# @set token = response.body.$.nope',

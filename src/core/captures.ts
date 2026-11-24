@@ -39,6 +39,8 @@ export interface CaptureResult {
 /** `@set` followed by a blank: `@settings` is not one. */
 const LINE_RE = /^[ \t]*(?:#|\/\/)[ \t]*@set(?:[ \t]+(.*?))?[ \t]*$/gm;
 const NAME_RE = /^[A-Za-z_][\w-]*$/;
+/** What the shared resolver follows after `body.$`: `.name` and `[n]`, nothing else. */
+const SIMPLE_PATH_RE = /^(?:\.[^.[\]\s*]+|\[\d+\])*$/;
 const USAGE = 'expected "# @set name = response.body.$.path" or "# @set name = response.headers.Name"';
 
 /** The `# @set` lines of a block, in order, the ones that cannot be applied included. */
@@ -52,8 +54,9 @@ export function readCaptures(block: string): Capture[] {
 }
 
 /**
- * `name = source`. Only the first `=` separates: a JSON path may hold more
- * (`$.items[?(@.id=='x')]`), and the name never does.
+ * `name = source`. Only the first `=` separates: the name never holds one.
+ * A path the resolver of `# @assert` cannot follow (a filter, `..`, `['a']`)
+ * is refused here, rather than failing on every response.
  */
 export function parseCapture(raw: string): Capture {
     const at = raw.indexOf('=');
@@ -71,6 +74,12 @@ export function parseCapture(raw: string): Capture {
     const subject = source.replace(/^response\./i, '');
     if (subject === '' || !isKnownSubject(subject)) {
         return { raw, name, subject, problem: `unknown source "${source}"; ${USAGE}` };
+    }
+    if (subject === 'time') {
+        return { raw, name, subject, problem: 'the time of a response is not a value to keep' };
+    }
+    if (subject.startsWith('body.$') && !SIMPLE_PATH_RE.test(subject.slice('body.$'.length))) {
+        return { raw, name, subject, problem: `unsupported path "${source}": dotted names and [n] indexes only, as in # @assert (no filters, wildcards or ..)` };
     }
     return { raw, name, subject };
 }
