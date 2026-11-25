@@ -3,6 +3,13 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1](https://github.com/vscode-restclient/vscode-restclient/compare/v2.3.0...v2.3.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* file variables resolve once per request and in one pass, so what they put in place is never read again ([#71](https://github.com/vscode-restclient/vscode-restclient/issues/71)) ([c81aa3f](https://github.com/vscode-restclient/vscode-restclient/commit/c81aa3f5dec487dd2827d5b528206c8fc25b1c06))
+
 ## [2.3.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.2.0...v2.3.0) (2026-11-24)
 
 
