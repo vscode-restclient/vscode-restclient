@@ -269,6 +269,42 @@ describe('RestClient · what was ported from rest-client-next', () => {
       assert.ok(item.range, `"${String(item.label)}" does not replace the gap between the braces`);
     }
   });
+
+  it('P-100 · after {{$faker , every Faker path is proposed, and only those', async () => {
+    const file = write('faker-completar.http', j('GET http://ejemplo/x?e={{$faker inter}}', ''));
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+    await vscode.window.showTextDocument(doc, { preview: false });
+    const text = doc.lineAt(0).text;
+    const posicion = new vscode.Position(0, text.indexOf('inter') + 'inter'.length);
+    const list = (await vscode.commands.executeCommand(
+      'vscode.executeCompletionItemProvider', doc.uri, posicion)) as vscode.CompletionList;
+
+    const label = (i: vscode.CompletionItem) => typeof i.label === 'string' ? i.label : i.label.label;
+    const labels = list.items.map(label);
+    assert.ok(labels.includes('internet.email'), 'internet.email missing: ' + labels.slice(0, 10).join(', '));
+    assert.ok(labels.length >= 200, `only ${labels.length} proposals`);
+    assert.ok(labels.every((l) => /^\w+\.\w+$/.test(l)), 'something else than Faker paths: ' + labels.filter((l) => !/^\w+\.\w+$/.test(l)).slice(0, 5).join(', '));
+
+    const email = list.items.find((i) => label(i) === 'internet.email')!;
+    const range = email.range as vscode.Range;
+    assert.strictEqual(doc.getText(range), 'inter', 'the partial path is what gets replaced');
+    const docs = (email.documentation as vscode.MarkdownString).value;
+    assert.ok(docs.includes('{{$faker internet.email}}'), 'the documentation shows a .http example: ' + docs);
+
+    assert.ok(!labels.includes('image.urlLoremFlickr'), 'a deprecated method is not proposed');
+  });
+
+  it('P-100 · choosing $faker opens the list of its paths', async () => {
+    const file = write('faker-abrir.http', j('GET http://ejemplo/x?e={{', ''));
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+    await vscode.window.showTextDocument(doc, { preview: false });
+    const list = (await vscode.commands.executeCommand(
+      'vscode.executeCompletionItemProvider', doc.uri, new vscode.Position(0, doc.lineAt(0).text.length))) as vscode.CompletionList;
+    // System variables are labelled without their `$`.
+    const item = list.items.find((i) => i.label === 'faker');
+    assert.ok(item, '$faker is proposed: ' + list.items.map((i) => JSON.stringify(i.label)).slice(0, 30).join(', '));
+    assert.strictEqual(item!.command?.command, 'editor.action.triggerSuggest');
+  });
 });
 
 describe('the QUERY method (ported from upstream #1438)', () => {

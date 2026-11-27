@@ -1,11 +1,17 @@
 import { CancellationToken, CompletionItem, CompletionItemKind, CompletionItemProvider, Position, Range, SnippetString, TextDocument } from 'vscode';
+import * as Constants from '../common/constants';
 import { ElementType } from '../models/httpElement';
+import { fakerPathBeingTyped } from '../utils/fakerShared';
 import { HttpElementFactory } from '../utils/httpElementFactory';
 import { VariableUtility } from "../utils/variableUtility";
 
 export class HttpCompletionItemProvider implements CompletionItemProvider {
     public async provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken): Promise<CompletionItem[] | undefined> {
         if (!!VariableUtility.getPartialRequestVariableReferencePathRange(document, position)) {
+            return undefined;
+        }
+        // After `{{$faker ` only Faker paths make sense: FakerCompletionItemProvider has them.
+        if (fakerPathBeingTyped(document.lineAt(position).text.substring(0, position.character)) !== undefined) {
             return undefined;
         }
 
@@ -39,6 +45,11 @@ export class HttpCompletionItemProvider implements CompletionItemProvider {
                 if (inside.startsWith('$')) {
                     item.filterText = `${inside} ${inside.substring(1)}`;
                 }
+            }
+            // Choosing $faker opens the list of its paths straight away.
+            // (HttpElement drops the `$` of system variables from their name.)
+            if (e.type === ElementType.SystemVariable && `$${e.name}` === Constants.FakerVariableName) {
+                item.command = { title: '', command: 'editor.action.triggerSuggest' };
             }
             return item;
         });
