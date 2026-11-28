@@ -5,6 +5,7 @@ import { RequestMetadata } from '../models/requestMetadata';
 import { EnvironmentVariableProvider } from './httpVariableProviders/environmentVariableProvider';
 import { FileVariableProvider } from './httpVariableProviders/fileVariableProvider';
 import { RequestVariableProvider } from './httpVariableProviders/requestVariableProvider';
+import { escapeMarkdown } from './misc';
 import { Selector } from './selector';
 import { UserDataManager } from './userDataManager';
 
@@ -53,12 +54,16 @@ export class HttpElementFactory {
 
         // Add file custom variables
         const fileVariables = await FileVariableProvider.Instance.getAll(document);
-        for (const { name, value } of fileVariables) {
+        for (const { name, value, description } of fileVariables) {
+            const documentation = new MarkdownString(`Value: \`${value}\``);
+            if (description) {
+                documentation.appendMarkdown(`\n\n${escapeMarkdown(description)}`);
+            }
             dynamicElements.push(new HttpElement(
                 name,
                 ElementType.FileCustomVariable,
                 '^\\s*[^@]',
-                new MarkdownString(`Value: \`${value}\``),
+                documentation,
                 new SnippetString(`{{${name}}}`)
             ));
         }

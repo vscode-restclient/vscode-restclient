@@ -269,6 +269,41 @@ describe('RestClient · what was ported from rest-client-next', () => {
       assert.ok(item.range, `"${String(item.label)}" does not replace the gap between the braces`);
     }
   });
+
+  it('P-105 · the comment right above a file variable shows in its hover and its completion', async () => {
+    write('descritas-lib.http', j('# Shared by every file', '@tenant = acme', ''));
+    const file = write('descritas.http', j(
+      'import ./descritas-lib.http',
+      '',
+      '# Token from the admin console,',
+      '// valid 24 hours',
+      '@token = abc|def',
+      '@port = 8080',
+      '',
+      'GET http://ejemplo:{{port}}/{{tenant}}?t={{token}}&x={{',
+      '',
+    ));
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+    await vscode.window.showTextDocument(doc, { preview: false });
+    const line = 7;
+    const hoverAt = async (name: string) => {
+      const position = new vscode.Position(line, doc.lineAt(line).text.indexOf(`{{${name}}}`) + 2);
+      const hovers = (await vscode.commands.executeCommand('vscode.executeHoverProvider', doc.uri, position)) as vscode.Hover[];
+      return hovers.flatMap((h) => h.contents.map((c) => (typeof c === 'string' ? c : c.value))).join(' | ');
+    };
+
+    const token = await hoverAt('token');
+    assert.ok(token.includes('abc|def'), `the value is not the whole line: ${token}`);
+    assert.ok(token.includes('Token from the admin console, valid 24 hours'), `no description in the hover: ${token}`);
+    assert.ok(!(await hoverAt('port')).includes('Token'), 'the description of @token leaked onto @port');
+    assert.ok((await hoverAt('tenant')).includes('Shared by every file'), 'no description for an imported variable');
+
+    const list = (await vscode.commands.executeCommand(
+      'vscode.executeCompletionItemProvider', doc.uri, new vscode.Position(line, doc.lineAt(line).text.length))) as vscode.CompletionList;
+    const item = list.items.find((i) => i.label === 'token');
+    const documentation = typeof item?.documentation === 'string' ? item.documentation : item?.documentation?.value ?? '';
+    assert.ok(documentation.includes('Token from the admin console, valid 24 hours'), `no description in the completion: ${documentation}`);
+  });
 });
 
 describe('the QUERY method (ported from upstream #1438)', () => {

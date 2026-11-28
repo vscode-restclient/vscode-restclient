@@ -1,5 +1,6 @@
 import * as assert from 'assert';
-import { allowsUnresolved, blockingUnresolved, unresolvedSummary, unresolvedVariables } from '../../core/variables';
+import { Imported, variablesWithImports } from '../../core/imports';
+import { allowsUnresolved, blockingUnresolved, fileVariableDescriptions, unresolvedSummary, unresolvedVariables } from '../../core/variables';
 
 const BR = String.fromCharCode(10);
 const j = (...l: string[]) => l.join(BR);
@@ -49,5 +50,42 @@ describe('unresolved variables', () => {
     it('P-96 · the summary names them, singular or plural', () => {
         assert.strictEqual(unresolvedSummary(['host']), 'unresolved variable: host');
         assert.strictEqual(unresolvedSummary(['host', 'token']), 'unresolved variables: host, token');
+    });
+});
+
+// P-105: the comment lines right above a file variable describe it (hover,
+// completion). Nothing else does, and its value is read as before.
+describe('file variable descriptions', () => {
+    const describe_ = (...l: string[]) => Object.fromEntries(fileVariableDescriptions(j(...l)));
+
+    it('P-105 · the # or // lines right above a variable, joined, describe it', () => {
+        assert.deepStrictEqual(describe_('# Base URL', '@host = https://x'), { host: 'Base URL' });
+        assert.deepStrictEqual(describe_('  // Base URL  ', '@host = https://x'), { host: 'Base URL' });
+        assert.deepStrictEqual(describe_('# Token from the admin console,', '// valid 24 hours', '@token = abc'),
+            { token: 'Token from the admin console, valid 24 hours' });
+        assert.deepStrictEqual(describe_('## Section', '#', '# text', '@a = 1'), { a: 'Section text' });
+    });
+
+    it('P-105 · a blank line, another variable, ### or a directive ends it', () => {
+        assert.deepStrictEqual(describe_('# Auth settings', '', '@user = admin'), {});
+        assert.deepStrictEqual(describe_('# Base URL', '@host = https://x', '@port = 8080'), { host: 'Base URL' });
+        assert.deepStrictEqual(describe_('# kept', '###', '@id = 42'), {});
+        assert.deepStrictEqual(describe_('### Login', '@id = 42'), {});
+        assert.deepStrictEqual(describe_('# @name login', '@id = 42'), {});
+        assert.deepStrictEqual(describe_('// @prompt otp', '@id = 42'), {});
+        assert.deepStrictEqual(describe_('# Above the directive', '# @note', '# The id', '@id = 42'), { id: 'The id' });
+        assert.deepStrictEqual(describe_('@id = 42'), {});
+    });
+
+    it('P-105 · the last definition wins, even without a description', () => {
+        assert.deepStrictEqual(describe_('# first', '@a = 1', '', '# second', '@a = 2'), { a: 'second' });
+        assert.deepStrictEqual(describe_('# first', '@a = 1', '', '@a = 2'), {});
+    });
+
+    it('P-105 · a | in a value stays in the value, inside {{ }} or not', () => {
+        const text = j('# Roles allowed', '@roles = admin|user', '@spaced = a | b', '@when = {{$datetime "HH|mm"}}');
+        assert.deepStrictEqual(describe_(text), { roles: 'Roles allowed' });
+        assert.deepStrictEqual(variablesWithImports(text, [] as Imported[]),
+            { roles: 'admin|user', spaced: 'a | b', when: '{{$datetime "HH|mm"}}' });
     });
 });

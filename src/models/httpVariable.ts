@@ -7,6 +7,8 @@ export interface HttpVariable {
     value?: HttpVariableValue;
     error?: any;
     warning?: any;
+    /** What the comment lines right above a file variable say about it (hover, completion). */
+    description?: string;
     /**
      * The value came from a server (a value `# @set` took): it is used as it
      * is, never searched again for `{{…}}`.
