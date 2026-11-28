@@ -711,6 +711,12 @@
                     "scope": "resource",
                     "description": "%cfg.enableCustomVariableReferencesCodeLens%"
                 },
+                "rest-client.showEnvironmentInCodeLensTitle": {
+                    "type": "boolean",
+                    "default": false,
+                    "scope": "resource",
+                    "description": "%cfg.showEnvironmentInCodeLensTitle%"
+                },
                 "rest-client.useContentDispositionFilename": {
                     "type": "boolean",
                     "default": true,

@@ -80,6 +80,7 @@ export class SystemSettings implements IRestClientSettings {
     private _enableSendRequestCodeLens: boolean;
     private _enableCustomVariableReferencesCodeLens: boolean;
     private _useContentDispositionFilename: boolean;
+    private _showEnvironmentInCodeLensTitle: boolean;
 
     public get followRedirect() {
         return this._followRedirect;
@@ -210,6 +211,11 @@ export class SystemSettings implements IRestClientSettings {
         return this._useContentDispositionFilename;
     }
 
+    /** Editor only: the runner shows no CodeLens, so it is not in IRestClientSettings. */
+    public get showEnvironmentInCodeLensTitle() {
+        return this._showEnvironmentInCodeLensTitle;
+    }
+
     private readonly brackets: CharacterPair[];
 
     private static _instance: SystemSettings;
@@ -285,6 +291,7 @@ export class SystemSettings implements IRestClientSettings {
         this._enableSendRequestCodeLens = restClientSettings.get<boolean>('enableSendRequestCodeLens', true);
         this._enableCustomVariableReferencesCodeLens = restClientSettings.get<boolean>('enableCustomVariableReferencesCodeLens', true);
         this._useContentDispositionFilename = restClientSettings.get<boolean>('useContentDispositionFilename', true);
+        this._showEnvironmentInCodeLensTitle = restClientSettings.get<boolean>('showEnvironmentInCodeLensTitle', false);
         languages.setLanguageConfiguration('http', { brackets: this._addRequestBodyLineIndentationAroundBrackets ? this.brackets : [] });
 
         const httpSettings = workspace.getConfiguration("http");

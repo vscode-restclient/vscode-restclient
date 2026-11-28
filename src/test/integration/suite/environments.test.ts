@@ -62,4 +62,53 @@ describe('Rest Client · environments from the settings', () => {
     const text = await send(`GET {{devBaseUrl}}/shared-only\n`, '/echo/dev/shared-only');
     assert.ok(text.includes('/echo/dev/shared-only'), text.slice(0, 200));
   });
+
+  it('P-102 · with showEnvironmentInCodeLensTitle, Send Request names the selected environment, in .http and in Markdown', async function () {
+    this.timeout(40000);
+    // Files on disk, not untitled documents: an untitled one would take an
+    // Untitled-N name that a later suite expects to find free.
+    const write = async (name: string, content: string) => {
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+      assert.ok(root, 'the test needs an open workspace');
+      const uri = vscode.Uri.joinPath(root!, name);
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(content));
+      return vscode.workspace.openTextDocument(uri);
+    };
+    const http = await write('codelens-environment.http', 'GET {{baseUrl}}/a\n\n###\n\nGET {{baseUrl}}/b\n');
+    const md = await write('codelens-environment.md', '# API\n\n```http\nGET {{baseUrl}}/c\n```\n');
+    await vscode.window.showTextDocument(http);
+
+    const titles = async (doc: vscode.TextDocument) =>
+      ((await vscode.commands.executeCommand<vscode.CodeLens[]>('vscode.executeCodeLensProvider', doc.uri)) ?? [])
+        .map((lens) => lens.command?.title ?? '')
+        .filter((title) => title.startsWith('Send Request'));
+    // A setting reaches the extension a moment after update() resolves.
+    const expect = async (expected: string, count: { http: number; md: number }) => {
+      let seen: string[] = [];
+      for (let i = 0; i < 40; i++) {
+        const [h, m] = [await titles(http), await titles(md)];
+        seen = [...h, ...m];
+        if (h.length === count.http && m.length === count.md && seen.every((t) => t === expected)) {
+          return;
+        }
+        await wait(250);
+      }
+      assert.fail(`expected ${count.http} + ${count.md} times "${expected}", saw ${JSON.stringify(seen)}`);
+    };
+    const lenses = { http: 2, md: 1 };
+
+    try {
+      await vscode.commands.executeCommand('rest-client.switch-environment', ENV);
+      await expect('Send Request', lenses);
+
+      await setting('showEnvironmentInCodeLensTitle', true);
+      await expect(`Send Request on ${ENV}`, lenses);
+
+      await vscode.commands.executeCommand('rest-client.switch-environment', '');
+      await expect('Send Request with no environment', lenses);
+    } finally {
+      await setting('showEnvironmentInCodeLensTitle', undefined);
+    }
+    await expect('Send Request', lenses);
+  });
 });

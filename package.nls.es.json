@@ -54,6 +54,7 @@
     "cfg.logLevel": "Cuánto detalle se escribe en el panel de salida.",
     "cfg.enableSendRequestCodeLens": "Mostrar el enlace «Send Request» sobre cada petición del fichero.",
     "cfg.enableCustomVariableReferencesCodeLens": "Mostrar dónde se usa cada variable propia del fichero.",
+    "cfg.showEnvironmentInCodeLensTitle": "Mostrar en el enlace «Enviar la petición» el entorno seleccionado (por ejemplo, «Enviar la petición en dev»).",
     "cfg.useContentDispositionFilename": "Usar el nombre de fichero de la cabecera `content-disposition` al guardar la respuesta.",
     "cmd.preview-html-response-body": "Ver como HTML",
     "cmd.show-raw-response": "Ver en crudo",

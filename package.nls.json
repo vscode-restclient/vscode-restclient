@@ -57,6 +57,7 @@
     "cfg.logLevel": "The verbosity of logging in the REST output panel",
     "cfg.enableSendRequestCodeLens": "Enable/disable sending request CodeLens in request file",
     "cfg.enableCustomVariableReferencesCodeLens": "Enable/disable custom variable references CodeLens in request file",
+    "cfg.showEnvironmentInCodeLensTitle": "Show the selected environment in the Send Request CodeLens (e.g. 'Send Request on dev')",
     "cfg.useContentDispositionFilename": "Enable/disable using filename from 'content-disposition' header, when saving response body",
     "cmd.set-secret": "Set a secret (for {{$secret NAME}})",
     "cmd.delete-secret": "Delete a stored secret"
