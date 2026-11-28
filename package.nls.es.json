@@ -32,7 +32,7 @@
     "cfg.environmentVariables": "Entornos y sus variables. El entorno especial `$shared` define las que valen para todos.",
     "cfg.mimeAndFileExtensionMapping": "Correspondencia entre tipo MIME y extensión al guardar el cuerpo de la respuesta. Por ejemplo: `{\"application/vnd.api+json\": \"json\"}`.",
     "cfg.previewResponseInUntitledDocument": "Mostrar la respuesta en un documento sin guardar en vez de en el panel.",
-    "cfg.oidcScopes": "Ámbitos que pide el cliente OIDC. Por omisión: `openid profile email`.",
+    "cfg.oidcScopes": "Ámbitos que pide el cliente OIDC al iniciar sesión, además de los que pida la propia variable. Vacío por omisión.",
     "cfg.oidcCertificates": "Certificados del servidor que recibe la respuesta de OIDC.",
     "cfg.certificates": "Rutas de certificados por servidor. Las claves no distinguen mayúsculas y admiten comodines de servidor y puerto. Las rutas pueden ser absolutas o relativas a la carpeta de trabajo. Consulta [Certificados de cliente SSL](https://github.com/vscode-restclient/vscode-restclient/blob/master/README.md#ssl-client-certificates) para las reglas completas de coincidencia, prioridad y conflictos.",
     "cfg.certificates.host": "Rutas de certificados para esta clave de servidor, p. ej., `example.com`, `example.com:8443` o `**.example.com:*`. `*.example.com` admite exactamente una etiqueta adicional; `**.example.com`, una o más. Ninguno admite `example.com`. `:*` admite cualquier puerto o ninguno; un puerto numérico solo admite ese puerto, y una clave sin puerto solo admite URL sin puerto.",

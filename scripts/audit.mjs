@@ -438,6 +438,15 @@ for (const f of ['docs/HTTPKEEPER.md', 'docs/HTTPKEEPER.es.md']) {
 ok('the unit tests that run are the ones written', Number(nUnit) === countIts('src/test/unit'), `${nUnit} running`);
 ok('promises 400 packages', read('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
 ok('promises zero telemetry', read('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
+// The README is the reference: a setting that only the Settings editor knows
+// about is one nobody finds, and one the README still lists after it is gone
+// is one nobody can set.
+const settings = Object.keys(pkg.contributes.configuration.properties);
+const listed = [...readme.matchAll(/^- `(rest-client\.[\w.]+)`:/gm)].map((m) => m[1]);
+const unlisted = settings.filter((key) => !listed.includes(key));
+ok('every setting has its line in the list of the README', unlisted.length === 0, unlisted.join(', '));
+const gone = listed.filter((key) => !settings.includes(key));
+ok('the README lists no setting that does not exist', gone.length === 0, gone.join(', '));
 
 console.log(`\n===== ${failures} failures`);
 process.exit(failures ? 1 : 0);

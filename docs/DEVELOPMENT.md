@@ -68,7 +68,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | `test:mcp` | the MCP server, driven over stdio the way an agent does |
 | `test:l10n` | both languages complete, nothing extra |
 | `build` | the production bundles |
-| `audit` | 105 checks, listed below |
+| `audit` | 107 checks, listed below |
 | `test:vsix` | packages the `.vsix`, installs it in a clean VS Code (in Spanish) and exercises it: the only test that sees what reaches the user |
 
 `npm run test:integration` runs the 69 integration tests inside a real VS Code
@@ -143,6 +143,8 @@ groups are:
 - **Promises are counted, not believed.** The number of tests in
   `docs/HTTPKEEPER.md` and `docs/HTTPKEEPER.es.md` is compared with the `it(`
   calls that exist; "400 packages" and "no telemetry" must still be stated.
+  Every setting of the manifest has its line in the list of `README.md`, and
+  that list names no setting that is gone.
 
 ### If you change X, the audit expects Y
 
@@ -150,6 +152,7 @@ groups are:
 | --- | --- |
 | add or bump a production dependency | `node scripts/generate-notices.mjs` and commit `THIRD-PARTY-NOTICES.txt` |
 | add, rename or remove a command | `package.json`, both `package.nls*.json`, `commandIds.test.ts`, and the count in the audit |
+| add, rename or remove a setting | its line in the settings list of `README.md` |
 | add or remove a test | the test counts in `README.md`, `docs/HTTPKEEPER.md` and `docs/HTTPKEEPER.es.md` |
 | add a `postMessage` between the extension and the webview | a line in `CONTRACT` in `scripts/audit.mjs` |
 | add a file the webview or the manifest loads | its path in the resources list, and make sure `.vscodeignore` lets it ship |
