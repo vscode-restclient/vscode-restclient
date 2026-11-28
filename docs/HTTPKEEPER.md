@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **193** (124 unit, 69 integration against a real server) |
+| Tests                              | 0                    | **199** (129 unit, 70 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -47,6 +47,8 @@ X-Api-Key: {{$secret API_KEY}}
 ```
 
 `{{$secret NAME}}` reads the editor's encrypted secret storage — the file never contains the value, so it can be committed whole. `{{$uuid}}`, `{{$isoTimestamp}}` and `{{$random.integer(1,10)}}` work as in IntelliJ.
+
+`{{$faker internet.email}}` calls any [Faker](https://fakerjs.dev) method, with its arguments after the path (`{{$faker string.alphanumeric 12}}`). Typing `{{$faker ` completes the methods a `.http` line can actually call, each with Faker's description and examples; deprecated ones and those needing an object or returning one are left out.
 
 ![The token from one response used in the next request](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/02-chain.png)
 

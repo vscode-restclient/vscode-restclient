@@ -13,6 +13,7 @@ import { SwaggerController } from './controllers/swaggerController';
 import { CustomVariableDiagnosticsProvider } from "./providers/customVariableDiagnosticsProvider";
 import { RequestBodyDocumentLinkProvider } from './providers/documentLinkProvider';
 import { EnvironmentOrFileVariableHoverProvider } from './providers/environmentOrFileVariableHoverProvider';
+import { FakerCompletionItemProvider } from './providers/fakerCompletionItemProvider';
 import { FileVariableDefinitionProvider } from './providers/fileVariableDefinitionProvider';
 import { FileVariableReferenceProvider } from './providers/fileVariableReferenceProvider';
 import { FileVariableReferencesCodeLensProvider } from './providers/fileVariableReferencesCodeLensProvider';
@@ -110,6 +111,7 @@ export async function activate(context: ExtensionContext) {
 
     context.subscriptions.push(languages.registerCompletionItemProvider(documentSelector, new HttpCompletionItemProvider()));
     context.subscriptions.push(languages.registerCompletionItemProvider(documentSelector, new RequestVariableCompletionItemProvider(), '.'));
+    context.subscriptions.push(languages.registerCompletionItemProvider(documentSelector, new FakerCompletionItemProvider(), ' ', '.'));
     context.subscriptions.push(languages.registerHoverProvider(documentSelector, new EnvironmentOrFileVariableHoverProvider()));
     context.subscriptions.push(languages.registerHoverProvider(documentSelector, new RequestVariableHoverProvider()));
     context.subscriptions.push(

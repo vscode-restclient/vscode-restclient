@@ -63,15 +63,15 @@ l10n/, package.nls*.json  English and Spanish strings
 | Step | What it proves |
 | --- | --- |
 | `tsc --noEmit` | the extension compiles |
-| `test:unit` | 124 unit tests in plain Node |
+| `test:unit` | 129 unit tests in plain Node |
 | `build:cli` + `test:cli` | the runner compiles on its own and passes its end-to-end test (a real server, a chained `.http`, assertions, exit code) |
 | `test:mcp` | the MCP server, driven over stdio the way an agent does |
 | `test:l10n` | both languages complete, nothing extra |
 | `build` | the production bundles |
-| `audit` | 105 checks, listed below |
+| `audit` | 106 checks, listed below |
 | `test:vsix` | packages the `.vsix`, installs it in a clean VS Code (in Spanish) and exercises it: the only test that sees what reaches the user |
 
-`npm run test:integration` runs the 69 integration tests inside a real VS Code
+`npm run test:integration` runs the 70 integration tests inside a real VS Code
 against `scripts/test-server.cjs`. It is separate because it takes a few
 minutes and needs a display (CI uses `xvfb-run` on Linux). The runner points
 the extension's state (`VSC_REST_CLIENT_HOME`) at a folder of the run, so the
@@ -120,7 +120,9 @@ groups are:
   plus: the compiled runner contains no `controllers/`.
 - **Resources exist and ship.** Every file the code asks for by path (webview
   css/js, icons) exists and is in the package; every command a document link
-  invokes exists.
+  invokes exists; the `{{$faker ` completion list
+  (`src/utils/static/fakerPaths.json`) matches the installed Faker
+  (`node scripts/generate-faker-paths.mjs --check`).
 - **The extension and the webview agree.** The two sides talk over
   `postMessage`, and `webview/main.js` is plain JavaScript nothing
   type-checks. The audit holds a `CONTRACT` of every message and its keys and
@@ -156,6 +158,7 @@ groups are:
 | add a user-facing string | `vscode.l10n.t()` in code with both `l10n/bundle*.json`; `%key%` in the manifest with both `package.nls*.json` |
 | touch `src/core/`, `src/cli/` or `httpClient.ts` | no `vscode` import; run `node scripts/track-vscode.mjs <file>` |
 | invoke `vsce` or `ovsx` in a workflow | pin the version |
+| bump `@faker-js/faker` | `npm run generate:faker` and commit `src/utils/static/fakerPaths.json`, the `{{$faker ` completion list |
 | change a setting's default for the runner | `src/cli/minimalSettings.ts`, which deliberately reads nothing from disk |
 
 ## Tests

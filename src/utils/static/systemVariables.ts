@@ -9,7 +9,7 @@ export function getSystemVariableSnippets(): HttpElement[] {
             ElementType.SystemVariable,
             null,
             Constants.FakerVariableDescription,
-            new SnippetString(`{{$\${name:${Constants.FakerVariableName.slice(1)}} \${1:internet.email}}}`)),
+            new SnippetString(`{{$\${name:${Constants.FakerVariableName.slice(1)}} $1}}`)),
         new HttpElement(
             Constants.GuidVariableName,
             ElementType.SystemVariable,

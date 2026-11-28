@@ -51,3 +51,34 @@ export async function loadFaker(): Promise<unknown> {
     }
     return cached;
 }
+
+/** One entry of `static/fakerPaths.json`, generated at build time by scripts/generate-faker-paths.mjs. */
+export interface FakerPath {
+    path: string;
+    description: string;
+    /** Required parameters, inserted as snippet placeholders. */
+    params?: string[];
+    /** What a call with no arguments gives, from Faker's own examples. */
+    sample?: string;
+    /** Faker's examples with arguments a .http line can carry: [arguments, value?]. */
+    examples?: [string, string?][];
+}
+
+/** The entry's examples as `.http` lines: `{{$faker string.alphanumeric 5}} // 3e5V7`. */
+export function fakerExampleLines(entry: FakerPath): string[] {
+    const line = (args: string, value?: string) =>
+        `{{$faker ${args ? `${entry.path} ${args}` : entry.path}}}${value === undefined ? '' : ` // ${value}`}`;
+    return [
+        ...(entry.sample !== undefined ? [line('', entry.sample)] : []),
+        ...(entry.examples ?? []).map(([args, value]) => line(args, value)),
+    ];
+}
+
+/**
+ * The path being typed when the cursor sits right after `{{$faker ` (or in
+ * the middle of its path): `{{$faker inter` -> `inter`, `{{$faker ` -> ``.
+ * `undefined` anywhere else, including once a parameter is being typed.
+ */
+export function fakerPathBeingTyped(lineBeforeCursor: string): string | undefined {
+    return /\{\{\s*\$faker\s+([\w.]*)$/.exec(lineBeforeCursor)?.[1];
+}

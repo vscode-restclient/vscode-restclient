@@ -164,6 +164,10 @@ ok('the code asks for resources by path', resources.length > 0, resources.join('
 for (const r of resources) {
   ok(`${r} exists`, fs.existsSync(r));
 }
+// The $faker completion list is generated from the installed Faker by hand
+// (npm run generate:faker) and committed, like the notices. A Faker bump that
+// was not followed by a regeneration shows up here.
+ok('the $faker completion list matches the installed Faker (generate-faker-paths --check)', run('node scripts/generate-faker-paths.mjs --check').exitCode === 0);
 
 section('the rename left no loose ends');
 // The fork renamed commands and settings. What was left half done does not

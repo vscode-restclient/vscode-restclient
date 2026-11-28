@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **193** (124 unitarias, 69 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **199** (129 unitarias, 70 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -47,6 +47,8 @@ X-Api-Key: {{$secret API_KEY}}
 ```
 
 `{{$secret NOMBRE}}` lee el almacén de secretos cifrado del editor: el fichero nunca contiene el valor, así que se puede commitear entero. `{{$uuid}}`, `{{$isoTimestamp}}` y `{{$random.integer(1,10)}}` funcionan como en IntelliJ.
+
+`{{$faker internet.email}}` llama a cualquier método de [Faker](https://fakerjs.dev), con sus argumentos tras la ruta (`{{$faker string.alphanumeric 12}}`). Al escribir `{{$faker ` se completan los métodos que una línea `.http` puede llamar de verdad, cada uno con la descripción y los ejemplos de Faker; se dejan fuera los obsoletos y los que necesitan o devuelven un objeto.
 
 ![El token de una respuesta usado en la petición siguiente](https://raw.githubusercontent.com/vscode-restclient/vscode-restclient/master/media/shots/02-chain.png)
 
