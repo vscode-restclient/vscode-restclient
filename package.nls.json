@@ -35,7 +35,7 @@
     "cfg.environmentVariables": "Sets the environments and custom variables belongs to it, especially the special environment name '$shared' is used to create variables shared across all the individual environments (e.g., `{\"$shared\": {\"version\": \"v1\"}, \"production\": {\"host\": \"api.example.com\"}, \"sandbox\":{\"host\":\"sandbox.api.example.com\"}}`)",
     "cfg.mimeAndFileExtensionMapping": "Sets the custom mapping of mime type and file extension of saved response body (e.g., `{\"application/atom+xml\": \"xml\"}`)",
     "cfg.previewResponseInUntitledDocument": "Preview response in untitled document if set to true, otherwise displayed in html view",
-    "cfg.oidcScopes": "Scopes to be used by the OIDC client, default: [openid profile email]",
+    "cfg.oidcScopes": "Scopes the OIDC client asks for when signing in, added to what the variable itself asks for. Empty by default.",
     "cfg.oidcCertificates": "Certificate paths for Oidc callback server",
     "cfg.certificates": "Certificate paths by host. Host keys are case-insensitive and support host and port wildcards. Paths can be absolute or relative to the workspace. See [SSL Client Certificates](https://github.com/vscode-restclient/vscode-restclient/blob/master/README.md#ssl-client-certificates) for full matching, precedence and conflict rules.",
     "cfg.certificates.host": "Certificate paths for this host key, e.g., `example.com`, `example.com:8443` or `**.example.com:*`. `*.example.com` matches exactly one additional label; `**.example.com` matches one or more. Neither matches `example.com` itself. `:*` matches any port or no port; a numeric port matches only that port, and a key without a port matches only URLs without a port.",
