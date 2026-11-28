@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0](https://github.com/vscode-restclient/vscode-restclient/compare/v2.3.1...v2.4.0) (2026-11-28)
+
+
+### Features
+
+* show the selected environment in the Send Request CodeLens ([928daec](https://github.com/vscode-restclient/vscode-restclient/commit/928daecc8ef367201038827170b74b7f9e8e0759))
+
+
+### Bug Fixes
+
+* a new untitled document no longer gets the file variables of a closed one ([#75](https://github.com/vscode-restclient/vscode-restclient/issues/75)) ([02366f2](https://github.com/vscode-restclient/vscode-restclient/commit/02366f2bcac6284e9c348350083f32b67cc5f9c7))
+
 ## [2.3.1](https://github.com/vscode-restclient/vscode-restclient/compare/v2.3.0...v2.3.1) (2026-11-24)
 
 
