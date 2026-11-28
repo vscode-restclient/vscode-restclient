@@ -16,7 +16,7 @@ Por eso lo primero que se hizo aquí no fue una función. Fue la red.
 
 |                                  | Original             | RestClient                                                            |
 | -------------------------------- | -------------------- | --------------------------------------------------------------------- |
-| Pruebas                          | 0                    | **193** (124 unitarias, 69 de integración contra un servidor de verdad) |
+| Pruebas                          | 0                    | **198** (128 unitarias, 70 de integración contra un servidor de verdad) |
 | Vulnerabilidades en dependencias | 75 (6 críticas)      | **0**                                                                 |
 | Paquetes                         | 1.487                | **400**                                                               |
 | Telemetría                       | Application Insights | **ninguna**                                                           |
@@ -34,6 +34,8 @@ Después, lo que la gente pedía desde 2018, cada cosa con sus votos.
 Los entornos viven junto al fichero, en `http-client.env.json` (compartido) y `http-client.private.env.json` (el tuyo, en `.gitignore`, y manda). Los ficheros se importan entre sí y ejecutan las peticiones de los otros. La respuesta de una petición está disponible en todo fichero que importe al suyo.
 
 Con `"rest-client.showEnvironmentInCodeLensTitle": true`, el enlace sobre cada petición dice a qué entorno va a ir (*Enviar la petición en prod*), tanto en los ficheros `.http` como en Markdown.
+
+Una variable de fichero puede escribirse entre comillas dobles o simples, que no forman parte de su valor: `@relleno = "  x  "` conserva sus espacios, `@vacia = ""` está vacía, y `\"` dentro de comillas dobles es una comilla. El editor y el ejecutor la leen igual.
 
 ```http
 import ./lib/auth.http

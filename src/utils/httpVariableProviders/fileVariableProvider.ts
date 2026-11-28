@@ -1,6 +1,7 @@
 import { TextDocument } from 'vscode';
 import * as Constants from '../../common/constants';
 import { closeImports } from '../../core/imports';
+import { fileVariableValue } from '../../core/variables';
 import { DocumentCache } from '../../models/documentCache';
 import { ResolveErrorMessage } from '../../models/httpVariableResolveResult';
 import { VariableType } from '../../models/variableType';
@@ -22,12 +23,6 @@ export class FileVariableProvider implements HttpVariableProvider {
 
         return this._instance;
     }
-
-    private readonly escapee: Map<string, string> = new Map<string, string>([
-        ['n', '\n'],
-        ['r', '\r'],
-        ['t', '\t']
-    ]);
 
     private readonly innerVariableProviders: HttpVariableProvider[] = [
         SystemVariableProvider.Instance,
@@ -117,22 +112,8 @@ export class FileVariableProvider implements HttpVariableProvider {
             const regex = new RegExp(Constants.FileVariableDefinitionRegex, 'g');
             let match: RegExpExecArray | null;
             while (match = regex.exec(line)) {
-                const [, key, originalValue] = match;
-                let value = "";
-                let isPrevCharEscape = false;
-                for (const currentChar of originalValue) {
-                    if (isPrevCharEscape) {
-                        isPrevCharEscape = false;
-                        value += this.escapee.get(currentChar) || currentChar;
-                    } else {
-                        if (currentChar === "\\") {
-                            isPrevCharEscape = true;
-                            continue;
-                        }
-                        value += currentChar;
-                    }
-                }
-                variables.set(key, { name: key, value });
+                const [, key, written] = match;
+                variables.set(key, { name: key, value: fileVariableValue(written) });
             }
         }
 

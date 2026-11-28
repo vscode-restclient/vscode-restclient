@@ -68,6 +68,15 @@ describe('Rest Client · real requests', () => {
       assert.ok(t.includes('/desde-variable'), 'the variable was not substituted');
     });
 
+    it('P-104 · quoted file variables lose their quotes and keep their blanks', async () => {
+      const t = await send(
+        `@ruta = '/entre-comillas'\n@relleno = "  con espacios  "\n@vacia = ""\nGET ${BASE}{{ruta}}\nX-Test: [{{relleno}}]{{vacia}}<\n`,
+        '/entre-comillas',
+      );
+      assert.ok(/"path":\s*"\/entre-comillas"/.test(t), `the single quotes were sent:\n${t.slice(0, 300)}`);
+      assert.ok(t.includes('[  con espacios  ]<'), `the double quotes or the blanks were not handled:\n${t.slice(0, 600)}`);
+    });
+
     it('P-08 · several requests separated by ###, the one under the cursor is sent', async () => {
       const t = await send(`GET ${BASE}/primera\n\n###\n\nGET ${BASE}/segunda\n`, '/primera');
       assert.ok(t.includes('/primera'), 'the request under the cursor must be the one sent');

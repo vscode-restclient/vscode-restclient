@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Block, splitBlocks } from './sequence';
+import { fileVariableValue } from './variables';
 
 const IMPORT = /^\s*import\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/gm;
 export const IMPORT_LINE = /^\s*import\s+\S/;
@@ -94,8 +95,8 @@ export function resolveRun(block: Block, text: string, imported: Imported[]): Bl
 /** The `@variable = value` pairs of a text, in order of appearance; the last definition wins. */
 export function textVariables(text: string): Record<string, string> {
     const out: Record<string, string> = {};
-    for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*?)\s*$/gm)) {
-        out[m[1]] = m[2];
+    for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=(.*)$/gm)) {
+        out[m[1]] = fileVariableValue(m[2]);
     }
     return out;
 }

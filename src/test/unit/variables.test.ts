@@ -1,5 +1,6 @@
 import * as assert from 'assert';
-import { allowsUnresolved, blockingUnresolved, unresolvedSummary, unresolvedVariables } from '../../core/variables';
+import { Imported, variablesWithImports } from '../../core/imports';
+import { allowsUnresolved, blockingUnresolved, fileVariableValue, unresolvedSummary, unresolvedVariables } from '../../core/variables';
 
 const BR = String.fromCharCode(10);
 const j = (...l: string[]) => l.join(BR);
@@ -49,5 +50,43 @@ describe('unresolved variables', () => {
     it('P-96 · the summary names them, singular or plural', () => {
         assert.strictEqual(unresolvedSummary(['host']), 'unresolved variable: host');
         assert.strictEqual(unresolvedSummary(['host', 'token']), 'unresolved variables: host, token');
+    });
+});
+
+// P-104: a file variable may be written in double or single quotes, which keep
+// what a bare value loses (the blanks around it, or being empty). The editor
+// and the runner read the value through the same function.
+describe('quoted file variables', () => {
+    it('P-104 · double or single quotes go, and the blanks inside them stay', () => {
+        assert.strictEqual(fileVariableValue(' "api.example.com" '), 'api.example.com');
+        assert.strictEqual(fileVariableValue("'api.example.com'"), 'api.example.com');
+        assert.strictEqual(fileVariableValue('"  padded  "'), '  padded  ');
+        assert.strictEqual(fileVariableValue("'  padded  '"), '  padded  ');
+        assert.strictEqual(fileVariableValue('""'), '');
+        assert.strictEqual(fileVariableValue("''"), '');
+        assert.strictEqual(fileVariableValue('  bare value  '), 'bare value');
+    });
+
+    it('P-104 · an escaped quote stays inside, and the other kind needs no escape', () => {
+        assert.strictEqual(fileVariableValue('"say \\"hi\\""'), 'say "hi"');
+        assert.strictEqual(fileVariableValue("'it\\'s'"), "it's");
+        assert.strictEqual(fileVariableValue(`"it's"`), "it's");
+        assert.strictEqual(fileVariableValue(`'say "hi"'`), 'say "hi"');
+        assert.strictEqual(fileVariableValue('"a\\tb\\nc"'), 'a\tb\nc');
+    });
+
+    it('P-104 · quotes that do not wrap the whole value are text', () => {
+        assert.strictEqual(fileVariableValue('"a" "b"'), '"a" "b"');
+        assert.strictEqual(fileVariableValue('"open'), '"open');
+        assert.strictEqual(fileVariableValue('"'), '"');
+        assert.strictEqual(fileVariableValue('{"id": 1}'), '{"id": 1}');
+        assert.strictEqual(fileVariableValue('x = "y"'), 'x = "y"');
+        assert.strictEqual(fileVariableValue('"a\\"'), '"a"');
+    });
+
+    it('P-104 · the runner reads them the same way, imports included', () => {
+        const text = j('@host = "api.example.com"', "@pad = '  x  '", '@empty = ""', '@bare =  plain  ', 'GET https://{{host}}');
+        assert.deepStrictEqual(variablesWithImports(text, [{ text: "@shared = 'from import'" } as Imported]),
+            { shared: 'from import', host: 'api.example.com', pad: '  x  ', empty: '', bare: 'plain' });
     });
 });
