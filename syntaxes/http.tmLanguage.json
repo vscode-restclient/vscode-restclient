@@ -149,7 +149,7 @@
           "name": "string.other.http"
         }
       },
-      "match": "^([\\w\\-]+)\\s*(\\:)\\s*([^\/].*?)\\s*$",
+      "match": "^\\s*([\\w\\-]+)\\s*(\\:)\\s*([^\/].*?)\\s*$",
       "name": "http.headers"
     },
     {
@@ -163,7 +163,7 @@
     "metadata": {
       "patterns": [
         {
-          "match": "^\\s*\\#{1,}\\s+(?:((@)name)\\s+([^\\s\\.]+))$",
+          "match": "^\\s*\\#{1,}\\s+(?:((@)name)\\s+([^\\s\\.]+))\\s*$",
           "captures": {
             "1": {
               "name": "entity.other.attribute-name"
@@ -178,7 +178,7 @@
           "name": "comment.line.sharp.http"
         },
         {
-          "match": "^\\s*\\/{2,}\\s+(?:((@)name)\\s+([^\\s\\.]+))$",
+          "match": "^\\s*\\/{2,}\\s+(?:((@)name)\\s+([^\\s\\.]+))\\s*$",
           "captures": {
             "1": {
               "name": "entity.other.attribute-name"
@@ -217,7 +217,7 @@
           "name": "comment.line.double-slash.http"
         },
         {
-          "match": "^\\s*\\#{1,}\\s+(?:((@)prompt)\\s+([^\\s]+)(?:\\s+(.*))?\\s*)$",
+          "match": "^\\s*\\#{1,}\\s+(?:((@)prompt)\\s+([^\\s]+)(?:\\s+(.*?))?\\s*)$",
           "captures": {
             "1": {
               "name": "entity.other.attribute-name"
@@ -235,7 +235,7 @@
           "name": "comment.line.sharp.http"
         },
         {
-          "match": "^\\s*\\/{2,}\\s+(?:((@)prompt)\\s+([^\\s]+)(?:\\s+(.*))?\\s*)$",
+          "match": "^\\s*\\/{2,}\\s+(?:((@)prompt)\\s+([^\\s]+)(?:\\s+(.*?))?\\s*)$",
           "captures": {
             "1": {
               "name": "entity.other.attribute-name"
@@ -282,7 +282,7 @@
           ]
         }
       },
-      "match": "(?i)^(?:(get|post|put|delete|patch|head|options|connect|trace|lock|unlock|propfind|proppatch|copy|move|mkcol|mkcalendar|acl|search|query)\\s+)\\s*(.+?)(?:\\s+(HTTP\\/\\S+))?$",
+      "match": "(?i)^\\s*(?:(get|post|put|delete|patch|head|options|connect|trace|lock|unlock|propfind|proppatch|copy|move|mkcol|mkcalendar|acl|search|query)\\s+)\\s*(.+?)(?:\\s+(HTTP\\/\\S+))?\\s*$",
       "name": "http.requestline"
     },
     "response-line": {
@@ -301,7 +301,7 @@
           "name": "string.other.http"
         }
       },
-      "match": "(?i)^\\s*(HTTP\\/\\S+)\\s([1-5][0-9][0-9])\\s(.*)$",
+      "match": "(?i)^\\s*(HTTP\\/\\S+)\\s+([1-5][0-9][0-9])(?:\\s+(.*?))?\\s*$",
       "name": "http.responseLine"
     },
     "protocol": {
