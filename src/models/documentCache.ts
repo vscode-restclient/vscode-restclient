@@ -3,6 +3,12 @@ import { TextDocument } from 'vscode';
 type Container<T> = {
     value: T;
     version: number;
+    /**
+     * The document that filled the entry. A closed untitled document gives
+     * its uri back, and the next one opened takes it at version 1 again: the
+     * uri and the version alone handed it the values of the one before.
+     */
+    document: TextDocument;
 };
 
 export class DocumentCache<T> {
@@ -18,13 +24,13 @@ export class DocumentCache<T> {
             return undefined;
         }
 
-        const { value, version } = result;
+        const { value } = result;
 
-        return this.ignoreVersion ? value : (version === document.version ? value : undefined);
+        return this.ignoreVersion || this.isCurrent(result, document) ? value : undefined;
     }
 
     public set(document: TextDocument, value: T): this {
-        this._cache.set(this.getKey(document), { value, version: document.version });
+        this._cache.set(this.getKey(document), { value, version: document.version, document });
         return this;
     }
 
@@ -37,15 +43,16 @@ export class DocumentCache<T> {
     }
 
     public has(document: TextDocument): boolean {
-        if (!this._cache.has(this.getKey(document))) {
+        const result = this._cache.get(this.getKey(document));
+        if (result === undefined) {
             return false;
         }
 
-        if (this.ignoreVersion) {
-            return true;
-        }
+        return this.ignoreVersion || this.isCurrent(result, document);
+    }
 
-        return this._cache.get(this.getKey(document))!.version === document.version;
+    private isCurrent(result: Container<T>, document: TextDocument): boolean {
+        return result.document === document && result.version === document.version;
     }
 
     private getKey(document: TextDocument): string {
