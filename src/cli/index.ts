@@ -27,7 +27,7 @@ import { checkAssertions, readAssertions, AssertionResult, valueFor } from '../c
 import { isEventStream } from '../core/sse';
 import { talk, bodyMessages, DEFAULT_LISTEN_MS } from '../core/websocket';
 import { toJunit } from '../core/junit';
-import { blockingUnresolved, unresolvedSummary } from '../core/variables';
+import { blockingUnresolved, fileVariableValue, unresolvedSummary } from '../core/variables';
 import { applyCaptures, captureFailures, capturesOf, CaptureStore } from '../core/captures';
 
 export interface Options {
@@ -201,8 +201,8 @@ function onlyBlock(blocks: Block[], name: string): Block[] {
  */
 export function fileVariables(text: string): Record<string, string> {
     const out: Record<string, string> = {};
-    for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=\s*(.*)$/gm)) {
-        out[m[1]] = m[2].trim();
+    for (const m of text.matchAll(/^\s*@([A-Za-z_][\w.-]*)\s*=(.*)$/gm)) {
+        out[m[1]] = fileVariableValue(m[2]);
     }
     return out;
 }

@@ -3,6 +3,43 @@
 // three refuse the same text for the same reason and with the same names.
 // No `vscode` here.
 
+const ESCAPES: Record<string, string> = { n: '\n', r: '\r', t: '\t' };
+
+/**
+ * The value of `@name = value`, from what is written after the `=`. Blanks
+ * around it do not count, unless it is wholly in double or single quotes:
+ * then the quotes go and what is inside them stays, blanks included, so
+ * `@pad = "  x  "` keeps its spaces and `@empty = ""` is empty. A quote that
+ * does not close at the end of the line (`"a" "b"`, `"open`) is text. In
+ * either case `\n`, `\r` and `\t` are line feed, carriage return and tab,
+ * and a backslash before any other character leaves that character, so
+ * `\"` inside double quotes is a quote. The editor and the runner read file
+ * variables through this, so a value is the same in both.
+ */
+export function fileVariableValue(written: string): string {
+    let text = written.trim();
+    const quote = text[0];
+    if (text.length >= 2 && (quote === '"' || quote === "'")) {
+        let i = 1;
+        while (i < text.length && text[i] !== quote) {
+            i += text[i] === '\\' ? 2 : 1;
+        }
+        if (i === text.length - 1) {
+            text = text.slice(1, -1);
+        }
+    }
+    let value = '';
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === '\\' && i + 1 < text.length) {
+            i++;
+            value += ESCAPES[text[i]] ?? text[i];
+        } else {
+            value += text[i];
+        }
+    }
+    return value;
+}
+
 /** The per-request setting that sends the text as it is, `{{…}}` included. */
 export const ALLOW_UNRESOLVED = 'allow-unresolved';
 

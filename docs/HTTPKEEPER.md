@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **193** (124 unit, 69 integration against a real server) |
+| Tests                              | 0                    | **198** (128 unit, 70 integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
@@ -34,6 +34,8 @@ Then the things the original's users have been asking for since 2018, each with 
 Environments live next to the file, in `http-client.env.json` (shared) and `http-client.private.env.json` (yours, in `.gitignore`, wins). Files import each other and run each other's requests. A request's response is available in every file that imports it.
 
 With `"rest-client.showEnvironmentInCodeLensTitle": true`, the link above each request names the environment it will go to (*Send Request on prod*), in `.http` files and in Markdown alike.
+
+A file variable can be written in double or single quotes, which are not part of its value: `@pad = "  x  "` keeps its spaces, `@empty = ""` is empty, and `\"` inside double quotes is a quote. The editor and the runner read it the same way.
 
 ```http
 import ./lib/auth.http
