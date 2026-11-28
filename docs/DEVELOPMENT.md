@@ -63,7 +63,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | Step | What it proves |
 | --- | --- |
 | `tsc --noEmit` | the extension compiles |
-| `test:unit` | 124 unit tests in plain Node |
+| `test:unit` | 126 unit tests in plain Node |
 | `build:cli` + `test:cli` | the runner compiles on its own and passes its end-to-end test (a real server, a chained `.http`, assertions, exit code) |
 | `test:mcp` | the MCP server, driven over stdio the way an agent does |
 | `test:l10n` | both languages complete, nothing extra |
