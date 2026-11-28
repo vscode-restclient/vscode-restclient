@@ -140,9 +140,14 @@ groups are:
 - **Packaging.** The `.vsix` ships the runner, the notices, both languages and
   the webview resources, and no `src/`, source maps, `docs/`, `scripts/`,
   `npm/` or `action.yml`.
-- **Promises are counted, not believed.** The number of tests in
-  `docs/HTTPKEEPER.md` and `docs/HTTPKEEPER.es.md` is compared with the `it(`
-  calls that exist; "400 packages" and "no telemetry" must still be stated.
+- **Promises are counted, not believed.** The number of tests in `README.md`,
+  `docs/HTTPKEEPER.md` and `docs/HTTPKEEPER.es.md` must never exceed the `it(`
+  calls that exist (a floor: a PR that adds tests leaves the docs alone, the
+  release PR brings them to the exact count, see below). Each number is
+  wrapped in `<!-- tests:total -->`, `<!-- tests:unit -->` or
+  `<!-- tests:integration -->` and `<!-- /tests -->`, so the sentences around
+  it can be reworded freely. "400 packages" and "no telemetry" must still be
+  stated.
 
 ### If you change X, the audit expects Y
 
@@ -150,7 +155,8 @@ groups are:
 | --- | --- |
 | add or bump a production dependency | `node scripts/generate-notices.mjs` and commit `THIRD-PARTY-NOTICES.txt` |
 | add, rename or remove a command | `package.json`, both `package.nls*.json`, `commandIds.test.ts`, and the count in the audit |
-| add or remove a test | the test counts in `README.md`, `docs/HTTPKEEPER.md` and `docs/HTTPKEEPER.es.md` |
+| add a test | nothing in the docs: the `test-counts` job of `release-please.yml` runs `npm run test-counts` on the release PR |
+| remove tests | `npm run test-counts` if the docs now promise more than exist |
 | add a `postMessage` between the extension and the webview | a line in `CONTRACT` in `scripts/audit.mjs` |
 | add a file the webview or the manifest loads | its path in the resources list, and make sure `.vscodeignore` lets it ship |
 | add a user-facing string | `vscode.l10n.t()` in code with both `l10n/bundle*.json`; `%key%` in the manifest with both `package.nls*.json` |

@@ -22,12 +22,44 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # Pull requests do not update the number of tests in the docs (the audit only
+  # checks that the docs never promise more than exist). The release PR does:
+  # every time release-please rebuilds it, this job puts the exact count back on
+  # top, so each released version states it next to its changelog.
+  # A push made with GITHUB_TOKEN does not trigger ci.yml on the release PR;
+  # only those doc lines change, and `publish` runs the audit on the tag anyway.
+  test-counts:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.pr }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # empujar a la rama de la PR de release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/test-counts.mjs
+      - name: Commit the exact count to the release PR
+        run: |
+          if git diff --quiet; then
+            echo "The docs already state the exact number of tests"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "docs: the number of tests, counted for this release"
+          git push
 
   publish:
     needs: release-please

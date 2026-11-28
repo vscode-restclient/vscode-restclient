@@ -3,6 +3,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { FILES, countTests, readClaims } from './test-counts.mjs';
 
 let failures = 0;
 const ok = (n, c, extra = '') => {
@@ -426,16 +427,20 @@ ok('splitting on ### behaves like the original', splitting.includes('getDelimite
 
 section('promises of the README');
 // The number of tests is the first thing to go stale in a README, and here it
-// is also the fork's central argument. It is counted, not believed.
-const countIts = (dir) => fs.readdirSync(dir, { recursive: true })
-  .filter((f) => String(f).endsWith('.test.ts'))
-  .reduce((n, f) => n + (read(path.join(dir, String(f))).match(/\bit\(/g)?.length ?? 0), 0);
-const nTests = countIts('src/test/unit') + countIts('src/test/integration');
-for (const f of ['docs/HTTPKEEPER.md', 'docs/HTTPKEEPER.es.md']) {
-  const promised = /\*\*(\d+)\*\*\s*\(/.exec(read(f))?.[1];
-  ok(`${f} promises the number of tests there are`, Number(promised) === nTests, `says ${promised}, there are ${nTests}`);
+// is also the fork's central argument. It is counted, not believed. It is a
+// floor, not an equality: a pull request that adds tests leaves the docs alone,
+// and the release PR brings them to the exact count (scripts/test-counts.mjs,
+// run by release-please.yml). What must never happen is promising more.
+const tests = countTests();
+for (const file of FILES) {
+  const claims = readClaims(file);
+  const over = claims.filter((c) => c.stated > tests[c.kind]);
+  ok(`${file} does not promise more tests than there are`,
+    claims.some((c) => c.kind === 'total') && over.length === 0,
+    over.length ? over.map((c) => `${c.kind} says ${c.stated}, there are ${tests[c.kind]}`).join(', ')
+      : claims.length ? `there are ${tests.total} (${tests.unit} + ${tests.integration})` : 'no <!-- tests:total --> tag');
 }
-ok('the unit tests that run are the ones written', Number(nUnit) === countIts('src/test/unit'), `${nUnit} running`);
+ok('the unit tests that run are the ones written', Number(nUnit) === tests.unit, `${nUnit} running`);
 ok('promises 400 packages', read('docs/HTTPKEEPER.md').includes('400') && readme.includes('400'));
 ok('promises zero telemetry', read('docs/HTTPKEEPER.md').toLowerCase().includes('none') && readme.toLowerCase().includes('telemetry removed'));
 

@@ -16,7 +16,7 @@ So the first thing this fork shipped was not a feature. It was the net.
 
 |                                    | Original             | RestClient                                             |
 | ---------------------------------- | -------------------- | ------------------------------------------------------ |
-| Tests                              | 0                    | **193** (124 unit, 69 integration against a real server) |
+| Tests                              | 0                    | **<!-- tests:total -->193<!-- /tests -->** (<!-- tests:unit -->124<!-- /tests --> unit, <!-- tests:integration -->69<!-- /tests --> integration against a real server) |
 | Vulnerabilities in production deps | 75 (6 critical)      | **0**                                                  |
 | Packages                           | 1,487                | **400**                                                |
 | Telemetry                          | Application Insights | **none**                                               |
