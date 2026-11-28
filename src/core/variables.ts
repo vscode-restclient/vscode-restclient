@@ -6,6 +6,47 @@
 /** The per-request setting that sends the text as it is, `{{…}}` included. */
 export const ALLOW_UNRESOLVED = 'allow-unresolved';
 
+const FILE_VARIABLE_LINE = /^\s*@([^\s=]+)\s*=/;
+const SEPARATOR_LINE = /^\s*#{3,}/;
+const DIRECTIVE_LINE = /^\s*(?:#+|\/{2,})\s*@[\w-]+/;
+const DESCRIPTION_LINE = /^\s*(?:#+|\/{2,})(.*)$/;
+
+/**
+ * The description of each file variable of a text: the `#` or `//` comment
+ * lines right above its `@name = value`, joined. A blank line, another
+ * variable, a `###` separator or a directive (`# @name`, `# @prompt`…) ends
+ * it, so a comment only describes the variable it sits on. When a variable
+ * is defined twice the last definition wins, as its value does, even if
+ * that one has no description. Only shown (hover, completion); the value is
+ * read as before.
+ */
+export function fileVariableDescriptions(text: string): Map<string, string> {
+    const descriptions = new Map<string, string>();
+    const lines = text.split(/\r?\n/);
+    for (const [index, line] of lines.entries()) {
+        const name = FILE_VARIABLE_LINE.exec(line)?.[1];
+        if (name === undefined) {
+            continue;
+        }
+        const parts: string[] = [];
+        for (let above = index - 1; above >= 0; above--) {
+            const comment = lines[above];
+            const m = DESCRIPTION_LINE.exec(comment);
+            if (!m || SEPARATOR_LINE.test(comment) || DIRECTIVE_LINE.test(comment)) {
+                break;
+            }
+            parts.unshift(m[1].trim());
+        }
+        const description = parts.filter(Boolean).join(' ');
+        if (description) {
+            descriptions.set(name, description);
+        } else {
+            descriptions.delete(name);
+        }
+    }
+    return descriptions;
+}
+
 const REFERENCE = /\{\{([^{}]+)\}\}/g;
 const COMMENT_LINE = /^\s*(?:#|\/\/)/;
 /** A file variable definition or an `import`: the parsers do not send these lines. */

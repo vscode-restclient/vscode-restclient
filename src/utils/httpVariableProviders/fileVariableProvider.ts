@@ -1,6 +1,7 @@
 import { TextDocument } from 'vscode';
 import * as Constants from '../../common/constants';
 import { closeImports } from '../../core/imports';
+import { fileVariableDescriptions } from '../../core/variables';
 import { DocumentCache } from '../../models/documentCache';
 import { ResolveErrorMessage } from '../../models/httpVariableResolveResult';
 import { VariableType } from '../../models/variableType';
@@ -10,7 +11,7 @@ import { HttpVariableProvider } from './httpVariableProvider';
 import { RequestVariableProvider } from './requestVariableProvider';
 import { SystemVariableProvider } from './systemVariableProvider';
 
-type FileVariableValue = Record<'name' | 'value', string>;
+type FileVariableValue = { name: string; value: string; description?: string };
 
 export class FileVariableProvider implements HttpVariableProvider {
     private static _instance: FileVariableProvider;
@@ -69,14 +70,15 @@ export class FileVariableProvider implements HttpVariableProvider {
             if (isEncoded) {
                 value = encodeURIComponent(value);
             }
-            return { name, value };
+            return { name, value, description: variable.description };
         }
     }
 
     public async getAll(document: TextDocument): Promise<HttpVariable[]> {
         const variables = await this.getFileVariables(document);
         const variableMap = await this.resolveFileVariables(document, variables);
-        return [...variableMap.entries()].map(([name, value]) => ({ name, value }));
+        const descriptions = new Map(variables.map(v => [v.name, v.description]));
+        return [...variableMap.entries()].map(([name, value]) => ({ name, value, description: descriptions.get(name) }));
     }
 
     /**
@@ -113,6 +115,8 @@ export class FileVariableProvider implements HttpVariableProvider {
         const texts = document.uri.scheme === 'file'
             ? [...closeImports(document.fileName, fileContent).imported.map(i => i.text), fileContent]
             : [fileContent];
+        // A blank line between texts: a comment at the end of one never describes the next one's first variable.
+        const descriptions = fileVariableDescriptions(texts.join('\n\n'));
         for (const line of texts.flatMap(t => t.split(Constants.LineSplitterRegex))) {
             const regex = new RegExp(Constants.FileVariableDefinitionRegex, 'g');
             let match: RegExpExecArray | null;
@@ -132,7 +136,7 @@ export class FileVariableProvider implements HttpVariableProvider {
                         value += currentChar;
                     }
                 }
-                variables.set(key, { name: key, value });
+                variables.set(key, { name: key, value, description: descriptions.get(key) });
             }
         }
 

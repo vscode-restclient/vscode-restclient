@@ -63,7 +63,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | Step | What it proves |
 | --- | --- |
 | `tsc --noEmit` | the extension compiles |
-| `test:unit` | 124 unit tests in plain Node |
+| `test:unit` | 128 unit tests in plain Node |
 | `build:cli` + `test:cli` | the runner compiles on its own and passes its end-to-end test (a real server, a chained `.http`, assertions, exit code) |
 | `test:mcp` | the MCP server, driven over stdio the way an agent does |
 | `test:l10n` | both languages complete, nothing extra |
@@ -71,7 +71,7 @@ l10n/, package.nls*.json  English and Spanish strings
 | `audit` | 105 checks, listed below |
 | `test:vsix` | packages the `.vsix`, installs it in a clean VS Code (in Spanish) and exercises it: the only test that sees what reaches the user |
 
-`npm run test:integration` runs the 69 integration tests inside a real VS Code
+`npm run test:integration` runs the 70 integration tests inside a real VS Code
 against `scripts/test-server.cjs`. It is separate because it takes a few
 minutes and needs a display (CI uses `xvfb-run` on Linux). The runner points
 the extension's state (`VSC_REST_CLIENT_HOME`) at a folder of the run, so the

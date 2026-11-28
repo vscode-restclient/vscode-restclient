@@ -76,3 +76,12 @@ export function isJSONString(text: string): boolean {
         return false;
     }
 }
+
+/**
+ * Text that Markdown shows as it is: its punctuation escaped, its blanks
+ * left alone (MarkdownString.appendText turns every space into &nbsp;,
+ * so a long line no longer wraps).
+ */
+export function escapeMarkdown(text: string): string {
+    return text.replace(/[\\`*_{}\[\]()#+\-.!|<>~&]/g, '\\$&');
+}
